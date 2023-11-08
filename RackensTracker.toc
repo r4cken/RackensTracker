@@ -1,8 +1,8 @@
 ## Interface: 30403
-## Title: Rackens Lockout Tracker
+## Title: Rackens Tracker
 ## Notes: Tracks your raid and dungeon lockouts across all your characters
 ## Author: Racken
-## SavedVariables: RackensLockoutTrackerDB
+## SavedVariables: RackensTrackerDB
 
 embeds.xml
-RackensLockoutTracker.lua
+RackensTracker.lua

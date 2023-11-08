@@ -21,7 +21,7 @@ local FormattingUtil, CreateTextureMarkup, AbbreviateNumbers, BreakUpLargeNumber
 local NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, RED_FONT_COLOR_CODE, GREEN_FONT_COLOR_CODE, ORANGE_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE =
 	  NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, RED_FONT_COLOR_CODE, GREEN_FONT_COLOR_CODE, ORANGE_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE
 
-RackensLockoutTracker = LibStub("AceAddon-3.0"):NewAddon("RackensLockoutTracker", "AceConsole-3.0", "AceEvent-3.0")
+RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceConsole-3.0", "AceEvent-3.0")
 local AceGUI = LibStub("AceGUI-3.0")
 
 local database_defaults = {
@@ -81,7 +81,7 @@ local database_defaults = {
 
 
 local function Log(message, ...)
-    RackensLockoutTracker:Printf(message, ...)
+    RackensTracker:Printf(message, ...)
 end
 
 
@@ -180,7 +180,7 @@ local function GetCharacterClass()
 end
 
 
-function RackensLockoutTracker:GetCharacterLockouts()
+function RackensTracker:GetCharacterLockouts()
 	local savedInstances = {}
 
 	local nSavedInstances = GetNumSavedInstances()
@@ -228,7 +228,7 @@ local EXCLUDED_CURRENCY = {
  }
 
 -- Update currency information for the currenct logged in character
-function RackensLockoutTracker:GetCharacterCurrencies()
+function RackensTracker:GetCharacterCurrencies()
 	local currencies = {}
 
 	local name, amount, iconFileID, earnedThisWeek, weeklyMax, totalMax, isDiscovered =  nil,nil,nil,nil,nil,nil,nil,nil;
@@ -260,19 +260,19 @@ function RackensLockoutTracker:GetCharacterCurrencies()
 	return currencies
 end
 
-function RackensLockoutTracker:TriggerUpdateInstanceInfo()
+function RackensTracker:TriggerUpdateInstanceInfo()
 	RequestRaidInfo()
 end
 
 
-function RackensLockoutTracker:UpdateCharacterLockouts()
+function RackensTracker:UpdateCharacterLockouts()
 	local savedInstances = self:GetCharacterLockouts()
 
 	self.charDB.savedInstances = savedInstances
 end
 
 
-function RackensLockoutTracker:UpdateCharacterCurrencies()
+function RackensTracker:UpdateCharacterCurrencies()
 	local currencies = self:GetCharacterCurrencies()
 
 	self.charDB.currencies = currencies
@@ -357,7 +357,7 @@ function DisplayInstance:Less(other)
 			and not self.isHeroic and other.isHeroic)
 end
 
-function RackensLockoutTracker:RetrieveAllSavedInstanceInformation()
+function RackensTracker:RetrieveAllSavedInstanceInformation()
 	-- Will contain elements with the keys
 	--[[
 		id = realmname.charactername, name = "Whacken", class = "ROGUE", colorName = "Whacken" 
@@ -417,7 +417,7 @@ end
 
 
 -- container is our TabGroup frame, has layout type "List"
-function RackensLockoutTracker:DrawInstancesGroup(container)
+function RackensTracker:DrawInstancesGroup(container)
 
 	local characters, raidInstances, dungeonInstances, lockoutInformation = self:RetrieveAllSavedInstanceInformation()
 
@@ -554,7 +554,7 @@ function RackensLockoutTracker:DrawInstancesGroup(container)
 end
 
 
-function RackensLockoutTracker:DrawCurrenciesGroup(container)
+function RackensTracker:DrawCurrenciesGroup(container)
 	-- Heading 
 	local description = AceGUI:Create("Heading")
 	description:SetText("Currencies")
@@ -566,9 +566,9 @@ end
 local function SelectTabGroup(container, event, group)
 	container:ReleaseChildren()
 	if (group == "instances") then
-		RackensLockoutTracker:DrawInstancesGroup(container)
+		RackensTracker:DrawInstancesGroup(container)
 	elseif (group == "currencies") then
-		RackensLockoutTracker:DrawCurrenciesGroup(container)
+		RackensTracker:DrawCurrenciesGroup(container)
 	end
 end
 
@@ -579,10 +579,10 @@ end
 
 -- The "Fill" Layout will use the first widget in the list, and fill the whole container with it. Its only useful for containers 
 
-function RackensLockoutTracker:CreateTrackerFrame()
+function RackensTracker:CreateTrackerFrame()
 	-- if (self.main_frame) then
 	-- 	DEFAULT_CHAT_FRAME:AddMessage("Closing and releasing all the widgets!")
-	-- 	RackensLockoutTracker:CloseTrackerFrame()
+	-- 	RackensTracker:CloseTrackerFrame()
 	-- end
 
 	self.main_frame = AceGUI:Create("Window")
@@ -615,11 +615,11 @@ function RackensLockoutTracker:CreateTrackerFrame()
 end
 
 
-function RackensLockoutTracker:OnInitialize()
+function RackensTracker:OnInitialize()
 	-- Called when the addon is Initialized
 	self.main_frame = nil
 
-	self.db = LibStub("AceDB-3.0"):New("RackensLockoutTrackerDB", database_defaults, true)
+	self.db = LibStub("AceDB-3.0"):New("RackensTrackerDB", database_defaults, true)
 	self.libDataBroker = LibStub("LibDataBroker-1.1", true)
 	self.libDBIcon = self.libDataBroker and LibStub("LibDBIcon-1.0", true)
 	local minimapBtn = self.libDataBroker:NewDataObject(addonName, {
@@ -645,7 +645,7 @@ function RackensLockoutTracker:OnInitialize()
 	end
 end
 
-function RackensLockoutTracker:OnEnable()
+function RackensTracker:OnEnable()
 	-- Called when the addon is enabled
 	
 	-- Load saved variables
@@ -674,7 +674,7 @@ function RackensLockoutTracker:OnEnable()
 
 	-- Register Slash Commands
 	self:RegisterChatCommand("RLT", "SlashCommand")
-	self:RegisterChatCommand("RackensLockoutTracker", "SlashCommand")
+	self:RegisterChatCommand("RackensTracker", "SlashCommand")
 
 	-- Request raid lockout information from the server
 	self:TriggerUpdateInstanceInfo()
@@ -683,19 +683,19 @@ function RackensLockoutTracker:OnEnable()
 	self:UpdateCharacterCurrencies()
 end
 
-function RackensLockoutTracker:OnDisable()
+function RackensTracker:OnDisable()
 	-- Called when the addon is disabled
 
 	self:UnregisterChatCommand("RLT")
-	self:UnregisterChatCommand("RackensLockoutTracker")
+	self:UnregisterChatCommand("RackensTracker")
 end
 
 local function slashCommandUsage()
-	DEFAULT_CHAT_FRAME:AddMessage("/RackensLockoutTracker" .. " minimap enable, enables the minimap button")
-	DEFAULT_CHAT_FRAME:AddMessage("/RackensLockoutTracker" .. " minimap disable, disables the minimap button")
+	DEFAULT_CHAT_FRAME:AddMessage("/RackensTracker" .. " minimap enable, enables the minimap button")
+	DEFAULT_CHAT_FRAME:AddMessage("/RackensTracker" .. " minimap disable, disables the minimap button")
 end
 
-function RackensLockoutTracker:SlashCommand(msg)
+function RackensTracker:SlashCommand(msg)
 	local command, value, _ = self:GetArgs(msg, 2)
 
 	if (command == nil or command:trim() == "") then
@@ -729,42 +729,42 @@ function RackensLockoutTracker:SlashCommand(msg)
 	end
 end
 
-function RackensLockoutTracker:OnEventPlayerEnteringWorld()
+function RackensTracker:OnEventPlayerEnteringWorld()
 	Log("OnEventPlayerEnteringWorld")
 	self:TriggerUpdateInstanceInfo()
 end
 
-function RackensLockoutTracker:OnEventBossKill()
+function RackensTracker:OnEventBossKill()
     Log("OnEventBossKill")
     self:TriggerUpdateInstanceInfo()
 end
 
-function RackensLockoutTracker:OnEventInstanceLockStart()
+function RackensTracker:OnEventInstanceLockStart()
     Log("OnEventInstanceLockStart")
     self:TriggerUpdateInstanceInfo()
 end
 
-function RackensLockoutTracker:OnEventInstanceLockStop()
+function RackensTracker:OnEventInstanceLockStop()
     Log("OnEventInstanceLockStop")
     self:TriggerUpdateInstanceInfo()
 end
 
-function RackensLockoutTracker:OnEventInstanceLockWarning()
+function RackensTracker:OnEventInstanceLockWarning()
     Log("OnEventInstanceLockWarning")
     self:TriggerUpdateInstanceInfo()
 end
 
-function RackensLockoutTracker:OnEventUpdateInstanceInfo()
+function RackensTracker:OnEventUpdateInstanceInfo()
     Log("OnEventUpdateInstanceInfo")
 	self:UpdateCharacterLockouts()
 end
 
-function RackensLockoutTracker:OnEventCurrencyDisplayUpdate()
+function RackensTracker:OnEventCurrencyDisplayUpdate()
 	Log("OnEventCurrencyDisplayUpdate")
 	self:UpdateCharacterCurrencies()
 end
 
-function RackensLockoutTracker:OnEventChatMsgCurrency(text, playerName)
+function RackensTracker:OnEventChatMsgCurrency(text, playerName)
 	Log("OnEventChatMsgCurrency")
 	if (playerName == UnitName("player")) then
 		-- We recieved a currency, update character currencies
