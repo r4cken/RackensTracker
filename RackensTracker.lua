@@ -324,7 +324,7 @@ function RackensTracker:OnInitialize()
 		OnClick = function(_, button)
 			if (button == "LeftButton") then
 				-- If the window is already created
-				self:CreateTrackerFrame()
+				self:OpenTrackerFrame()
 			end
 		end,
 		OnTooltipShow = function(tooltip)
@@ -402,41 +402,39 @@ function RackensTracker:OnDisable()
 end
 
 local function slashCommandUsage()
-	DEFAULT_CHAT_FRAME:AddMessage("/RackensTracker" .. " minimap enable, enables the minimap button")
-	DEFAULT_CHAT_FRAME:AddMessage("/RackensTracker" .. " minimap disable, disables the minimap button")
+	Log("\"/rackenstracker open\" opens the tracking window")
+	Log("\"/rackenstracker close\" closes the tracking window")
+	Log("\"/rackenstracker minimap enable\" enables the minimap button")
+	Log("\"/rackenstracker minimap disable\" disables the minimap button")
 end
 
 function RackensTracker:SlashCommand(msg)
 	local command, value, _ = self:GetArgs(msg, 2)
 
 	if (command == nil or command:trim() == "") then
-		if (value == "open") then
-			-- Open window displaying lockouts
-			return
-		elseif (value == "close") then
-			-- Close window displaying lockouts
-			return
-		else
-			-- Print addon usage to chat.
-			return slashCommandUsage()
-		end
 		return slashCommandUsage()
 	end
 
-	if (command == "minimap") then
+	if (command == "open") then
+		self:OpenTrackerFrame()
+	elseif (command == "close") then
+		self:CloseTrackerFrame()
+	elseif (command == "minimap") then
 		if (value == "enable") then
 			--Log("Enabling the minimap button")
 			self.db.char.minimap.hide = false
-			print("curr minimap hide state:" .. tostring(self.db.char.minimap.hide))
+			--print("curr minimap hide state:" .. tostring(self.db.char.minimap.hide))
 			self.libDBIcon:Show(addOnName)
 		elseif (value == "disable") then
 			--Log("Disabling the minimap button")
 			self.db.char.minimap.hide = true
-			print("curr minimap hide state:" .. tostring(self.db.char.minimap.hide))
+			--print("curr minimap hide state:" .. tostring(self.db.char.minimap.hide))
 			self.libDBIcon:Hide(addOnName)
 		else
 			return slashCommandUsage()
 		end
+	else
+		return slashCommandUsage()
 	end
 end
 
@@ -496,16 +494,6 @@ function RackensTracker:OnEventPlayerLevelUp(newLevel)
 	self:UpdateCharacterLevel(newLevel)
 end
 
--- GUI Code
-
-local function CreateDummyFrame()
-	local dummyFiller = AceGUI:Create("Label")
-	dummyFiller:SetText(" ")
-	dummyFiller:SetFullWidth(true)
-	dummyFiller:SetHeight(20)
-	return dummyFiller
-end
-
 
 local DUNGEON_LOCK_EXPIRE = string.format("%s %s", "Dungeon", LOCK_EXPIRE) -- TODO: AceLocale
 local RAID_LOCK_EXPIRE = string.format("%s %s", "Raid", LOCK_EXPIRE) -- TODO: AceLocale
@@ -527,6 +515,16 @@ function RackensTracker:GetLockoutTimeWithIcon(isRaid)
 	end
 
 	return nil
+end
+
+-- GUI Code
+
+local function CreateDummyFrame()
+	local dummyFiller = AceGUI:Create("Label")
+	dummyFiller:SetText(" ")
+	dummyFiller:SetFullWidth(true)
+	dummyFiller:SetHeight(20)
+	return dummyFiller
 end
 
 function RackensTracker:DrawCurrencies(container, characterName)
@@ -713,7 +711,14 @@ end
 -- The "List" Layout will simply stack all widgets on top of each other on the left side of the container.
 -- The "Fill" Layout will use the first widget in the list, and fill the whole container with it. Its only useful for containers 
 
-function RackensTracker:CreateTrackerFrame()
+function RackensTracker:CloseTrackerFrame()
+	if (self.tracker_frame and self.tracker_frame:IsVisible()) then
+		AceGUI:Release(self.tracker_frame)
+		self.tracker_frame = nil
+	end
+end
+
+function RackensTracker:OpenTrackerFrame()
 	-- No need to render and create the user interface again if its already created.
 	if (self.tracker_frame and self.tracker_frame:IsVisible()) then
 		return
