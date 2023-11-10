@@ -122,6 +122,7 @@ local function GetCharacterLockouts()
 	return savedInstances
 end
 
+-- TODO: Might not be needed as we retrive all currency information once we load a tab in the UI for the specified character.
 -- Update currency information for the currenct logged in character
 local function GetCharacterCurrencies()
 	local currencies = {}
@@ -528,6 +529,48 @@ function RackensTracker:GetLockoutTimeWithIcon(isRaid)
 	return nil
 end
 
+function RackensTracker:DrawCurrencies(container, characterName)
+
+	local labelHeight = 20
+
+	container:AddChild(CreateDummyFrame())
+
+	-- Heading 
+	local currenciesHeading = AceGUI:Create("Heading")
+	currenciesHeading:SetText("Currencies") -- TODO: Use AceLocale for things 
+	currenciesHeading:SetFullWidth(true)
+	container:AddChild(currenciesHeading)
+
+	container:AddChild(CreateDummyFrame())
+	
+	local currenciesGroup = AceGUI:Create("SimpleGroup")
+	currenciesGroup:SetLayout("Flow")
+	currenciesGroup:SetFullWidth(true)
+
+	local currencyDisplay
+	local colorName, icon, amount
+
+	for _, currency in ipairs(RT.Currencies) do
+		currencyDisplay = AceGUI:Create("Label")
+		currencyDisplay:SetHeight(labelHeight)
+		--currencyDisplay:SetRelativeWidth(1/#RT.Currencies + 0.15) -- Make each currency take up equal space
+		currencyDisplay:SetRelativeWidth(1/#RT.Currencies + 0.10) -- Make each currency take up equal space
+		colorName, icon, amount = currency:GetFullTextDisplay()
+
+		if (amount == 0) then
+			Log("Amount for token: " .. colorName .. " is 0")
+			local disabledAmount = RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, amount)
+			currencyDisplay:SetText(string.format("%s\n%s %s", colorName, icon, disabledAmount))
+		else 
+			currencyDisplay:SetText(string.format("%s\n%s %s", colorName, icon, amount))
+		end
+
+		currenciesGroup:AddChild(currencyDisplay)
+	end
+
+	container:AddChild(currenciesGroup)
+end
+
 function RackensTracker:DrawSavedInstances(container, characterName)
 	
 	local characterHasLockouts, raidInstances, dungeonInstances, lockoutInformation = self:RetrieveSavedInstanceInformation(characterName)
@@ -656,21 +699,13 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	-- If these arent added AFTER all the child objects have been added, the anchor points and positioning gets all screwed up : (
 	lockoutsGroup:AddChild(raidGroup)
 	lockoutsGroup:AddChild(dungeonGroup)
-
-
-	-- Heading 
-	-- local currenciesHeading = AceGUI:Create("Heading")
-	-- currenciesHeading:SetText("Currencies") -- TODO: Use AceLocale for things 
-	-- currenciesHeading:SetFullWidth(true)
-	-- container:AddChild(currenciesHeading)
-	-- container:AddChild(dummyFiller)
-
 end
 
 
 local function SelectCharacterTab(container, event, characterName)
 	container:ReleaseChildren()
 	RackensTracker:DrawSavedInstances(container, characterName)
+	RackensTracker:DrawCurrencies(container, characterName)
 end
 
 -- The "Flow" Layout will let widgets fill one row, and then flow into the next row if there isn't enough space left. 

@@ -41,18 +41,21 @@ RT.ChampionsSeal = Currency:New(241)
 RT.EpicureansAward = Currency:New(81)
 RT.JewelcraftersToken = Currency:New(61)
 RT.StoneKeepersShards = Currency:New(161)
-
+RT.HonorPoints = Currency:New(1901)
+RT.ArenaPoints = Currency:New(1900)
 -- RT.WintergraspMark = Currency:New(126)
 
 RT.Currencies = {
     RT.EmblemOfFrost,
     RT.EmblemOfTriumph,
-    RT.DefilersScourgeStone,
-    RT.SiderealEssence,
     RT.EmblemOfConquest,
     RT.EmblemOfValor,
     RT.EmblemOfHeroism,
-    RT.ChampionsSeal,
+    RT.DefilersScourgeStone,
+    RT.SiderealEssence,
+    --RT.ChampionsSeal,
+    RT.HonorPoints,
+    RT.ArenaPoints,
     RT.EpicureansAward,
     RT.JewelcraftersToken,
     RT.StoneKeepersShards,
@@ -66,6 +69,7 @@ RT.ExcludedCurrencyIds = {
     [125] = true, -- Warsong Gulch Mark of Honor
     [126] = true, -- Wintergrasp Mark of Honor
     [181] = true, -- Honor Points DEPRECATED2,
+    [241] = true, -- Champions' Seal
     [321] = true  -- Isle of Conquest Mark of Honor
 }
 

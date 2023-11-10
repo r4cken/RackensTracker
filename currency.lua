@@ -92,3 +92,19 @@ function Currency:GetAmount()
     local amount = C_CurrencyInfo.GetCurrencyInfo(self.id)["quantity"]
 end
 
+function Currency:GetFullTextDisplay()
+    local currency = C_CurrencyInfo.GetCurrencyInfo(self.id)
+    local name, quality = currency["name"], currency["quality"]
+    local amount = currency["quantity"]
+    local colorizedName = string.format("%s%s|r", ITEM_QUALITY_COLORS[quality].hex, name)
+
+    local icon = ""
+    -- The honor icon needs adjustment for its texture coordinates
+    if self.id == Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID then
+        icon = CreateTextureMarkup(currency["iconFileID"], 64, 64, iconSize, iconSize, 0.03125, 0.59375, 0.03125, 0.59375)
+    else
+        icon = CreateTextureMarkup(currency["iconFileID"], 64, 64, iconSize, iconSize, 0, 1, 0, 1)
+    end
+    return colorizedName, icon, amount
+end
+
