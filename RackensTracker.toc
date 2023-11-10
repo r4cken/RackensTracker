@@ -2,7 +2,7 @@
 ## Title: Rackens Tracker
 ## Notes: Tracks your raid and dungeon lockouts across all your characters
 ## Author: Racken
-## Version: 0.0.2
+## Version: 0.0.3
 ## SavedVariables: RackensTrackerDB
 
 embeds.xml
