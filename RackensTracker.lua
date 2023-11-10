@@ -360,13 +360,6 @@ end
 function RackensTracker:OnEnable()
 	-- Called when the addon is enabled
 
-	-- Store the known character names in RT
-	local knownCharacters = {}
-	for characterName in pairs(self.db.realm.characters) do
-		knownCharacters[characterName] = true
-	end
-	RT.knownCharacters = knownCharacters
-
 	local characterName = GetCharacterDatabaseID()
 
 	self.charDB = self.db.realm.characters[characterName]
@@ -508,6 +501,7 @@ local function CreateDummyFrame()
 	local dummyFiller = AceGUI:Create("Label")
 	dummyFiller:SetText(" ")
 	dummyFiller:SetFullWidth(true)
+	dummyFiller:SetHeight(20)
 	return dummyFiller
 end
 
@@ -539,8 +533,6 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	local characterHasLockouts, raidInstances, dungeonInstances, lockoutInformation = self:RetrieveSavedInstanceInformation(characterName)
 	local nRaids, nDungeons = #raidInstances.sorted, #dungeonInstances.sorted
 
-	Log("Character:" .. characterName)
-	Log("has lockouts?:" .. tostring(characterHasLockouts))
 	-- Heading 
 	local lockoutsHeading = AceGUI:Create("Heading")
 	-- Return after creation of the heading stating no lockouts were found.
@@ -600,9 +592,14 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	local raidGroup = AceGUI:Create("InlineGroup")
 	raidGroup:SetLayout("List")
 	raidGroup:SetTitle("Raids") -- TODO: AceLocale
+	raidGroup:SetFullHeight(true)
 	raidGroup:SetRelativeWidth(0.50) -- Half of the parent
 
-	lockoutsGroup:AddChild(raidGroup)
+	local dungeonGroup = AceGUI:Create("InlineGroup")
+	dungeonGroup:SetLayout("List")
+	dungeonGroup:SetTitle("Dungeons") -- TODO: AceLocale
+	dungeonGroup:SetFullHeight(true)
+	dungeonGroup:SetRelativeWidth(0.50) -- Half of the parent
 
 	-- Fill in the raids inside raidGroup.
 	-- There is a wierd problem where the containers raidGroup and dungeonGroup are not anchored to the top of the parent container.
@@ -612,6 +609,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	local hasMoreRaidsThanDungeons = nRaids > nDungeons
 
 	local instanceNameLabel, instanceProgressLabel, instanceColorizedName, instanceResetDatetime, instanceProgress = nil
+	local labelHeight = 20
 	local lockoutInfo = {}
 	for _, instance in ipairs(raidInstances.sorted) do
 		lockoutInfo = lockoutInformation[instance.id]
@@ -619,10 +617,12 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		instanceColorizedName = RT.Util:FormatColor(NORMAL_FONT_COLOR_CODE, "%s", instance.id)
 		instanceNameLabel:SetText(instanceColorizedName)
 		instanceNameLabel:SetFullWidth(true)
+		instanceNameLabel:SetHeight(labelHeight)
 		raidGroup:AddChild(instanceNameLabel)
 		instanceProgressLabel = AceGUI:Create("Label")
 		instanceProgressLabel:SetText(string.format("%s: %s", "Cleared", lockoutInfo.progress))
 		instanceProgressLabel:SetFullWidth(true)
+		instanceProgressLabel:SetHeight(labelHeight)
 		raidGroup:AddChild(instanceProgressLabel)
 	end
 
@@ -632,13 +632,6 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		end
 	end
 
-	local dungeonGroup = AceGUI:Create("InlineGroup")
-	dungeonGroup:SetLayout("List")
-	dungeonGroup:SetTitle("Dungeons") -- TODO: AceLocale
-	--dungeonGroup:SetFullHeight(true)
-	dungeonGroup:SetRelativeWidth(0.50) -- Half of the parent
-	lockoutsGroup:AddChild(dungeonGroup)
-
 	-- Fill in the character for this tab's dungeon lockouts
 	for _, instance in ipairs(dungeonInstances.sorted) do
 		lockoutInfo = lockoutInformation[instance.id]
@@ -646,10 +639,12 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		instanceColorizedName = RT.Util:FormatColor(NORMAL_FONT_COLOR_CODE, "%s", instance.id)
 		instanceNameLabel:SetText(instanceColorizedName)
 		instanceNameLabel:SetFullWidth(true)
+		instanceNameLabel:SetHeight(labelHeight)
 		dungeonGroup:AddChild(instanceNameLabel)
 		instanceProgressLabel = AceGUI:Create("Label")
 		instanceProgressLabel:SetText(string.format("%s: %s", "Cleared", lockoutInfo.progress))
 		instanceProgressLabel:SetFullWidth(true)
+		instanceProgressLabel:SetHeight(labelHeight)
 		dungeonGroup:AddChild(instanceProgressLabel)
 	end
 
@@ -658,6 +653,11 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 			dungeonGroup:AddChild(CreateDummyFrame())
 		end
 	end
+	-- If these arent added AFTER all the child objects have been added, the anchor points and positioning gets all screwed up : (
+	lockoutsGroup:AddChild(raidGroup)
+	lockoutsGroup:AddChild(dungeonGroup)
+
+
 	-- Heading 
 	-- local currenciesHeading = AceGUI:Create("Heading")
 	-- currenciesHeading:SetText("Currencies") -- TODO: Use AceLocale for things 
@@ -670,14 +670,7 @@ end
 
 local function SelectCharacterTab(container, event, characterName)
 	container:ReleaseChildren()
-	Log("SelectCharacterTab:" .. characterName)
-	for k in ipairs(RT.knownCharacters) do
-		Log("Known Characters are: " .. k)
-	end
-
-	if (RT.knownCharacters[characterName]) then
-		RackensTracker:DrawSavedInstances(container, characterName)
-	end
+	RackensTracker:DrawSavedInstances(container, characterName)
 end
 
 -- The "Flow" Layout will let widgets fill one row, and then flow into the next row if there isn't enough space left. 
@@ -694,11 +687,11 @@ function RackensTracker:CreateTrackerFrame()
 	self.tracker_frame = AceGUI:Create("Window")
 	self.tracker_frame:SetTitle(addOnName)
 	self.tracker_frame:SetLayout("Fill")
-	self.tracker_frame:SetWidth(620)
+	self.tracker_frame:SetWidth(640)
 	self.tracker_frame:SetHeight(500)
 
 	-- Minimum width and height when resizing the window.
-	self.tracker_frame.frame:SetResizeBounds(620, 500)
+	self.tracker_frame.frame:SetResizeBounds(640, 500)
 
 	self.tracker_frame:SetCallback("OnClose", function(widget)
 		-- Clear any local tables containing processed instances and currencies
