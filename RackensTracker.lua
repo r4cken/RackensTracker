@@ -545,6 +545,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	
 	local currenciesGroup = AceGUI:Create("SimpleGroup")
 	currenciesGroup:SetLayout("Flow")
+	currenciesGroup:SetFullHeight(true)
 	currenciesGroup:SetFullWidth(true)
 
 	local currencyDisplay
@@ -553,12 +554,11 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	for _, currency in ipairs(RT.Currencies) do
 		currencyDisplay = AceGUI:Create("Label")
 		currencyDisplay:SetHeight(labelHeight)
-		--currencyDisplay:SetRelativeWidth(1/#RT.Currencies + 0.15) -- Make each currency take up equal space
-		currencyDisplay:SetRelativeWidth(1/#RT.Currencies + 0.10) -- Make each currency take up equal space
+		currencyDisplay:SetRelativeWidth(1/#RT.Currencies + 0.10) -- Make each currency take up equal space and give each an extra 10%
 		colorName, icon, amount = currency:GetFullTextDisplay()
 
 		if (amount == 0) then
-			Log("Amount for token: " .. colorName .. " is 0")
+			--Log("Amount for token: " .. colorName .. " is 0")
 			local disabledAmount = RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, amount)
 			currencyDisplay:SetText(string.format("%s\n%s %s", colorName, icon, disabledAmount))
 		else 
@@ -736,7 +736,7 @@ function RackensTracker:CreateTrackerFrame()
 
 	-- Create our TabGroup
 	self.tracker_tabs = AceGUI:Create("TabGroup")
-
+	
 	-- The frames inside the selected tab are stacked
 	self.tracker_tabs:SetLayout("List")
 
@@ -770,4 +770,5 @@ function RackensTracker:CreateTrackerFrame()
 	self.tracker_tabs:SelectTab(initialCharacterTab)
 	-- Add the TabGroup to the main frame
 	self.tracker_frame:AddChild(self.tracker_tabs)
+
 end
