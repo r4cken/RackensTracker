@@ -5,4 +5,10 @@
 ## SavedVariables: RackensTrackerDB
 
 embeds.xml
+util.lua
+currency.lua
+currencies.lua
+container.lua
+instance.lua
+character.lua
 RackensTracker.lua
