@@ -739,6 +739,7 @@ function RackensTracker:CreateTrackerFrame()
 	
 	-- The frames inside the selected tab are stacked
 	self.tracker_tabs:SetLayout("List")
+	self.tracker_tabs:SetFullHeight(true)
 
 	-- Setup which tabs to show, one tab per character
 	local tabsData = {}
@@ -746,29 +747,70 @@ function RackensTracker:CreateTrackerFrame()
 	local tabIcon = ""
 	local tabName = ""
 
-	-- TODO: Enable configuration option to exclude certain characters or hide if below a level threshold.
-	-- Add the current character first
-	tabIcon = RackensTracker:GetCharacterIcon(self.charDB.class, tabIconSize)
-	tabName = RT.Util:FormatColorClass(self.charDB.class, self.charDB.name)
-	table.insert(tabsData, { text=string.format("%s %s", tabIcon, tabName), value=self.charDB.name})
+
+	-- TODO: Enable configuration options to include certain characters regardless of their level.
+	--		 Currently only create tabs for each level 80 character and if none is found, we display a helpful message.
 
 	local initialCharacterTab = self.charDB.name
+	local isInitialCharacterMaxLevel = false
 
-	-- Rest of the characters after
+	-- Create one tab per level 80 character 
 	for characterName, character in pairs(self.db.realm.characters) do
-		if characterName ~= self.charDB.name then
+		if (character.level == GetMaxPlayerLevel()) then
+			isInitialCharacterMaxLevel = character.name == self.charDB.name and character.level == GetMaxPlayerLevel()
 			tabIcon = RackensTracker:GetCharacterIcon(character.class, tabIconSize)
 			tabName = RT.Util:FormatColorClass(character.class, character.name)
 			table.insert(tabsData, { text=string.format("%s %s", tabIcon, tabName), value=characterName})
 		end
 	end
 
-	self.tracker_tabs:SetTabs(tabsData)
-	-- Register callbacks on tab selected
-	self.tracker_tabs:SetCallback("OnGroupSelected", SelectCharacterTab)
-	-- Set initial tab to the current character
-	self.tracker_tabs:SelectTab(initialCharacterTab)
-	-- Add the TabGroup to the main frame
-	self.tracker_frame:AddChild(self.tracker_tabs)
+	-- Do we have ANY level 80 characters at all?
+	local isAnyCharacterMaxLevel = #tabsData > 0
+	if (isAnyCharacterMaxLevel) then
+		self.tracker_tabs:SetTabs(tabsData)
+		-- Register callbacks on tab selected
+		self.tracker_tabs:SetCallback("OnGroupSelected", SelectCharacterTab)
 
+		
+		if (isInitialCharacterMaxLevel) then
+			-- Set initial tab to the current character
+			self.tracker_tabs:SelectTab(initialCharacterTab)
+		else 
+			-- If the current character is not level 80, set initial tab to the first available level 80 character 
+			self.tracker_tabs:SelectTab(tabsData[1].value)
+		end
+
+		-- Add the TabGroup to the main frame
+		self.tracker_frame:AddChild(self.tracker_tabs)
+	else
+		local noTrackingInformationGroup = AceGUI:Create("SimpleGroup")
+		noTrackingInformationGroup:SetLayout("List")
+		noTrackingInformationGroup:SetFullWidth(true)
+		noTrackingInformationGroup:SetFullHeight(true)
+
+		noTrackingInformationGroup:AddChild(CreateDummyFrame())
+
+		-- Add a Heading to the main frame with information stating that no tracking information is available, must have logged in to a level 80 character once to enable tracking.
+		local noTrackingInformationAvailable = AceGUI:Create("Heading")
+		noTrackingInformationAvailable:SetText("No tracking information available")
+		noTrackingInformationAvailable:SetFullWidth(true)
+		noTrackingInformationGroup:AddChild(noTrackingInformationAvailable)
+
+		noTrackingInformationGroup:AddChild(CreateDummyFrame())
+		
+		-- Add a more descriptive label explaining why
+		local noTrackingDetailedInformation = AceGUI:Create("Label")
+		noTrackingDetailedInformation:SetFullWidth(true)
+		noTrackingDetailedInformation:SetText("RackensTracker has not seen any max level characters log in to the game so it has no instance lockout or currency information available for display.")
+		noTrackingInformationGroup:AddChild(noTrackingDetailedInformation)
+
+		noTrackingInformationGroup:AddChild(CreateDummyFrame())
+
+		noTrackingDetailedInformation = AceGUI:Create("Label")
+		noTrackingDetailedInformation:SetFullWidth(true)
+		noTrackingDetailedInformation:SetText("You must log in to a max level character (level 80) to display tracking information. Only max level characters are currently tracked. This will change in the future through AddOn options")
+		noTrackingInformationGroup:AddChild(noTrackingDetailedInformation)
+
+		self.tracker_frame:AddChild(noTrackingInformationGroup)
+	end
 end
