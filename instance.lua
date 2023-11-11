@@ -1,15 +1,8 @@
 local addOnName, RT = ...
 
-local DEFAULT_ICON_SIZE = 16
-
 local setmetatable, string = 
       setmetatable, string
 
-local SecondsToTime = SecondsToTime
-local LOCK_EXPIRE = LOCK_EXPIRE
-
-local DUNGEON_LOCK_EXPIRE = string.format("%s %s", "Dungeon", LOCK_EXPIRE) -- TODO: AceLocale
-local RAID_LOCK_EXPIRE = string.format("%s %s", "Raid", LOCK_EXPIRE) -- TODO: AceLocale
 local Instance = {}
 RT.Instance = Instance
 

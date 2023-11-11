@@ -9,8 +9,8 @@ local GetServerTime, SecondsToTime, C_DateAndTime =
 local RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstanceInfo = 
 	  RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstanceInfo
 
-local C_CurrencyInfo, GetCurrencyInfo = 
-	  C_CurrencyInfo, GetCurrencyInfo
+local C_CurrencyInfo = 
+	  C_CurrencyInfo
 
 local UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup = 
 	  UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup
@@ -19,11 +19,8 @@ local NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, F
 	  NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE
 
 
-local DUNGEON_LOCK_EXPIRE = string.format("%s %s", "Dungeon", LOCK_EXPIRE .. "s in") -- TODO: AceLocale
-local RAID_LOCK_EXPIRE = string.format("%s %s", "Raid", LOCK_EXPIRE .. "s in") -- TODO: AceLocale
-
-
 local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceConsole-3.0", "AceEvent-3.0")
+local L = LibStub("AceLocale-3.0"):GetLocale("RackensTracker", true)
 local AceGUI = LibStub("AceGUI-3.0")
 
 local database_defaults = {
@@ -242,7 +239,7 @@ function RackensTracker:OnInitialize()
 		end,
 		OnTooltipShow = function(tooltip)
 			tooltip:AddLine(HIGHLIGHT_FONT_COLOR_CODE.. addOnName .. FONT_COLOR_CODE_CLOSE )
-			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. "Left click: " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. "open the lockout tracker window" .. FONT_COLOR_CODE_CLOSE)
+			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. L["minimapLeftClickAction"] .. " " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. L["minimapLeftClickDescription"] .. FONT_COLOR_CODE_CLOSE)
 		end,
 	})
 
@@ -435,11 +432,11 @@ function RackensTracker:GetLockoutTimeWithIcon(isRaid)
 	local iconMarkup = ""
 	if (isRaid and self.db.realm.secondsToWeeklyReset) then
 		iconMarkup = CreateTextureMarkup(raidFileIconID, 64, 64, 16, 16, 0, 1, 0, 1)
-		return string.format("%s %s: %s", iconMarkup, RAID_LOCK_EXPIRE, SecondsToTime(self.db.realm.secondsToWeeklyReset, true, nil, 3))
+		return string.format("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], SecondsToTime(self.db.realm.secondsToWeeklyReset, true, nil, 3))
 	end
 	if (isRaid == false and self.db.realm.secondsToDailyReset) then
 		iconMarkup = CreateTextureMarkup(dungeonFileIconID, 64, 64, 16, 16, 0, 1, 0, 1)
-		return string.format("%s %s: %s", iconMarkup, DUNGEON_LOCK_EXPIRE, SecondsToTime(self.db.realm.secondsToDailyReset, true, nil, 3))
+		return string.format("%s %s: %s", iconMarkup, L["dungeonLockExpiresIn"], SecondsToTime(self.db.realm.secondsToDailyReset, true, nil, 3))
 	end
 end
 
@@ -461,7 +458,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 
 	-- Heading 
 	local currenciesHeading = AceGUI:Create("Heading")
-	currenciesHeading:SetText("Currencies") -- TODO: Use AceLocale for things 
+	currenciesHeading:SetText(L["currencies"]) -- TODO: Use AceLocale for things 
 	currenciesHeading:SetFullWidth(true)
 	container:AddChild(currenciesHeading)
 
@@ -516,13 +513,13 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	local lockoutsHeading = AceGUI:Create("Heading")
 	-- Return after creation of the heading stating no lockouts were found.
 	if (characterHasLockouts == false) then
-		lockoutsHeading:SetText("No lockouts") -- TODO: Use AceLocale for things 
+		lockoutsHeading:SetText(L["noLockouts"])
 		lockoutsHeading:SetFullWidth(true)
 		container:AddChild(lockoutsHeading)
 		return
 	end
 
-	lockoutsHeading:SetText("Lockouts") -- TODO: Use AceLocale for things 
+	lockoutsHeading:SetText(L["lockouts"])
 	lockoutsHeading:SetFullWidth(true)
 	container:AddChild(lockoutsHeading)
 
@@ -558,13 +555,13 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	
 	local raidGroup = AceGUI:Create("InlineGroup")
 	raidGroup:SetLayout("List")
-	raidGroup:SetTitle("Raids") -- TODO: AceLocale
+	raidGroup:SetTitle(L["raids"]) -- TODO: AceLocale
 	raidGroup:SetFullHeight(true)
 	raidGroup:SetRelativeWidth(0.50) -- Half of the parent
 
 	local dungeonGroup = AceGUI:Create("InlineGroup")
 	dungeonGroup:SetLayout("List")
-	dungeonGroup:SetTitle("Dungeons") -- TODO: AceLocale
+	dungeonGroup:SetTitle(L["dungeons"]) -- TODO: AceLocale
 	dungeonGroup:SetFullHeight(true)
 	dungeonGroup:SetRelativeWidth(0.50) -- Half of the parent
 
@@ -587,7 +584,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		instanceNameLabel:SetHeight(labelHeight)
 		raidGroup:AddChild(instanceNameLabel)
 		instanceProgressLabel = AceGUI:Create("Label")
-		instanceProgressLabel:SetText(string.format("%s: %s", "Cleared", lockoutInfo.progress))
+		instanceProgressLabel:SetText(string.format("%s: %s", L["cleared"], lockoutInfo.progress)) -- TODO: AceLocale
 		instanceProgressLabel:SetFullWidth(true)
 		instanceProgressLabel:SetHeight(labelHeight)
 		raidGroup:AddChild(instanceProgressLabel)
@@ -609,7 +606,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		instanceNameLabel:SetHeight(labelHeight)
 		dungeonGroup:AddChild(instanceNameLabel)
 		instanceProgressLabel = AceGUI:Create("Label")
-		instanceProgressLabel:SetText(string.format("%s: %s", "Cleared", lockoutInfo.progress))
+		instanceProgressLabel:SetText(string.format("%s: %s", L["cleared"], lockoutInfo.progress)) -- TODO: AceLocale
 		instanceProgressLabel:SetFullWidth(true)
 		instanceProgressLabel:SetHeight(labelHeight)
 		dungeonGroup:AddChild(instanceProgressLabel)
@@ -673,7 +670,6 @@ function RackensTracker:OpenTrackerFrame()
 	local tabIcon = ""
 	local tabName = ""
 
-
 	-- TODO: Enable configuration options to include certain characters regardless of their level.
 	--		 Currently only create tabs for each level 80 character and if none is found, we display a helpful message.
 
@@ -719,7 +715,7 @@ function RackensTracker:OpenTrackerFrame()
 
 		-- Add a Heading to the main frame with information stating that no tracking information is available, must have logged in to a level 80 character once to enable tracking.
 		local noTrackingInformationAvailable = AceGUI:Create("Heading")
-		noTrackingInformationAvailable:SetText("No tracking information available")
+		noTrackingInformationAvailable:SetText(L["noTrackingAvailable"])
 		noTrackingInformationAvailable:SetFullWidth(true)
 		noTrackingInformationGroup:AddChild(noTrackingInformationAvailable)
 
@@ -728,14 +724,14 @@ function RackensTracker:OpenTrackerFrame()
 		-- Add a more descriptive label explaining why
 		local noTrackingDetailedInformation = AceGUI:Create("Label")
 		noTrackingDetailedInformation:SetFullWidth(true)
-		noTrackingDetailedInformation:SetText("RackensTracker has not seen any max level characters log in to the game so it has no instance lockout or currency information available for display.")
+		noTrackingDetailedInformation:SetText(L["noTrackingAvailableDescription1"])
 		noTrackingInformationGroup:AddChild(noTrackingDetailedInformation)
 
 		noTrackingInformationGroup:AddChild(CreateDummyFrame())
 
 		noTrackingDetailedInformation = AceGUI:Create("Label")
 		noTrackingDetailedInformation:SetFullWidth(true)
-		noTrackingDetailedInformation:SetText("You must log in to a max level character (level 80) to display tracking information. Only max level characters are currently tracked. This will change in the future through AddOn options")
+		noTrackingDetailedInformation:SetText(L["noTrackingAvailableDescription2"])
 		noTrackingInformationGroup:AddChild(noTrackingDetailedInformation)
 
 		self.tracker_frame:AddChild(noTrackingInformationGroup)

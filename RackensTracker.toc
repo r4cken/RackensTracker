@@ -6,6 +6,7 @@
 ## SavedVariables: RackensTrackerDB
 
 embeds.xml
+Locale\Locales.xml
 util.lua
 currency.lua
 currencies.lua

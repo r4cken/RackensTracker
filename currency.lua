@@ -31,6 +31,7 @@ local addOnName, RT = ...
 local DEFAULT_ICON_SIZE = 16
 
 local ITEM_QUALITY_COLORS = ITEM_QUALITY_COLORS
+local Constants = Constants
 
 local Currency = {}
 RT.Currency = Currency
