@@ -356,42 +356,42 @@ function RackensTracker:TriggerUpdateInstanceInfo()
 end
 
 function RackensTracker:OnEventPlayerEnteringWorld()
-	Log("OnEventPlayerEnteringWorld")
+	--Log("OnEventPlayerEnteringWorld")
 	self:TriggerUpdateInstanceInfo()
 end
 
 function RackensTracker:OnEventBossKill()
-    Log("OnEventBossKill")
+    --Log("OnEventBossKill")
     self:TriggerUpdateInstanceInfo()
 end
 
 function RackensTracker:OnEventInstanceLockStart()
-    Log("OnEventInstanceLockStart")
+    --Log("OnEventInstanceLockStart")
     self:TriggerUpdateInstanceInfo()
 end
 
 function RackensTracker:OnEventInstanceLockStop()
-    Log("OnEventInstanceLockStop")
+    --Log("OnEventInstanceLockStop")
     self:TriggerUpdateInstanceInfo()
 end
 
 function RackensTracker:OnEventInstanceLockWarning()
-    Log("OnEventInstanceLockWarning")
+    --Log("OnEventInstanceLockWarning")
     self:TriggerUpdateInstanceInfo()
 end
 
 function RackensTracker:OnEventUpdateInstanceInfo()
-    Log("OnEventUpdateInstanceInfo")
+    --Log("OnEventUpdateInstanceInfo")
 	self:UpdateCharacterLockouts()
 end
 
 function RackensTracker:OnEventCurrencyDisplayUpdate()
-	Log("OnEventCurrencyDisplayUpdate")
+	--Log("OnEventCurrencyDisplayUpdate")
 	self:UpdateCharacterCurrencies()
 end
 
 function RackensTracker:OnEventChatMsgCurrency(text, playerName)
-	Log("OnEventChatMsgCurrency")
+	--Log("OnEventChatMsgCurrency")
 	if (playerName == UnitName("player")) then
 		-- We recieved a currency, update character currencies
 		-- TODO: maybe use lua pattern matching and match groups to extract the item name and
@@ -683,7 +683,9 @@ function RackensTracker:OpenTrackerFrame()
 	-- Create one tab per level 80 character 
 	for characterName, character in pairs(self.db.realm.characters) do
 		if (character.level == GetMaxPlayerLevel()) then
-			isInitialCharacterMaxLevel = character.name == self.charDB.name and character.level == GetMaxPlayerLevel()
+			if (character.name == initialCharacterTab and character.level == GetMaxPlayerLevel()) then
+				isInitialCharacterMaxLevel = true
+			end
 			tabIcon = RackensTracker:GetCharacterIcon(character.class, tabIconSize)
 			tabName = RT.Util:FormatColorClass(character.class, character.name)
 			table.insert(tabsData, { text=string.format("%s %s", tabIcon, tabName), value=characterName})
@@ -696,7 +698,6 @@ function RackensTracker:OpenTrackerFrame()
 		self.tracker_tabs:SetTabs(tabsData)
 		-- Register callbacks on tab selected
 		self.tracker_tabs:SetCallback("OnGroupSelected", SelectCharacterTab)
-
 		
 		if (isInitialCharacterMaxLevel) then
 			-- Set initial tab to the current character
