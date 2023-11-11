@@ -43,7 +43,14 @@ RT.JewelcraftersToken = Currency:New(61)
 RT.StoneKeepersShards = Currency:New(161)
 RT.HonorPoints = Currency:New(1901)
 RT.ArenaPoints = Currency:New(1900)
--- RT.WintergraspMark = Currency:New(126)
+-- RT.AlteracValleyMarks = Currency:New(121)
+-- RT.ArathiBasinMarks = Currency:New(122)
+-- RT.EyeOfTheStormMarks = Currency:New(123)
+-- RT.StrandOfTheAncientsMarks = Currency:New(124)
+-- RT.WarsongGulchMarks = Currency:New(125)
+-- RT.WintergraspMarks = Currency:New(126)
+-- RT.IsleOfConquestMarks = Currency:New(321)
+
 
 RT.Currencies = {
     RT.EmblemOfFrost,
@@ -53,12 +60,14 @@ RT.Currencies = {
     RT.EmblemOfHeroism,
     RT.DefilersScourgeStone,
     RT.SiderealEssence,
-    --RT.ChampionsSeal,
+    RT.ChampionsSeal,
     RT.HonorPoints,
     RT.ArenaPoints,
+    RT.StoneKeepersShards,
     RT.EpicureansAward,
     RT.JewelcraftersToken,
-    RT.StoneKeepersShards,
+    -- TODO: Maybe add the Wintergrasp Mark of Honor currency, but make sure to handle it properly with the hide/show options
+    --RT.WintergraspMarks,
 }
 
 RT.ExcludedCurrencyIds = {  
@@ -69,7 +78,6 @@ RT.ExcludedCurrencyIds = {
     [125] = true, -- Warsong Gulch Mark of Honor
     [126] = true, -- Wintergrasp Mark of Honor
     [181] = true, -- Honor Points DEPRECATED2,
-    [241] = true, -- Champions' Seal
     [321] = true  -- Isle of Conquest Mark of Honor
 }
 

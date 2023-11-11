@@ -30,14 +30,56 @@
 local addOnName, RT = ...
 local DEFAULT_ICON_SIZE = 16
 
+local ITEM_QUALITY_COLORS = ITEM_QUALITY_COLORS
+
 local Currency = {}
 RT.Currency = Currency
 
-function Currency:New(id, unlimited)
-    local currency = { id = id, unlimited = unlimited }
+function Currency:New(id)
+    local currency = { id = id }
     setmetatable(currency, self)
     self.__index = self
     return currency
+end
+
+-- Returns the localized name of the currency provided.
+function Currency:GetName()
+    self.name = self.name or C_CurrencyInfo.GetCurrencyInfo(self.id)["name"]
+    return self.name
+end
+
+function Currency:GetColorizedName()
+    local currency = C_CurrencyInfo.GetCurrencyInfo(self.id)
+    local name, quality = currency["name"], currency["quality"]
+    local colorizedName = string.format("%s%s|r", ITEM_QUALITY_COLORS[quality].hex, name)
+    self.colorizedName = self.colorizedName or colorizedName
+    return self.colorizedName
+end
+
+function Currency:GetIcon(iconSize)
+    iconSize = iconSize or DEFAULT_ICON_SIZE
+
+    local fileID = C_CurrencyInfo.GetCurrencyInfo(self.id)["iconFileID"]
+    local iconTexture = ""
+
+    -- The honor icon needs adjustment for its texture coordinates
+    if self.id == Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID then
+        iconTexture = CreateTextureMarkup(fileID, 64, 64, iconSize, iconSize, 0.03125, 0.59375, 0.03125, 0.59375)
+    else
+        iconTexture = CreateTextureMarkup(fileID, 64, 64, iconSize, iconSize, 0, 1, 0, 1)
+    end
+
+    self.icon = self.icon or iconTexture
+    return self.icon
+end
+
+-- Returns the current amount of a currency the player has, or a provided overrideAmount is used
+function Currency:GetAmount(overrideAmount)
+    if (overrideAmount) then
+        return overrideAmount
+    else
+        self.quantity = self.quantity or C_CurrencyInfo.GetCurrencyInfo(self.id)["quantity"]
+    end
 end
 
 function Currency:__eq(other)
@@ -47,64 +89,3 @@ end
 function Currency:__lt(other)
     return self.order < other.order
 end
-
--- GetCurrencyString(currencyID, overrideAmount, colorCode, abbreviate)
-local GetAmountWithIcon = GetCurrencyString
-
-local function GetNameWithIconSize(currencyID, iconSize)
-   local currency = C_CurrencyInfo.GetCurrencyInfo(currencyID)
-   local iconMarkup = ""
-   -- The honor icon needs adjustment for its texture coordinates
-   if currencyID == Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID then
-      iconMarkup = CreateTextureMarkup(currency["iconFileID"], 64, 64, iconSize, iconSize, 0.03125, 0.59375, 0.03125, 0.59375)
-   else
-      iconMarkup = CreateTextureMarkup(currency["iconFileID"], 64, 64, iconSize, iconSize, 0, 1, 0, 1)
-   end
-   return string.format("%s%s", iconMarkup, currency["name"])
-end
-
--- Returns the localized name of the currency provided.
-function Currency:GetName()
-    return C_CurrencyInfo.GetCurrencyInfo(self.id)["name"]
-end
-
-function Currency:GetColorizedName()
-    local currency = C_CurrencyInfo.GetCurrencyInfo(self.id)
-    local name, quality = currency["name"], currency["quality"]
-    return string.format("%s%s|r", ITEM_QUALITY_COLORS[quality].hex, name)
-end
-
--- Creates a string with the icon and name of the provided currency.
-function Currency:GetNameWithIcon()
-    self.nameWithIcon = self.nameWithIcon or GetNameWithIconSize(self.id, DEFAULT_ICON_SIZE)
-    return self.nameWithIcon
-end
-
- -- Creates a string with the icon and amount of the provided currency.
-function Currency:GetAmountWithIcon()
-    local amount = C_CurrencyInfo.GetCurrencyInfo(self.id)["quantity"]
-    self.amountWithIcon = self.amountWithIcon or GetAmountWithIcon(self.id, amount)
-    return self.amountWithIcon
-end
-
--- Returns the amount of currency the player has for the currency provided.
-function Currency:GetAmount()
-    local amount = C_CurrencyInfo.GetCurrencyInfo(self.id)["quantity"]
-end
-
-function Currency:GetFullTextDisplay()
-    local currency = C_CurrencyInfo.GetCurrencyInfo(self.id)
-    local name, quality = currency["name"], currency["quality"]
-    local amount = currency["quantity"]
-    local colorizedName = string.format("%s%s|r", ITEM_QUALITY_COLORS[quality].hex, name)
-
-    local icon = ""
-    -- The honor icon needs adjustment for its texture coordinates
-    if self.id == Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID then
-        icon = CreateTextureMarkup(currency["iconFileID"], 64, 64, iconSize, iconSize, 0.03125, 0.59375, 0.03125, 0.59375)
-    else
-        icon = CreateTextureMarkup(currency["iconFileID"], 64, 64, iconSize, iconSize, 0, 1, 0, 1)
-    end
-    return colorizedName, icon, amount
-end
-

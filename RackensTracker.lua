@@ -1,10 +1,10 @@
 local addOnName, RT = ...
 
-local table, math, type, string, strsplit, pairs, ipairs = 
-	  table, math, type, string, strsplit, pairs, ipairs
+local table, math, type, string, pairs, ipairs = 
+	  table, math, type, string, pairs, ipairs
 
-local GetServerTime, SecondsToTime = 
-	  GetServerTime, SecondsToTime
+local GetServerTime, SecondsToTime, C_DateAndTime = 
+	  GetServerTime, SecondsToTime, C_DateAndTime
 
 local RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstanceInfo = 
 	  RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstanceInfo
@@ -19,7 +19,9 @@ local NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, F
 	  NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE
 
 
-local CLASS_ICON_TCOORDS = CLASS_ICON_TCOORDS -- see Blizz UI SharedConstants.lua
+local DUNGEON_LOCK_EXPIRE = string.format("%s %s", "Dungeon", LOCK_EXPIRE .. "s in") -- TODO: AceLocale
+local RAID_LOCK_EXPIRE = string.format("%s %s", "Raid", LOCK_EXPIRE .. "s in") -- TODO: AceLocale
+
 
 local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceConsole-3.0", "AceEvent-3.0")
 local AceGUI = LibStub("AceGUI-3.0")
@@ -32,8 +34,8 @@ local database_defaults = {
 		}
 	},
 	realm = {
-		currentlyKnownRaidResetTime = nil,
-		currentlyKnownDungeonResetTime = nil,
+		secondsToWeeklyReset = nil,
+		secondsToDailyReset = nil,
 		characters = {
 			--Indexed by characterName
 			--[[
@@ -58,16 +60,15 @@ local database_defaults = {
 						}
 					},
 					currencies = {
-						{
-							currencyID = currencyID,
-							name = name,
-							amount = amount,
-							quality = currencyData.quality,
-							iconFileID = iconFileID,
-							earnedThisWeek = earnedThisWeek,
-							weeklyMax = weeklyMax,
-							totalMax = totalMax,
-							isDiscovered = isDiscovered
+						[currencyID] = 	{
+							[currencyID] = currencyID,
+							[name] = currency.name,
+							[description] = currency.description or "",
+							[quantity] = currency.quantity,
+							[maxQuantity] = currency.maxQuantity,
+							[quality] = currency.quality,
+							[iconFileID] = currency.iconFileID,
+							[discovered] = currency.discovered
 						}
 					}
 				}
@@ -75,9 +76,10 @@ local database_defaults = {
 			['*'] = {
 				name = nil,
 				class = nil,
+				level = nil,
 				realm = nil,
 				savedInstances = {},
-				currencies = {}
+				currencies = {},
 			}
 		}
 	}
@@ -122,35 +124,29 @@ local function GetCharacterLockouts()
 	return savedInstances
 end
 
--- TODO: Might not be needed as we retrive all currency information once we load a tab in the UI for the specified character.
--- Update currency information for the currenct logged in character
+
 local function GetCharacterCurrencies()
 	local currencies = {}
-
-	local name, amount, iconFileID, earnedThisWeek, weeklyMax, totalMax, isDiscovered =  nil,nil,nil,nil,nil,nil,nil,nil;
-	local currencyData, quality
-
 	-- Iterate over all known currency ID's
 	for currencyID = 61, 3000, 1 do
-		name, amount, iconFileID, earnedThisWeek, weeklyMax, totalMax, isDiscovered = GetCurrencyInfo(currencyID);
-		
+		-- Exclude Mark of Honor currencies, who cares about those anyway.
 		if (not RT.ExcludedCurrencyIds[currencyID]) then
-			currencyData = C_CurrencyInfo.GetCurrencyInfo(currencyID)
-			if name ~= nil and name:trim() ~= "" and currencyData ~= nil then
-				table.insert(currencies, {
+		   currency = C_CurrencyInfo.GetCurrencyInfo(currencyID)
+		   if currency and currency.name ~= nil and currency.name:trim() ~= "" then
+			currencies[currencyID] = 
+				{
 					currencyID = currencyID,
-					name = name,
-					amount = amount,
-					quality = currencyData.quality,
-					iconFileID = iconFileID,
-					earnedThisWeek = earnedThisWeek,
-					weeklyMax = weeklyMax,
-					totalMax = totalMax,
-					isDiscovered = isDiscovered
-				})
-			end
+					name = currency.name,
+					description = currency.description or "",
+					quantity = currency.quantity,
+					maxQuantity = currency.maxQuantity,
+					quality = currency.quality,
+					iconFileID = currency.iconFileID,
+					discovered = currency.discovered
+				}
+		   end
 		end
-	end
+	 end
 
 	return currencies
 end
@@ -173,80 +169,7 @@ function RackensTracker:UpdateCharacterLevel(newLevel)
 	self.charDB.level = newLevel
 end
 
--- function RackensTracker:RetrieveAllSavedInstanceInformation()
--- 	-- Will contain elements with the keys
--- 	--[[
--- 		id = realmname.charactername, name = "Whacken", class = "ROGUE", colorName = "Whacken" 
--- 	--]]
--- 	local characters = RT.Container:New()
--- 	local raidInstances = RT.Container:New()
--- 	local dungeonInstances = RT.Container:New()
--- 	local lockoutInformation = {}
-	
--- 	for characterID, character in pairs(self.db.realm.characters) do
--- 		local characterHasLockouts = false
-
--- 		for _, savedInstance in pairs(character.savedInstances) do
--- 			if savedInstance.resetsIn + GetServerTime() > GetServerTime() then
--- 				local isRaid = savedInstance.isRaid
--- 				if isRaid == nil then
--- 					isRaid = true
--- 				end
-
--- 				local instance = RT.Instance:New(
--- 					savedInstance.instanceName,
--- 					savedInstance.instanceID,
--- 					savedInstance.lockoutID,
--- 					savedInstance.resetsIn,
--- 					savedInstance.isRaid,
--- 					savedInstance.isHeroic,
--- 					savedInstance.maxPlayers,
--- 					savedInstance.difficultyID,
--- 					savedInstance.difficultyName,
--- 					savedInstance.encountersTotal,
--- 					savedInstance.encountersCompleted)
--- 					if (isRaid) then
--- 						if (raidInstances:Add(instance)) then
--- 							lockoutInformation[instance.id] = {}
--- 						end
--- 						lockoutInformation[instance.id][characterID]["resetDatetime"] = SecondsToTime(instance.resetsIn, true, nil, 3)
--- 						lockoutInformation[instance.id][characterID]["progress"] = RT.Util:FormatEncounterProgress(instance.encountersCompleted, instance.encountersTotal)
-
--- 					else
--- 						if (dungeonInstances:Add(instance)) then
--- 							lockoutInformation[instance.id] = {}
--- 						end
-
--- 						lockoutInformation[instance.id][characterID]["resetDatetime"] = SecondsToTime(instance.resetsIn, true, nil, 3)
--- 						lockoutInformation[instance.id][characterID]["progress"] = RT.Util:FormatEncounterProgress(instance.encountersCompleted, instance.encountersTotal)
--- 					end
-
-
--- 				characterHasLockouts = true
--- 			end
--- 		end
-
--- 		if (characterHasLockouts) then
--- 			characters:Add(RT.Character:New(characterID, character.class))
--- 		end
--- 	end
-
--- 	return characters, raidInstances, dungeonInstances, lockoutInformation
--- end
-
-
--- local classNameAndIcon = AceGUI:Create("Label")
--- local classColorName = RT.Util:FormatColorClass(charDB.class, charDB.name)
--- local iconSize = 32
--- local nameSize = 200
--- classNameAndIcon:SetImage("Interface\\TargetingFrame\\UI-Classes-Circles", unpack(CLASS_ICON_TCOORDS[charDB.class]))
--- classNameAndIcon:SetImageSize(32, 32)
--- classNameAndIcon:SetText(classColorName)
--- classNameAndIcon:SetWidth(nameSize + iconSize)
--- container:AddChild(classNameAndIcon)
-
 function RackensTracker:RetrieveSavedInstanceInformation(characterName)
-
 	local lockoutInformation = {}
 	local raidInstances = RT.Container:New()
 	local dungeonInstances = RT.Container:New()
@@ -277,23 +200,13 @@ function RackensTracker:RetrieveSavedInstanceInformation(characterName)
 					if (raidInstances:Add(instance)) then
 						lockoutInformation[instance.id] = {}
 					end
-					-- Try to set the lowest known raid reset time so we can display that properly across characters.
-					if (self.db.realm.currentlyKnownRaidResetTime == nil or self.db.realm.currentlyKnownRaidResetTime > instance.resetsIn) then
-						self.db.realm.currentlyKnownRaidResetTime = instance.resetsIn
-					end
 
-					lockoutInformation[instance.id]["resetDatetime"] = SecondsToTime(self.db.realm.currentlyKnownRaidResetTime, true, nil, 3)
 					lockoutInformation[instance.id]["progress"] = RT.Util:FormatEncounterProgress(instance.encountersCompleted, instance.encountersTotal)
 				else
 					if (dungeonInstances:Add(instance)) then
 						lockoutInformation[instance.id] = {}
 					end
-					-- Try to set the lowest known dungeon reset time so we can display that properly across characters.
-					if (self.db.realm.currentlyKnownDungeonResetTime == nil or self.db.realm.currentlyKnownDungeonResetTime > instance.resetsIn) then
-						self.db.realm.currentlyKnownDungeonResetTime = instance.resetsIn
-					end
 
-					lockoutInformation[instance.id]["resetDatetime"] = SecondsToTime(self.db.realm.currentlyKnownDungeonResetTime, true, nil, 3)
 					lockoutInformation[instance.id]["progress"] = RT.Util:FormatEncounterProgress(instance.encountersCompleted, instance.encountersTotal)
 				end
 
@@ -337,7 +250,6 @@ function RackensTracker:OnInitialize()
 		self.libDBIcon:Register(addOnName, minimapBtn, self.db.char.minimap)
 	end
 
-
 end
 
 
@@ -367,11 +279,11 @@ function RackensTracker:OnEnable()
 	self.charDB.name = characterName
 	self.charDB.class = GetCharacterClass()
 	self.charDB.level = UnitLevel("player")
-	self.charDB.realm = GetRealmName()
+	self.charDB.realm = GetRealmName() -- TODO: Might need this to be GetNormalizedRealmName()
 
-	-- Reset the known last lockout time, this will be updated once a character that has lockouts logs in anyway
-	self.db.realm.currentlyKnownRaidResetTime = nil
-	self.db.realm.currentlyKnownDungeonResetTime = nil
+	-- Reset the known last lockout time, this will be updated once the tracker window opens
+	self.db.realm.secondsToWeeklyReset = nil
+	self.db.realm.secondsToDailyReset = nil
 
 	-- Raid and dungeon related events
 	self:RegisterEvent("BOSS_KILL", "OnEventBossKill")
@@ -495,29 +407,41 @@ function RackensTracker:OnEventPlayerLevelUp(newLevel)
 end
 
 
-local DUNGEON_LOCK_EXPIRE = string.format("%s %s", "Dungeon", LOCK_EXPIRE) -- TODO: AceLocale
-local RAID_LOCK_EXPIRE = string.format("%s %s", "Raid", LOCK_EXPIRE) -- TODO: AceLocale
+function RackensTracker:UpdateCurrentWeeklyDailyResets()
+	-- Try to set the lowest known raid reset time so we can display that properly across characters.
+	if (self.db.realm.secondsToWeeklyReset == nil or self.db.realm.secondsToWeeklyReset > C_DateAndTime.GetSecondsUntilWeeklyReset()) then
+		self.db.realm.secondsToWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset()
+	end
+
+	if (self.db.realm.secondsToDailyReset == nil or self.db.realm.secondsToDailyReset > C_DateAndTime.GetSecondsUntilDailyReset()) then
+		self.db.realm.secondsToDailyReset = C_DateAndTime.GetSecondsUntilDailyReset()
+	end
+end
+
+
+-- GUI Code --
+-- The "Flow" Layout will let widgets fill one row, and then flow into the next row if there isn't enough space left. 
+-- Its most of the time the best Layout to use.
+-- The "List" Layout will simply stack all widgets on top of each other on the left side of the container.
+-- The "Fill" Layout will use the first widget in the list, and fill the whole container with it. Its only useful for containers 
 
 function RackensTracker:GetLockoutTimeWithIcon(isRaid)
 
-	-- https://www.wowhead.com/wotlk/icon=134247/inv-misc-key-13
-	local iconFileID = 134247
-	local iconMarkup = CreateTextureMarkup(iconFileID, 64, 64, DEFAULT_ICON_SIZE, DEFAULT_ICON_SIZE, 0, 1, 0, 1)
+	-- https://www.wowhead.com/wotlk/icon=134238/inv-misc-key-04
+	local raidFileIconID = 134238
+	-- https://www.wowhead.com/wotlk/icon=134237/inv-misc-key-03
+	local dungeonFileIconID = 134237
 
-	local knownRaidResetTime = self.db.realm.currentlyKnownRaidResetTime
-	local knownDungeonResetTime = self.db.realm.currentlyKnownDungeonResetTime
-
-	if (isRaid and knownRaidResetTime) then
-		return string.format("%s %s: %s", iconMarkup, RAID_LOCK_EXPIRE, SecondsToTime(knownRaidResetTime, true, nil, 3))
+	local iconMarkup = ""
+	if (isRaid and self.db.realm.secondsToWeeklyReset) then
+		iconMarkup = CreateTextureMarkup(raidFileIconID, 64, 64, 16, 16, 0, 1, 0, 1)
+		return string.format("%s %s: %s", iconMarkup, RAID_LOCK_EXPIRE, SecondsToTime(self.db.realm.secondsToWeeklyReset, true, nil, 3))
 	end
-	if (isRaid == false and knownDungeonResetTime) then
-		return string.format("%s %s: %s", iconMarkup, DUNGEON_LOCK_EXPIRE, SecondsToTime(knownDungeonResetTime, true, nil, 3))
+	if (isRaid == false and self.db.realm.secondsToDailyReset) then
+		iconMarkup = CreateTextureMarkup(dungeonFileIconID, 64, 64, 16, 16, 0, 1, 0, 1)
+		return string.format("%s %s: %s", iconMarkup, DUNGEON_LOCK_EXPIRE, SecondsToTime(self.db.realm.secondsToDailyReset, true, nil, 3))
 	end
-
-	return nil
 end
-
--- GUI Code
 
 local function CreateDummyFrame()
 	local dummyFiller = AceGUI:Create("Label")
@@ -528,8 +452,10 @@ local function CreateDummyFrame()
 end
 
 function RackensTracker:DrawCurrencies(container, characterName)
-
 	local labelHeight = 20
+	local relWidthPerCurrency = 0.25 -- Use a quarter of the container space per item, making new rows as fit.
+
+	local characterCurrencies = self.db.realm.characters[characterName].currencies
 
 	container:AddChild(CreateDummyFrame())
 
@@ -546,24 +472,33 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	currenciesGroup:SetFullHeight(true)
 	currenciesGroup:SetFullWidth(true)
 
-	local currencyDisplay
-	local colorName, icon, amount
+	local currencyDisplayLabel
+	local colorizedName, icon, quantity = ""
 
 	for _, currency in ipairs(RT.Currencies) do
-		currencyDisplay = AceGUI:Create("Label")
-		currencyDisplay:SetHeight(labelHeight)
-		currencyDisplay:SetRelativeWidth(1/#RT.Currencies + 0.10) -- Make each currency take up equal space and give each an extra 10%
-		colorName, icon, amount = currency:GetFullTextDisplay()
+		currencyDisplayLabel = AceGUI:Create("Label")
+		currencyDisplayLabel:SetHeight(labelHeight)	
+		currencyDisplayLabel:SetRelativeWidth(relWidthPerCurrency) -- Make each currency take up equal space and give each an extra 10%
 
-		if (amount == 0) then
-			--Log("Amount for token: " .. colorName .. " is 0")
-			local disabledAmount = RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, amount)
-			currencyDisplay:SetText(string.format("%s\n%s %s", colorName, icon, disabledAmount))
+		colorizedName = currency:GetColorizedName()
+		icon = currency:GetIcon(12) --iconSize set to 12
+
+		-- If this character has this currency, that means we have quantity information.
+		if (characterCurrencies[currency.id]) then
+			quantity = characterCurrencies[currency.id].quantity
+		else
+			-- The selected character doesnt have any quantity for the currency.
+			quantity = 0
+		end
+		
+		if (quantity == 0) then
+			local disabledAmount = RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, quantity)
+			currencyDisplayLabel:SetText(string.format("%s\n%s %s", colorizedName, icon, disabledAmount))
 		else 
-			currencyDisplay:SetText(string.format("%s\n%s %s", colorName, icon, amount))
+			currencyDisplayLabel:SetText(string.format("%s\n%s %s", colorizedName, icon, quantity))
 		end
 
-		currenciesGroup:AddChild(currencyDisplay)
+		currenciesGroup:AddChild(currencyDisplayLabel)
 	end
 
 	container:AddChild(currenciesGroup)
@@ -571,6 +506,9 @@ end
 
 function RackensTracker:DrawSavedInstances(container, characterName)
 	
+	-- Refresh the currently known daily and weekly reset timers
+	RackensTracker:UpdateCurrentWeeklyDailyResets()
+
 	local characterHasLockouts, raidInstances, dungeonInstances, lockoutInformation = self:RetrieveSavedInstanceInformation(characterName)
 	local nRaids, nDungeons = #raidInstances.sorted, #dungeonInstances.sorted
 
@@ -591,38 +529,26 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	-- Empty Row
 	container:AddChild(CreateDummyFrame())
 
-	-- If we have atleast one raid tracked display the raid lockout
-	if (nRaids and nRaids > 0) then
-		local raidResetTimeIconLabel = AceGUI:Create("Label")
-		local instance = raidInstances.sorted[1]
-		local lockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(instance.isRaid)
-		raidResetTimeIconLabel:SetText(lockoutWithIcon)
-		raidResetTimeIconLabel:SetFullWidth(true)
-		container:AddChild(raidResetTimeIconLabel)
-		
-		-- Empty Row
-		container:AddChild(CreateDummyFrame())
+	-- Display weekly raid reset time	
+	local raidResetTimeIconLabel = AceGUI:Create("Label")
+	local weeklyLockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(true)
+	raidResetTimeIconLabel:SetText(weeklyLockoutWithIcon)
+	raidResetTimeIconLabel:SetFullWidth(true)
+	container:AddChild(raidResetTimeIconLabel)
+	
+	-- Empty Row
+	container:AddChild(CreateDummyFrame())
 
-		--Log("Raid Reset: " .. tostring(instance.resetsIn))
-		--Log("lowest current reset is: " .. tostring(self.db.realm.currentlyKnownRaidResetTime))
-	end
+	-- Display dungeon daily reset time
 
-	-- If we have atleast one dungeon tracked display the dungeon lockout
-	if (nDungeons and nDungeons > 0) then
-		local dungeonResetTimeIconLabel = AceGUI:Create("Label")
-		local instance = dungeonInstances.sorted[1]
-		local lockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(instance.isRaid)
-		dungeonResetTimeIconLabel:SetText(lockoutWithIcon)
-		dungeonResetTimeIconLabel:SetFullWidth(true)
-		container:AddChild(dungeonResetTimeIconLabel)
+	local dungeonResetTimeIconLabel = AceGUI:Create("Label")
+	local dungeonLockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(false)
+	dungeonResetTimeIconLabel:SetText(dungeonLockoutWithIcon)
+	dungeonResetTimeIconLabel:SetFullWidth(true)
+	container:AddChild(dungeonResetTimeIconLabel)
 
-		-- Empty Row
-		container:AddChild(CreateDummyFrame())
-
-		--Log("Dungeon Reset: " .. tostring(instance.resetsIn))
-		--Log("lowest current dungeon reset is: " .. tostring(self.db.realm.currentlyKnownDungeonResetTime))
-	end
-
+	-- Empty Row
+	container:AddChild(CreateDummyFrame())
 
 	local lockoutsGroup = AceGUI:Create("SimpleGroup")
 	lockoutsGroup:SetLayout("Flow")
@@ -706,11 +632,6 @@ local function SelectCharacterTab(container, event, characterName)
 	RackensTracker:DrawCurrencies(container, characterName)
 end
 
--- The "Flow" Layout will let widgets fill one row, and then flow into the next row if there isn't enough space left. 
--- Its most of the time the best Layout to use.
--- The "List" Layout will simply stack all widgets on top of each other on the left side of the container.
--- The "Fill" Layout will use the first widget in the list, and fill the whole container with it. Its only useful for containers 
-
 function RackensTracker:CloseTrackerFrame()
 	if (self.tracker_frame and self.tracker_frame:IsVisible()) then
 		AceGUI:Release(self.tracker_frame)
@@ -727,11 +648,11 @@ function RackensTracker:OpenTrackerFrame()
 	self.tracker_frame = AceGUI:Create("Window")
 	self.tracker_frame:SetTitle(addOnName)
 	self.tracker_frame:SetLayout("Fill")
-	self.tracker_frame:SetWidth(640)
-	self.tracker_frame:SetHeight(500)
+	self.tracker_frame:SetWidth(650)
+	self.tracker_frame:SetHeight(540)
 
 	-- Minimum width and height when resizing the window.
-	self.tracker_frame.frame:SetResizeBounds(640, 500)
+	self.tracker_frame.frame:SetResizeBounds(650, 540)
 
 	self.tracker_frame:SetCallback("OnClose", function(widget)
 		-- Clear any local tables containing processed instances and currencies
