@@ -239,7 +239,7 @@ function RackensTracker:OnInitialize()
 		end,
 		OnTooltipShow = function(tooltip)
 			tooltip:AddLine(HIGHLIGHT_FONT_COLOR_CODE.. addOnName .. FONT_COLOR_CODE_CLOSE )
-			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. L["minimapLeftClickAction"] .. " " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. L["minimapLeftClickDescription"] .. FONT_COLOR_CODE_CLOSE)
+			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. L["minimapLeftClickAction"] .. ": " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. L["minimapLeftClickDescription"] .. FONT_COLOR_CODE_CLOSE)
 		end,
 	})
 

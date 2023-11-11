@@ -1,8 +1,8 @@
 local L = LibStub("AceLocale-3.0"):NewLocale("RackensTracker", "enUS", true);
 
 if L then
-    L["raidLockExpiresIn"] = "Raid Lock Expires In:"
-    L["dungeonLockExpiresIn"] = "Dungeon Lock expires In:"
+    L["raidLockExpiresIn"] = "Raid Lock Expires In"
+    L["dungeonLockExpiresIn"] = "Dungeon Lock Expires In"
     L["currencies"] = "Currencies"
     L["lockouts"] = "Lockouts"
     L["noLockouts"] = "No lockouts"
@@ -12,7 +12,7 @@ if L then
     L["raids"] = "Raids"
     L["dungeons"] = "Dungeons"
     L["cleared"] = "Cleared"
-    L["minimapLeftClickAction"] = "Left click:"
+    L["minimapLeftClickAction"] = "Left click"
     L["minimapLeftClickDescription"] = "open the lockout tracker window"
 end
 
