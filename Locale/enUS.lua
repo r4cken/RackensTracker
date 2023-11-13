@@ -13,6 +13,8 @@ if L then
     L["dungeons"] = "Dungeons"
     L["cleared"] = "Cleared"
     L["minimapLeftClickAction"] = "Left click"
+    L["minimapRightClickAction"] = "Right click"
     L["minimapLeftClickDescription"] = "open the lockout tracker window"
+    L["minimapRightClickDescription"] = "open the addon options window"
 end
 

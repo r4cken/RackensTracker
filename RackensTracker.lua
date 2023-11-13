@@ -23,10 +23,6 @@ local Settings, CreateSettingsListSectionHeaderInitializer =
 	  Settings, CreateSettingsListSectionHeaderInitializer
 
 
-local DUNGEON_LOCK_EXPIRE = string.format("%s %s", "Dungeon", LOCK_EXPIRE .. "s in") -- TODO: AceLocale
-local RAID_LOCK_EXPIRE = string.format("%s %s", "Raid", LOCK_EXPIRE .. "s in") -- TODO: AceLocale
-
-
 local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceConsole-3.0", "AceEvent-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("RackensTracker", true)
 local AceGUI = LibStub("AceGUI-3.0")
@@ -315,8 +311,8 @@ function RackensTracker:OnInitialize()
 		end,
 		OnTooltipShow = function(tooltip)
 			tooltip:AddLine(HIGHLIGHT_FONT_COLOR_CODE.. addOnName .. FONT_COLOR_CODE_CLOSE )
-			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. L["minimapLeftClickAction"] .. ": " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. L["minimapLeftClickDescription"] .. FONT_COLOR_CODE_CLOSE)
-			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. "Right click: " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. "open the addon options window" .. FONT_COLOR_CODE_CLOSE)
+			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. L["minimapLeftClickAction"]  .. ": " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. L["minimapLeftClickDescription"] .. FONT_COLOR_CODE_CLOSE)
+			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. L["minimapRightClickAction"] .. ": " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. L["minimapRightClickDescription"] .. FONT_COLOR_CODE_CLOSE)
 		end,
 	})
 
