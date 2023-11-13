@@ -27,6 +27,8 @@ local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceCo
 local L = LibStub("AceLocale-3.0"):GetLocale("RackensTracker", true)
 local AceGUI = LibStub("AceGUI-3.0")
 
+local LOGGING_ENABLED = false
+
 local database_defaults = {
 	global = {
 		options = {
@@ -106,8 +108,14 @@ local database_defaults = {
 	}
 }
 
+local function SlashCmdLog(message, ...)
+	RackensTracker:Printf(message, ...)
+end
+
 local function Log(message, ...)
-    RackensTracker:Printf(message, ...)
+	if (LOGGING_ENABLED) then
+    	RackensTracker:Printf(message, ...)
+	end
 end
 
 local function GetCharacterDatabaseID()
@@ -365,11 +373,11 @@ function RackensTracker:OnDisable()
 end
 
 local function slashCommandUsage()
-	Log("\"/rackenstracker open\" opens the tracking window")
-	Log("\"/rackenstracker close\" closes the tracking window")
-	Log("\"/rackenstracker options\" opens the options window")
-	Log("\"/rackenstracker minimap enable\" enables the minimap button")
-	Log("\"/rackenstracker minimap disable\" disables the minimap button")
+	SlashCmdLog("\"/rackenstracker open\" opens the tracking window")
+	SlashCmdLog("\"/rackenstracker close\" closes the tracking window")
+	SlashCmdLog("\"/rackenstracker options\" opens the options window")
+	SlashCmdLog("\"/rackenstracker minimap enable\" enables the minimap button")
+	SlashCmdLog("\"/rackenstracker minimap disable\" disables the minimap button")
 end
 
 function RackensTracker:SlashCommand(msg)
@@ -571,16 +579,14 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 
 	-- Heading 
 	local lockoutsHeading = AceGUI:Create("Heading")
+	lockoutsHeading:SetFullWidth(true)
 	-- Return after creation of the heading stating no lockouts were found.
 	if (characterHasLockouts == false) then
 		lockoutsHeading:SetText(L["noLockouts"])
-		lockoutsHeading:SetFullWidth(true)
-		container:AddChild(lockoutsHeading)
-		return
+	else
+		lockoutsHeading:SetText(L["lockouts"])
 	end
 
-	lockoutsHeading:SetText(L["lockouts"])
-	lockoutsHeading:SetFullWidth(true)
 	container:AddChild(lockoutsHeading)
 
 	-- Empty Row
@@ -606,6 +612,10 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 
 	-- Empty Row
 	container:AddChild(CreateDummyFrame())
+
+	if (characterHasLockouts == false) then
+		return
+	end
 
 	local lockoutsGroup = AceGUI:Create("SimpleGroup")
 	lockoutsGroup:SetLayout("Flow")
