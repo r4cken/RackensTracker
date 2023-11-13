@@ -19,6 +19,10 @@ local NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, F
 	  NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE
 
 
+local Settings, CreateSettingsListSectionHeaderInitializer = 
+	  Settings, CreateSettingsListSectionHeaderInitializer
+
+
 local DUNGEON_LOCK_EXPIRE = string.format("%s %s", "Dungeon", LOCK_EXPIRE .. "s in") -- TODO: AceLocale
 local RAID_LOCK_EXPIRE = string.format("%s %s", "Raid", LOCK_EXPIRE .. "s in") -- TODO: AceLocale
 
@@ -27,7 +31,27 @@ local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceCo
 local AceGUI = LibStub("AceGUI-3.0")
 
 local database_defaults = {
-	global = { },
+	global = {
+		options = {
+			shownCurrencies = {
+				["341"] = true,  -- Emblem of Frost
+				["301"] = true,  -- Emblem of Triumph
+				["221"] = true,  -- Emblem of Conquest
+				["102"] = true,	 -- Emblem of Valor
+				["101"] = true,  -- Emblem of Heroism
+				["2711"] = true, -- Defiler's Scourgestone
+				["2589"] = true, -- Sidreal Essence
+				["241"] = false, -- Champion's Seal
+				["1901"] = true, -- Honor Points
+				["1900"] = true, -- Arena Points
+				["161"] = true,  -- Stone Keeper's Shard
+				["81"] = true,	 -- Epicurean's Award
+				["61"] = true,	 -- Dalaran Jewelcrafter's Token
+				["126"] = false, -- Wintergrasp Mark of Honor
+			},
+			shownCharacters = {}
+		}
+	},
 	char = {
 		minimap = {
 			hide = false
@@ -89,6 +113,22 @@ local function Log(message, ...)
     RackensTracker:Printf(message, ...)
 end
 
+local function GetCharacterDatabaseID()
+	local name = UnitName("player")
+	return name
+end
+
+
+local function GetCharacterClass()
+    local classFilename, _ = UnitClassBase("player")
+    return classFilename
+end
+
+local function GetCharacterIcon(class, iconSize)
+	local textureAtlas = GetClassAtlas(class)
+	local icon = CreateAtlasMarkup(textureAtlas, size, size)
+	return icon
+end
 
 local function GetCharacterLockouts()
 	local savedInstances = {}
@@ -129,7 +169,7 @@ local function GetCharacterCurrencies()
 	local currencies = {}
 	-- Iterate over all known currency ID's
 	for currencyID = 61, 3000, 1 do
-		-- Exclude Mark of Honor currencies, who cares about those anyway.
+		-- Exclude some currencies which arent useful or those that are deprecated
 		if (not RT.ExcludedCurrencyIds[currencyID]) then
 		   currency = C_CurrencyInfo.GetCurrencyInfo(currencyID)
 		   if currency and currency.name ~= nil and currency.name:trim() ~= "" then
@@ -224,10 +264,39 @@ end
 function RackensTracker:OnInitialize()
 	-- Called when the addon is Initialized
 	self.tracker_frame = nil
+	self.optionsCategory = nil
+	self.optionsLayout = nil
 
 	-- Load saved variables
 	self.db = LibStub("AceDB-3.0"):New("RackensTrackerDB", database_defaults, true)
 
+	local function OnCurrencySettingChanged(_, setting, value)
+		local variable = setting:GetVariable()
+		self.db.global.options.shownCurrencies[variable] = value
+	end
+
+	-- Register the Options menu
+	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory("RackensTracker")
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Tracked Currencies")) -- Todo: AceLocale
+
+	local showHideCurrencyTooltip = "If checked this currency will be displayed in the tracker window."
+	for _, currency in ipairs(RT.Currencies) do
+		local variable = tostring(currency.id)
+		local name = currency:GetName()
+		 -- Look at our database_defaults for a default value.
+		local defaultValue = database_defaults.global.options.shownCurrencies[variable]
+		local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, type(defaultValue), defaultValue)
+		local initializer = Settings.CreateCheckBox(self.optionsCategory, setting, showHideCurrencyTooltip)
+		Settings.SetOnValueChangedCallback(variable, OnCurrencySettingChanged)
+
+		-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
+		-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
+		setting:SetValue(self.db.global.options.shownCurrencies[variable], true) -- true means force
+	end
+	
+	Settings.RegisterAddOnCategory(self.optionsCategory)
+
+	-- Setup the data broken and the minimap icon
 	self.libDataBroker = LibStub("LibDataBroker-1.1", true)
 	self.libDBIcon = self.libDataBroker and LibStub("LibDBIcon-1.0", true)
 	local minimapBtn = self.libDataBroker:NewDataObject(addOnName, {
@@ -239,35 +308,20 @@ function RackensTracker:OnInitialize()
 				-- If the window is already created
 				self:OpenTrackerFrame()
 			end
+			if (button == "RightButton") then
+				self:OpenOptionsFrame()
+			end
 		end,
 		OnTooltipShow = function(tooltip)
 			tooltip:AddLine(HIGHLIGHT_FONT_COLOR_CODE.. addOnName .. FONT_COLOR_CODE_CLOSE )
 			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. "Left click: " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. "open the lockout tracker window" .. FONT_COLOR_CODE_CLOSE)
+			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. "Right click: " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. "open the addon options window" .. FONT_COLOR_CODE_CLOSE)
 		end,
 	})
 
 	if self.libDBIcon then
 		self.libDBIcon:Register(addOnName, minimapBtn, self.db.char.minimap)
 	end
-
-end
-
-
-local function GetCharacterDatabaseID()
-	local name = UnitName("player")
-	return name
-end
-
-
-local function GetCharacterClass()
-    local classFilename, _ = UnitClassBase("player")
-    return classFilename
-end
-
-function RackensTracker:GetCharacterIcon(class, iconSize)
-	local textureAtlas = GetClassAtlas(class)
-	local icon = CreateAtlasMarkup(textureAtlas, size, size)
-	return icon
 end
 
 function RackensTracker:OnEnable()
@@ -316,6 +370,7 @@ end
 local function slashCommandUsage()
 	Log("\"/rackenstracker open\" opens the tracking window")
 	Log("\"/rackenstracker close\" closes the tracking window")
+	Log("\"/rackenstracker options\" opens the options window")
 	Log("\"/rackenstracker minimap enable\" enables the minimap button")
 	Log("\"/rackenstracker minimap disable\" disables the minimap button")
 end
@@ -331,6 +386,8 @@ function RackensTracker:SlashCommand(msg)
 		self:OpenTrackerFrame()
 	elseif (command == "close") then
 		self:CloseTrackerFrame()
+	elseif (command == "options") then
+		self:OpenOptionsFrame()
 	elseif (command == "minimap") then
 		if (value == "enable") then
 			--Log("Enabling the minimap button")
@@ -476,29 +533,32 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	local colorizedName, icon, quantity = ""
 
 	for _, currency in ipairs(RT.Currencies) do
-		currencyDisplayLabel = AceGUI:Create("Label")
-		currencyDisplayLabel:SetHeight(labelHeight)	
-		currencyDisplayLabel:SetRelativeWidth(relWidthPerCurrency) -- Make each currency take up equal space and give each an extra 10%
+		if (self.db.global.options.shownCurrencies[tostring(currency.id)]) then
+					
+			currencyDisplayLabel = AceGUI:Create("Label")
+			currencyDisplayLabel:SetHeight(labelHeight)	
+			currencyDisplayLabel:SetRelativeWidth(relWidthPerCurrency) -- Make each currency take up equal space and give each an extra 10%
 
-		colorizedName = currency:GetColorizedName()
-		icon = currency:GetIcon(12) --iconSize set to 12
+			colorizedName = currency:GetColorizedName()
+			icon = currency:GetIcon(12) --iconSize set to 12
 
-		-- If this character has this currency, that means we have quantity information.
-		if (characterCurrencies[currency.id]) then
-			quantity = characterCurrencies[currency.id].quantity
-		else
-			-- The selected character doesnt have any quantity for the currency.
-			quantity = 0
+			-- If this character has this currency, that means we have quantity information.
+			if (characterCurrencies[currency.id]) then
+				quantity = characterCurrencies[currency.id].quantity
+			else
+				-- The selected character doesnt have any quantity for the currency.
+				quantity = 0
+			end
+			
+			if (quantity == 0) then
+				local disabledAmount = RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, quantity)
+				currencyDisplayLabel:SetText(string.format("%s\n%s %s", colorizedName, icon, disabledAmount))
+			else 
+				currencyDisplayLabel:SetText(string.format("%s\n%s %s", colorizedName, icon, quantity))
+			end
+
+			currenciesGroup:AddChild(currencyDisplayLabel)
 		end
-		
-		if (quantity == 0) then
-			local disabledAmount = RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, quantity)
-			currencyDisplayLabel:SetText(string.format("%s\n%s %s", colorizedName, icon, disabledAmount))
-		else 
-			currencyDisplayLabel:SetText(string.format("%s\n%s %s", colorizedName, icon, quantity))
-		end
-
-		currenciesGroup:AddChild(currencyDisplayLabel)
 	end
 
 	container:AddChild(currenciesGroup)
@@ -639,6 +699,10 @@ function RackensTracker:CloseTrackerFrame()
 	end
 end
 
+function RackensTracker:OpenOptionsFrame()
+	Settings.OpenToCategory(self.optionsCategory:GetID())
+end
+
 function RackensTracker:OpenTrackerFrame()
 	-- No need to render and create the user interface again if its already created.
 	if (self.tracker_frame and self.tracker_frame:IsVisible()) then
@@ -686,7 +750,7 @@ function RackensTracker:OpenTrackerFrame()
 			if (character.name == initialCharacterTab and character.level == GetMaxPlayerLevel()) then
 				isInitialCharacterMaxLevel = true
 			end
-			tabIcon = RackensTracker:GetCharacterIcon(character.class, tabIconSize)
+			tabIcon = GetCharacterIcon(character.class, tabIconSize)
 			tabName = RT.Util:FormatColorClass(character.class, character.name)
 			table.insert(tabsData, { text=string.format("%s %s", tabIcon, tabName), value=characterName})
 		end
