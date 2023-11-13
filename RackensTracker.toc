@@ -13,4 +13,5 @@ currencies.lua
 container.lua
 instance.lua
 character.lua
+quests.lua
 RackensTracker.lua

@@ -339,6 +339,7 @@ function RackensTracker:OnEnable()
 	self.charDB.class = GetCharacterClass()
 	self.charDB.level = UnitLevel("player")
 	self.charDB.realm = GetRealmName() -- TODO: Might need this to be GetNormalizedRealmName()
+	self.charDB.faction = UnitFactionGroup("player")
 
 	-- Reset the known last lockout time, this will be updated once the tracker window opens
 	self.db.realm.secondsToWeeklyReset = nil
@@ -355,6 +356,9 @@ function RackensTracker:OnEnable()
 	self:RegisterEvent("CURRENCY_DISPLAY_UPDATE", "OnEventCurrencyDisplayUpdate")
 	self:RegisterEvent("CHAT_MSG_CURRENCY", "OnEventChatMsgCurrency")
 	
+	-- Daily - Weekly quest related events
+	self:RegisterEvent("QUEST_ACCEPTED", "OnEventQuestAccepted")
+	self:RegisterEvent("QUEST_TURNED_IN", "OnEventQuestTurnedIn")
 	-- Level up event
 	self:RegisterEvent("PLAYER_LEVEL_UP", "OnEventPlayerLevelUp")
 	-- Register Slash Commands
@@ -466,6 +470,62 @@ end
 
 function RackensTracker:OnEventPlayerLevelUp(newLevel)
 	self:UpdateCharacterLevel(newLevel)
+end
+
+
+function RackensTracker:OnEventQuestAccepted(questLogIndex, questID)
+	-- Check if this questID is one we care about, ie 
+	-- Raid weekly questID's are
+	--[[
+		24579, Sartharion Must Die!
+		24580 (Only Alliance), Anub'Rekhan Must Die!
+		24581, Noth the Plaguebringer Must Die!
+		24582, Instructor Razuvious Must Die!
+		24583, Patchwerk Must Die!
+		24584 (Only Horde), Malygos Must Die!
+		24585, Flame Leviathan Must Die!
+		24586, Razorscale Must Die!
+		24587, Ignis the Furnace Master Must Die!
+		24588, XT-002 Deconstructor Must Die!
+		24589, Lord Jaraxxus Must Die!
+		24590, Lord Marrowgar Must Die!
+	--]]
+	-- Daily questID's are
+	-- 78752, Proof of Demise: Titan Rune Protocol Gamma
+	-- 78753, Proof of Demise: Threats to Azeroth
+	-- TODO: Update the character's tracked weekly or daily quest tracking.
+	Log("Accepted quest with quest log index: " .. tostring(questLogIndex))
+	Log("Accepted quest with questID" .. tostring(questID))
+	-- Its a weekly quest, which one?
+	if (RT.Quests.Weekly[questID]) then
+		local quest = RT.Quests.Weekly[questID]
+		if (quest.faction and quest.faction == self.charDB.faction and quest.prerequesite(self.charDB.level)) then
+			Log("Found Weekly Quest for our faction: " .. quest.faction .. " with ID: " .. quest.id .. " and name: " .. quest.name(quest.id))
+		end
+	-- Its a daily quest, which one?
+	elseif (RT.Quests.Daily[questID]) then
+		local quest = RT.Quests.Daily[questID]
+		if (quest.prerequesite(self.charDB.level)) then
+			Log("Found Daily Quest with ID: " .. quest.id .. " and name: " .. quest.name(quest.id))
+		end
+	end
+end
+
+function RackensTracker:OnEventQuestTurnedIn(questID)
+	-- Update the current character's completed weekly or daily quest
+	-- if self.charDB.quests.weekly[questID] then
+	--	self.charDB.quests.weekly[questID].completed = true
+	-- elseif self.charDB.quests.daily[questID] then
+	--  self.charDB.quests.daily[questID].completed = true
+	-- end
+	if (RT.Quests.Weekly[questID]) then
+		local quest = RT.Quests.Weekly[questID]
+		Log("Turned in Weekly Quest for our faction: " .. quest.faction .. " with ID: " .. quest.id .. " and name: " .. quest.name(quest.id))
+	-- Its a daily quest, which one?
+	elseif (RT.Quests.Daily[questID]) then
+		local quest = RT.Quests.Daily[questID]
+		Log("Found Daily Quest with ID: " .. quest.id .. " and name: " .. quest.name(quest.id))
+	end
 end
 
 
