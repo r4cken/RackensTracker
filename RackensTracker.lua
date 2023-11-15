@@ -356,6 +356,36 @@ function RackensTracker:OnInitialize()
 	end
 end
 
+-- local function checkDailyWeeklyResets()
+-- 	local timestamp = GetServerTime()
+	
+-- 	-- Weekly quest reset
+-- 	if (self.db.realm.secondsToWeeklyReset + timestamp < timestamp) then
+-- 		for characterName, character in pairs(self.db.realm.characters) do
+-- 			for questID, quest in pairs(RT.Quests) do
+-- 				if (quest.isWeekly) then
+-- 					if (character.quests[questID]) then
+-- 						character.quests[questID].isCompleted = false
+-- 					end
+-- 				end
+-- 			end  
+-- 		end
+-- 	end
+
+-- 	-- Daily quest reset
+-- 	if (self.db.realm.secondsToDailyReset + timestamp < timestamp) then
+-- 		for characterName, character in pairs(self.db.realm.characters) do
+-- 			for questID, quest in pairs(RT.Quests) do
+-- 				if (quest.isWeekly == false) then
+-- 					if (character.quests[questID]) then
+-- 						character.quests[questID].isCompleted = false
+-- 					end
+-- 				end
+-- 			end  
+-- 		end
+-- 	end
+-- end
+
 function RackensTracker:OnEnable()
 	-- Called when the addon is enabled
 
@@ -514,18 +544,13 @@ function RackensTracker:OnEventQuestAccepted(event, questLogIndex, questID)
 		id = questID,
 		name = "",
 		isWeekly = true,
-		expires = GetServerTime(),
+		acceptedAt = GetServerTime(),
 		isCompleted = false,
 		isTurnedIn = false,
 	}
 
 	-- Its a weekly or daily quest we care about
 	local quest = RT.Quests[questID]
-
-	-- for qID, quest in pairs(RT.Quests) do
-	-- 	Log(qID .. " name: " .. quest.name(qID))
-	-- end
-
 	if (quest) then
 		if (quest.faction == nil or (quest.faction and quest.faction == self.charDB.faction) and quest.prerequesite(self.charDB.level)) then
 			Log("Found tracked quest, is faction specific: " .. tostring(quest.faction) .. " questID: " .. quest.id .. " and name: " .. quest.name(quest.id))
@@ -536,6 +561,9 @@ function RackensTracker:OnEventQuestAccepted(event, questLogIndex, questID)
 	end
 end
 
+-- TODO: See if QUEST_REMOVED is called when you turn in a quest and the quest is removed
+-- From the players quest log.
+-- If so, then dont just delete the key?
 function RackensTracker:OnEventQuestRemoved(event, questID)
 	Log("OnEventQuestRemoved")
 	Log("questID: " .. tostring(questID))
@@ -549,6 +577,8 @@ function RackensTracker:OnEventQuestRemoved(event, questID)
 end
 
 -- Update the current character's completed weekly or daily quest
+-- This event fires when the user turns in a quest, whether automatically or
+-- by pressing the complete button in a quest dialog.
 function RackensTracker:OnEventQuestTurnedIn(event, questID)
 	Log("OnEventQuestTurnedIn")
 	Log("questID: " .. tostring(questID))
@@ -594,39 +624,6 @@ end
 -- The "Fill" Layout will use the first widget in the list, and fill the whole container with it. Its only useful for containers 
 
 
-local function getQuestIcon(isDaily, isCompleted)
-	local atlasSize = 22
-	local textureAtlas = ""
-	local availableAtlas = "QuestNormal"
-	local availableDailyAtlas = "QuestDaily"
-	local completedAtlas = "QuestTurnin"
-	if isDaily then
-	   textureAtlas = availableDailyAtlas
-	else
-	   textureAtlas = availableAtlas
-	end
-	
-	local icon = CreateAtlasMarkup(textureAtlas, defaultSize, defaultSize)
-	return icon
-end
-
-function RackensTracker:GetLockoutTimeWithIcon(isRaid)
-
-	-- https://www.wowhead.com/wotlk/icon=134238/inv-misc-key-04
-	local raidAtlas = "Raid"
-	-- https://www.wowhead.com/wotlk/icon=134237/inv-misc-key-03
-	local dungeonAtlas = "Dungeon"
-	local atlasSize = 16
-	local iconMarkup = ""
-	if (isRaid and self.db.realm.secondsToWeeklyReset) then
-		iconMarkup = CreateAtlasMarkup(raidAtlas, atlasSize, atlasSize)
-		return string.format("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], SecondsToTime(self.db.realm.secondsToWeeklyReset, true, nil, 3))
-	end
-	if (isRaid == false and self.db.realm.secondsToDailyReset) then
-		iconMarkup = CreateAtlasMarkup(dungeonAtlas, atlasSize, atlasSize)
-		return string.format("%s %s: %s", iconMarkup, L["dungeonLockExpiresIn"], SecondsToTime(self.db.realm.secondsToDailyReset, true, nil, 3))
-	end
-end
 
 local function CreateDummyFrame()
 	local dummyFiller = AceGUI:Create("Label")
@@ -634,6 +631,64 @@ local function CreateDummyFrame()
 	dummyFiller:SetFullWidth(true)
 	dummyFiller:SetHeight(20)
 	return dummyFiller
+end
+
+local function getQuestIcon(isWeekly, isCompleted)
+	local atlasSize = 22
+	local textureAtlas = ""
+	local availableAtlas = "QuestNormal"
+	local availableDailyAtlas = "QuestDaily"
+	local completedAtlas = "QuestTurnin"
+
+	if (isCompleted) then
+		textureAtlas = completedAtlas
+	else
+		if isWeekly then
+			textureAtlas = availableAtlas
+		else
+			textureAtlas = availableDailyAtlas
+		end
+	end
+	
+	local icon = CreateAtlasMarkup(textureAtlas, defaultSize, defaultSize)
+	return icon
+end
+
+function RackensTracker:DrawQuests(container, characterName)
+	local quests = self.db.realm.characters[characterName].quests
+
+	container:AddChild(CreateDummyFrame())
+
+	local questsHeading = AceGUI:Create("Heading")
+	if (RT.Util:Tablelen(quests) == 0) then
+		questsHeading:SetText(L["noWeeklyDailyQuests"])
+	else
+		questsHeading:SetText(L["weeklyDailyQuests"])
+	end
+
+	questsHeading:SetFullWidth(true)
+	container:AddChild(questsHeading)
+
+	container:AddChild(CreateDummyFrame())
+
+	local weeklyQuest = nil
+	local dailyQuest = nil
+
+	for questID, quest in pairs(quests) do
+		if (quest.isWeekly) then
+			weeklyQuest = AceGUI:Create("Label")
+			weeklyQuest:SetText(string.format("%s %s", getQuestIcon(quest.isWeekly, quest.isCompleted), quest.name))
+			weeklyQuest:SetFullWidth(true)
+			container:AddChild(weeklyQuest)
+			container:AddChild(CreateDummyFrame())
+		else
+			dailyQuest = AceGUI:Create("Label")
+			dailyQuest:SetText(string.format("%s %s", getQuestIcon(quest.isWeekly, quest.isCompleted), quest.name))
+			dailyQuest:SetFullWidth(true)
+			container:AddChild(dailyQuest)
+		end
+	end
+	container:AddChild(CreateDummyFrame())
 end
 
 function RackensTracker:DrawCurrencies(container, characterName)
@@ -692,6 +747,24 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	container:AddChild(currenciesGroup)
 end
 
+function RackensTracker:GetLockoutTimeWithIcon(isRaid)
+
+	-- https://www.wowhead.com/wotlk/icon=134238/inv-misc-key-04
+	local raidAtlas = "Raid"
+	-- https://www.wowhead.com/wotlk/icon=134237/inv-misc-key-03
+	local dungeonAtlas = "Dungeon"
+	local atlasSize = 16
+	local iconMarkup = ""
+	if (isRaid and self.db.realm.secondsToWeeklyReset) then
+		iconMarkup = CreateAtlasMarkup(raidAtlas, atlasSize, atlasSize)
+		return string.format("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], SecondsToTime(self.db.realm.secondsToWeeklyReset, true, nil, 3))
+	end
+	if (isRaid == false and self.db.realm.secondsToDailyReset) then
+		iconMarkup = CreateAtlasMarkup(dungeonAtlas, atlasSize, atlasSize)
+		return string.format("%s %s: %s", iconMarkup, L["dungeonLockExpiresIn"], SecondsToTime(self.db.realm.secondsToDailyReset, true, nil, 3))
+	end
+end
+
 function RackensTracker:DrawSavedInstances(container, characterName)
 	
 	-- Refresh the currently known daily and weekly reset timers
@@ -744,7 +817,6 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	lockoutsGroup:SetLayout("Flow")
 	lockoutsGroup:SetFullWidth(true)
 
-	container:AddChild(lockoutsGroup)
 	
 	local raidGroup = AceGUI:Create("InlineGroup")
 	raidGroup:SetLayout("List")
@@ -813,11 +885,13 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	-- If these arent added AFTER all the child objects have been added, the anchor points and positioning gets all screwed up : (
 	lockoutsGroup:AddChild(raidGroup)
 	lockoutsGroup:AddChild(dungeonGroup)
+	container:AddChild(lockoutsGroup)
 end
 
 
 local function SelectCharacterTab(container, event, characterName)
 	container:ReleaseChildren()
+	RackensTracker:DrawQuests(container, characterName)
 	RackensTracker:DrawSavedInstances(container, characterName)
 	RackensTracker:DrawCurrencies(container, characterName)
 end
@@ -826,6 +900,7 @@ function RackensTracker:CloseTrackerFrame()
 	if (self.tracker_frame and self.tracker_frame:IsVisible()) then
 		AceGUI:Release(self.tracker_frame)
 		self.tracker_frame = nil
+		self.tracker_tabs = nil
 	end
 end
 
@@ -839,19 +914,22 @@ function RackensTracker:OpenTrackerFrame()
 		return
 	end
 
+	-- TODO: Figure out why ElvUI is tainting AceGUI making the height calculations all fucked
+	-- AND making extra borders / backdrops
 	self.tracker_frame = AceGUI:Create("Window")
 	self.tracker_frame:SetTitle(addOnName)
 	self.tracker_frame:SetLayout("Fill")
 	self.tracker_frame:SetWidth(650)
-	self.tracker_frame:SetHeight(540)
+	self.tracker_frame:SetHeight(650)
 
 	-- Minimum width and height when resizing the window.
-	self.tracker_frame.frame:SetResizeBounds(650, 540)
+	self.tracker_frame.frame:SetResizeBounds(650, 650)
 
 	self.tracker_frame:SetCallback("OnClose", function(widget)
 		-- Clear any local tables containing processed instances and currencies
 		AceGUI:Release(widget)
 		self.tracker_frame = nil
+		self.tracker_tabs = nil
 	end)
 
 	-- Create our TabGroup

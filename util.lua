@@ -9,6 +9,12 @@ local GREEN_FONT_COLOR_CODE, ORANGE_FONT_COLOR_CODE, RED_FONT_COLOR_CODE, FONT_C
 local Util = {}
 RT.Util = Util
 
+function Util:Tablelen(table)
+	local count = 0
+	for _ in pairs(table) do count = count + 1 end
+	return count
+end
+
 function Util:FormatColor(color, message, ...)
     return color .. string.format(message, ...) .. FONT_COLOR_CODE_CLOSE
 end

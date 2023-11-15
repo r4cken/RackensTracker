@@ -4,6 +4,8 @@ if L then
     L["raidLockExpiresIn"] = "Raid Lock Expires In"
     L["dungeonLockExpiresIn"] = "Dungeon Lock Expires In"
     L["currencies"] = "Currencies"
+    L["weeklyDailyQuests"] = "Weekly / Daily Quests"
+    L["noWeeklyDailyQuests"] = "No Weekly / Daily Quests"
     L["lockouts"] = "Lockouts"
     L["noLockouts"] = "No lockouts"
     L["noTrackingAvailable"] = "No tracking information available"
