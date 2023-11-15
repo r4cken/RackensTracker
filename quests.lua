@@ -11,6 +11,10 @@ local getQuestName = function(questID)
     return select(1, C_QuestLog.GetQuestInfo(questID)) or "Unknown"
 end
 
+local getQuestTag = function(questID)
+    return select(2, GetQuestTagInfo(questID)) or ""
+end
+
 --[[
     24579, Sartharion Must Die!
     24580 (Only Alliance), Anub'Rekhan Must Die!
@@ -32,98 +36,112 @@ end
 RT.Quests = {
     [24579] = {
         id = 24579,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = nil,
         prerequesite = isMaxLevel,
     },
     [24580] = {
         id = 24580,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = "Alliance", -- no need for AceLocale, this is englishFaction returned from UnitFactionGroup(unit)
         prerequesite = isMaxLevel,
     },
     [24581] = {
         id = 24581,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = nil,
         prerequesite = isMaxLevel,
     },
     [24582] = {
         id = 24582,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = nil,
         prerequesite = isMaxLevel,
     },
     [24583] = {
         id = 24583,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = nil,
         prerequesite = isMaxLevel,
     },
     [24584] = {
         id = 24584,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = "Horde", -- no need for AceLocale, this is englishFaction returned from UnitFactionGroup(unit)
         prerequesite = isMaxLevel,
     },
     [24585] = {
         id = 24585,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = nil,
         prerequesite = isMaxLevel,
     },
     [24586] = {
         id = 24586,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = nil,
         prerequesite = isMaxLevel,
     },
     [24587] = {
         id = 24587,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = nil,
         prerequesite = isMaxLevel,
     },
     [24588] = {
         id = 24588,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = nil,
         prerequesite = isMaxLevel,
     },
     [24589] = {
         id = 24589,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = nil,
         prerequesite = isMaxLevel,
     },
     [24590] = {
         id = 24590,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = true,
         faction = nil,
         prerequesite = isMaxLevel,
     },
     [78752] = {
         id = 78752,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = false,
         faction = nil,
         prerequesite = isMaxLevel,
     },
     [78753] = {
         id = 78753,
-        name = getQuestName,
+        getName = getQuestName,
+        getQuestTag = getQuestTag,
         isWeekly = false,
         faction = nil,
         prerequesite = isMaxLevel,

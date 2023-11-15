@@ -15,13 +15,14 @@ local C_CurrencyInfo =
 local UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup = 
 	  UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup
 
-local NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE =
-	  NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE
+local NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, YELLOW_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE =
+	  NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, YELLOW_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE
 
 
 local Settings, CreateSettingsListSectionHeaderInitializer = 
 	  Settings, CreateSettingsListSectionHeaderInitializer
 
+local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
 
 local C_QuestLog, IsQuestComplete =
 	  C_QuestLog, IsQuestComplete
@@ -30,7 +31,7 @@ local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceCo
 local L = LibStub("AceLocale-3.0"):GetLocale("RackensTracker", true)
 local AceGUI = LibStub("AceGUI-3.0")
 
-local LOGGING_ENABLED = false
+local LOGGING_ENABLED = true
 
 local database_defaults = {
 	global = {
@@ -115,10 +116,11 @@ local database_defaults = {
 						[questID] = {
 							id = questID,
 							name = string,
+							questTag = string,
 							isWeekly = boolean
-							timeAccepted = number
+							acceptedAt = number
 							isCompleted = boolean
-							isTurnedIn 
+							isTurnedIn = boolean
 						}
 					--]]
 				},
@@ -413,6 +415,8 @@ function RackensTracker:OnEnable()
 	self:RegisterEvent("QUEST_ACCEPTED", "OnEventQuestAccepted")
 	self:RegisterEvent("QUEST_REMOVED", "OnEventQuestRemoved")
 	self:RegisterEvent("QUEST_TURNED_IN", "OnEventQuestTurnedIn")
+	-- TODO: maybe register for UNIT_QUEST_LOG_CHANGED or last resort QUEST_LOG_UPDATE to check if we made progress to complete a quest
+	self.RegisterEvent("UNIT_QUEST_LOG_CHANGED", "OnEventUnitQuestLogChanged")
 	self:RegisterEvent("QUEST_LOG_CRITERIA_UPDATE", "OnEventQuestLogCriteriaUpdate")
 
 	-- Level up event
@@ -543,6 +547,7 @@ function RackensTracker:OnEventQuestAccepted(event, questLogIndex, questID)
 	local newQuestObj = {
 		id = questID,
 		name = "",
+		questTag = "",
 		isWeekly = true,
 		acceptedAt = GetServerTime(),
 		isCompleted = false,
@@ -553,10 +558,13 @@ function RackensTracker:OnEventQuestAccepted(event, questLogIndex, questID)
 	local quest = RT.Quests[questID]
 	if (quest) then
 		if (quest.faction == nil or (quest.faction and quest.faction == self.charDB.faction) and quest.prerequesite(self.charDB.level)) then
-			Log("Found tracked quest, is faction specific: " .. tostring(quest.faction) .. " questID: " .. quest.id .. " and name: " .. quest.name(quest.id))
-			newQuestObj.name = quest.name(questID)
+			
+			newQuestObj.name = quest.getName(questID)
+			newQuestObj.questTag = quest.getQuestTag(questID)
 			newQuestObj.isWeekly = quest.isWeekly
 			self.charDB.quests[questID] = newQuestObj
+
+			Log("Found tracked quest, is faction specific: " .. tostring(quest.faction) .. " questID: " .. quest.id .. " questTag: " .. newQuestObj.questTag .. " and name: " .. newQuestObj.name)
 		end
 	end
 end
@@ -567,10 +575,14 @@ end
 function RackensTracker:OnEventQuestRemoved(event, questID)
 	Log("OnEventQuestRemoved")
 	Log("questID: " .. tostring(questID))
+
+	
 	local quest = RT.Quests[questID]
 	if (quest) then
-		if (self.charDB.quests[quest.id]) then
-			Log("Removed tracked quest, isWeekly: " .. tostring(quest.isWeekly) .. " questID: " .. quest.id .. " and name: " .. quest.name(quest.id))
+		-- NOTE: only remove the quest if not turned in, e.g the player removes the quest manually from the log before turning in the quest
+		-- Still allows for players to remove a completed quest, why they would do that though is beyond me.
+		if (self.charDB.quests[quest.id] and self.charDB.quests[quest.id].isTurnedIn == false) then
+			Log("Removed tracked quest, isWeekly: " .. tostring(quest.isWeekly) .. " questID: " .. quest.id .. " and name: " .. quest.getName(quest.id))
 			self.charDB.quests[questID] = nil
 		end
 	end
@@ -585,7 +597,7 @@ function RackensTracker:OnEventQuestTurnedIn(event, questID)
 	local quest = RT.Quests[questID]
 	if (quest) then
 		if (self.charDB.quests[quest.id]) then
-			Log("Turned in tracked quest, isWeekly: " .. tostring(quest.isWeekly) .. " questID: " .. quest.id .. " and name: " .. quest.name(quest.id))
+			Log("Turned in tracked quest, isWeekly: " .. tostring(quest.isWeekly) .. " questID: " .. quest.id .. " and name: " .. quest.getName(quest.id))
 			self.charDB.quests[questID].isTurnedIn = true
 		end
 	end
@@ -597,10 +609,28 @@ function RackensTracker:OnEventQuestLogCriteriaUpdate(event, questID, specificTr
 	-- Item ID for the daily heroic Mysterious Artifact 211207
 	Log("specificTreeID: " .. tostring(specificTreeID) .. " description: " .. description .. " numFulfilled: " .. tostring(numFulfilled) .. " numRequired: " .. tostring(numRequired))
 	-- Check if its a quest we care about
+	-- NOTE: IsQuestComplete
+	-- This function will only return true if the questID corresponds to a quest in the player's log. 
+	-- If the player has already completed the quest, this will return false.
+	-- This can return true even when the "isComplete" return of GetQuestLogTitle returns false, if the quest in question has no objectives to complete.
 	if (RT.Quests[questID]) then
 		if self.charDB.quests[questID] and C_QuestLog.IsOnQuest(quest.id) and IsQuestComplete(quest.id) then
 			self.charDB.quests[quest.id].isCompleted = true
         end
+	end
+end
+
+-- Hopefully this will trigger if QUEST_LOG_CRITERIA_UPDATE hasnt been fired.
+function RackensTracker:OnEventUnitQuestLogChanged(event, unitTarget)
+	if (unitTarget == "player") then
+		Log("OnEventUnitQuestLogChanged")
+		for questID, _ in pairs(self.charDB.quests) do
+			if (C_QuestLog.IsOnQuest(questID) and IsQuestComplete(questID)) then
+				if (self.charDB.quests[questID].isCompleted == false) then
+					self.charDB.quests[questID].isCompleted = true
+				end
+			end
+		end
 	end
 end
 
@@ -624,7 +654,6 @@ end
 -- The "Fill" Layout will use the first widget in the list, and fill the whole container with it. Its only useful for containers 
 
 
-
 local function CreateDummyFrame()
 	local dummyFiller = AceGUI:Create("Label")
 	dummyFiller:SetText(" ")
@@ -633,58 +662,93 @@ local function CreateDummyFrame()
 	return dummyFiller
 end
 
-local function getQuestIcon(isWeekly, isCompleted)
-	local atlasSize = 22
+local function getQuestIcon(quest)
+	local atlasSize = 14
 	local textureAtlas = ""
 	local availableAtlas = "QuestNormal"
 	local availableDailyAtlas = "QuestDaily"
 	local completedAtlas = "QuestTurnin"
+	local turnedInAtlas = "common-icon-checkmark"
+	--local turnedInAtlas = "groupfinder-icon-greencheckmark"
 
-	if (isCompleted) then
+	if (quest.isCompleted) then
 		textureAtlas = completedAtlas
+
+		if (quest.isTurnedIn) then
+			textureAtlas = turnedInAtlas
+		end
 	else
-		if isWeekly then
+		if quest.isWeekly then
 			textureAtlas = availableAtlas
 		else
 			textureAtlas = availableDailyAtlas
 		end
 	end
 	
-	local icon = CreateAtlasMarkup(textureAtlas, defaultSize, defaultSize)
+	local icon = CreateAtlasMarkup(textureAtlas, atlasSize, atlasSize)
 	return icon
+end
+
+local function createQuestLogItem(quest)
+	local questLabel = AceGUI:Create("Label")
+	questLabel:SetFullWidth(true)
+
+	local icon = getQuestIcon(quest)
+	
+	local questTag = ""
+	if (quest.isWeekly) then
+		questTag = quest.questTag
+	else
+		questTag = string.format(DAILY_QUEST_TAG_TEMPLATE, quest.questTag)
+	end
+
+	-- TODO: AceLocale
+	local status = "Available"
+	if (not quest.isCompleted) then
+		status = "In progress"
+	else
+		status = "Completed"
+		if (quest.isTurnedIn) then
+			status = "Turned in"
+		end
+	end
+
+	local colorizedText = RT.Util:FormatColor(YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", quest.name, questTag, status)
+	local labelText = string.format("%s %s", icon, colorizedText)
+
+	questLabel:SetText(labelText)
+	return questLabel
 end
 
 function RackensTracker:DrawQuests(container, characterName)
 	local quests = self.db.realm.characters[characterName].quests
-
+	local characterHasQuests = RT.Util:Tablelen(quests) > 0
 	container:AddChild(CreateDummyFrame())
 
 	local questsHeading = AceGUI:Create("Heading")
-	if (RT.Util:Tablelen(quests) == 0) then
+	questsHeading:SetFullWidth(true)
+	if (characterHasQuests == false) then
 		questsHeading:SetText(L["noWeeklyDailyQuests"])
 	else
 		questsHeading:SetText(L["weeklyDailyQuests"])
 	end
 
-	questsHeading:SetFullWidth(true)
 	container:AddChild(questsHeading)
-
 	container:AddChild(CreateDummyFrame())
+
+	if (characterHasQuests == false) then
+		return
+	end
 
 	local weeklyQuest = nil
 	local dailyQuest = nil
 
 	for questID, quest in pairs(quests) do
 		if (quest.isWeekly) then
-			weeklyQuest = AceGUI:Create("Label")
-			weeklyQuest:SetText(string.format("%s %s", getQuestIcon(quest.isWeekly, quest.isCompleted), quest.name))
-			weeklyQuest:SetFullWidth(true)
+			weeklyQuest = createQuestLogItem(quest)
 			container:AddChild(weeklyQuest)
-			container:AddChild(CreateDummyFrame())
 		else
-			dailyQuest = AceGUI:Create("Label")
-			dailyQuest:SetText(string.format("%s %s", getQuestIcon(quest.isWeekly, quest.isCompleted), quest.name))
-			dailyQuest:SetFullWidth(true)
+			dailyQuest = createQuestLogItem(quest)
 			container:AddChild(dailyQuest)
 		end
 	end
@@ -806,12 +870,12 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	dungeonResetTimeIconLabel:SetFullWidth(true)
 	container:AddChild(dungeonResetTimeIconLabel)
 
-	-- Empty Row
-	container:AddChild(CreateDummyFrame())
-
 	if (characterHasLockouts == false) then
 		return
 	end
+
+	-- Empty Row
+	container:AddChild(CreateDummyFrame())
 
 	local lockoutsGroup = AceGUI:Create("SimpleGroup")
 	lockoutsGroup:SetLayout("Flow")
