@@ -23,6 +23,9 @@ local Settings, CreateSettingsListSectionHeaderInitializer =
 	  Settings, CreateSettingsListSectionHeaderInitializer
 
 
+local C_QuestLog, IsQuestComplete =
+	  C_QuestLog, IsQuestComplete
+
 local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceConsole-3.0", "AceEvent-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("RackensTracker", true)
 local AceGUI = LibStub("AceGUI-3.0")
@@ -48,7 +51,11 @@ local database_defaults = {
 				["61"] = true,	 -- Dalaran Jewelcrafter's Token
 				["126"] = false, -- Wintergrasp Mark of Honor
 			},
-			shownCharacters = {}
+			shownCharacters = {},
+			shownQuests = {
+				["Weekly"] = true,
+				["Daily"] = true,
+			}
 		}
 	},
 	char = {
@@ -103,6 +110,18 @@ local database_defaults = {
 				realm = nil,
 				savedInstances = {},
 				currencies = {},
+				quests = {
+					--[[
+						[questID] = {
+							id = questID,
+							name = string,
+							isWeekly = boolean
+							timeAccepted = number
+							isCompleted = boolean
+							isTurnedIn 
+						}
+					--]]
+				},
 			}
 		}
 	}
@@ -147,6 +166,10 @@ local function GetCharacterLockouts()
 	
 				-- Only store active lockouts
 				if resetsIn > 0 and isLocked then
+					-- TODO: Rework this from table.insert to indexing by instance.id
+					-- this allows us to remove those instances that has expired and that we are no longer locked to
+					-- or set the locked = false and the resetsIn to nil
+					-- instance.id will be string.format("%s %s", instanceName, difficultyName)
 					table.insert(savedInstances, {
 						instanceName = instanceName,
 						instanceID = instanceID,
@@ -275,6 +298,10 @@ function RackensTracker:OnInitialize()
 	-- Load saved variables
 	self.db = LibStub("AceDB-3.0"):New("RackensTrackerDB", database_defaults, true)
 
+	-- Reset the known last lockout time, this will be updated once the tracker window opens
+	self.db.realm.secondsToWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset()
+	self.db.realm.secondsToDailyReset  = C_DateAndTime.GetSecondsUntilDailyReset()
+
 	local function OnCurrencySettingChanged(_, setting, value)
 		local variable = setting:GetVariable()
 		self.db.global.options.shownCurrencies[variable] = value
@@ -338,12 +365,8 @@ function RackensTracker:OnEnable()
 	self.charDB.name = characterName
 	self.charDB.class = GetCharacterClass()
 	self.charDB.level = UnitLevel("player")
-	self.charDB.realm = GetRealmName() -- TODO: Might need this to be GetNormalizedRealmName()
+	self.charDB.realm = GetRealmName()
 	self.charDB.faction = UnitFactionGroup("player")
-
-	-- Reset the known last lockout time, this will be updated once the tracker window opens
-	self.db.realm.secondsToWeeklyReset = nil
-	self.db.realm.secondsToDailyReset = nil
 
 	-- Raid and dungeon related events
 	self:RegisterEvent("BOSS_KILL", "OnEventBossKill")
@@ -358,9 +381,13 @@ function RackensTracker:OnEnable()
 	
 	-- Daily - Weekly quest related events
 	self:RegisterEvent("QUEST_ACCEPTED", "OnEventQuestAccepted")
+	self:RegisterEvent("QUEST_REMOVED", "OnEventQuestRemoved")
 	self:RegisterEvent("QUEST_TURNED_IN", "OnEventQuestTurnedIn")
+	self:RegisterEvent("QUEST_LOG_CRITERIA_UPDATE", "OnEventQuestLogCriteriaUpdate")
+
 	-- Level up event
 	self:RegisterEvent("PLAYER_LEVEL_UP", "OnEventPlayerLevelUp")
+
 	-- Register Slash Commands
 	self:RegisterChatCommand("RackensTracker", "SlashCommand")
 
@@ -432,32 +459,36 @@ function RackensTracker:OnEventBossKill()
 end
 
 function RackensTracker:OnEventInstanceLockStart()
-    --Log("OnEventInstanceLockStart")
+    Log("OnEventInstanceLockStart")
     self:TriggerUpdateInstanceInfo()
 end
 
 function RackensTracker:OnEventInstanceLockStop()
-    --Log("OnEventInstanceLockStop")
+    Log("OnEventInstanceLockStop")
     self:TriggerUpdateInstanceInfo()
 end
 
 function RackensTracker:OnEventInstanceLockWarning()
-    --Log("OnEventInstanceLockWarning")
+    Log("OnEventInstanceLockWarning")
     self:TriggerUpdateInstanceInfo()
 end
 
 function RackensTracker:OnEventUpdateInstanceInfo()
-    --Log("OnEventUpdateInstanceInfo")
+    Log("OnEventUpdateInstanceInfo")
 	self:UpdateCharacterLockouts()
 end
 
 function RackensTracker:OnEventCurrencyDisplayUpdate()
-	--Log("OnEventCurrencyDisplayUpdate")
+	Log("OnEventCurrencyDisplayUpdate")
 	self:UpdateCharacterCurrencies()
 end
 
-function RackensTracker:OnEventChatMsgCurrency(text, playerName)
-	--Log("OnEventChatMsgCurrency")
+function RackensTracker:OnEventChatMsgCurrency(event, text, playerName)
+	Log("OnEventChatMsgCurrency")
+	Log("Recieved text: " .. text)
+
+	-- TODO: Maybe we dont need CHAT_MSG_CURRENCY event as it seems that CURRENCY_DISPLAY_UPDATE triggers on both boss kills and quest turn ins.
+	-- Also playerName seems to be nil or "" :/
 	if (playerName == UnitName("player")) then
 		-- We recieved a currency, update character currencies
 		-- TODO: maybe use lua pattern matching and match groups to extract the item name and
@@ -468,63 +499,78 @@ function RackensTracker:OnEventChatMsgCurrency(text, playerName)
 	end
 end
 
-function RackensTracker:OnEventPlayerLevelUp(newLevel)
+function RackensTracker:OnEventPlayerLevelUp(event, newLevel)
 	self:UpdateCharacterLevel(newLevel)
 end
 
 
-function RackensTracker:OnEventQuestAccepted(questLogIndex, questID)
-	-- Check if this questID is one we care about, ie 
-	-- Raid weekly questID's are
-	--[[
-		24579, Sartharion Must Die!
-		24580 (Only Alliance), Anub'Rekhan Must Die!
-		24581, Noth the Plaguebringer Must Die!
-		24582, Instructor Razuvious Must Die!
-		24583, Patchwerk Must Die!
-		24584 (Only Horde), Malygos Must Die!
-		24585, Flame Leviathan Must Die!
-		24586, Razorscale Must Die!
-		24587, Ignis the Furnace Master Must Die!
-		24588, XT-002 Deconstructor Must Die!
-		24589, Lord Jaraxxus Must Die!
-		24590, Lord Marrowgar Must Die!
-	--]]
-	-- Daily questID's are
-	-- 78752, Proof of Demise: Titan Rune Protocol Gamma
-	-- 78753, Proof of Demise: Threats to Azeroth
-	-- TODO: Update the character's tracked weekly or daily quest tracking.
-	Log("Accepted quest with quest log index: " .. tostring(questLogIndex))
-	Log("Accepted quest with questID" .. tostring(questID))
-	-- Its a weekly quest, which one?
-	if (RT.Quests.Weekly[questID]) then
-		local quest = RT.Quests.Weekly[questID]
-		if (quest.faction and quest.faction == self.charDB.faction and quest.prerequesite(self.charDB.level)) then
-			Log("Found Weekly Quest for our faction: " .. quest.faction .. " with ID: " .. quest.id .. " and name: " .. quest.name(quest.id))
-		end
-	-- Its a daily quest, which one?
-	elseif (RT.Quests.Daily[questID]) then
-		local quest = RT.Quests.Daily[questID]
-		if (quest.prerequesite(self.charDB.level)) then
-			Log("Found Daily Quest with ID: " .. quest.id .. " and name: " .. quest.name(quest.id))
+function RackensTracker:OnEventQuestAccepted(event, questLogIndex, questID)
+	-- Check if this questID is one we care about
+	--Log("Accepted quest with quest log index: " .. tostring(questLogIndex))
+	--Log("Accepted quest with questID: " .. tostring(questID))
+	Log("OnEventQuestAccepted")
+	Log("questID: " .. questID)
+	local newQuestObj = {
+		id = questID,
+		name = "",
+		isWeekly = true,
+		expires = GetServerTime(),
+		isCompleted = false,
+		isTurnedIn = false,
+	}
+
+	-- Its a weekly or daily quest we care about
+	local quest = RT.Quests[questID]
+
+	-- for qID, quest in pairs(RT.Quests) do
+	-- 	Log(qID .. " name: " .. quest.name(qID))
+	-- end
+
+	if (quest) then
+		if (quest.faction == nil or (quest.faction and quest.faction == self.charDB.faction) and quest.prerequesite(self.charDB.level)) then
+			Log("Found tracked quest, is faction specific: " .. tostring(quest.faction) .. " questID: " .. quest.id .. " and name: " .. quest.name(quest.id))
+			newQuestObj.name = quest.name(questID)
+			newQuestObj.isWeekly = quest.isWeekly
+			self.charDB.quests[questID] = newQuestObj
 		end
 	end
 end
 
-function RackensTracker:OnEventQuestTurnedIn(questID)
-	-- Update the current character's completed weekly or daily quest
-	-- if self.charDB.quests.weekly[questID] then
-	--	self.charDB.quests.weekly[questID].completed = true
-	-- elseif self.charDB.quests.daily[questID] then
-	--  self.charDB.quests.daily[questID].completed = true
-	-- end
-	if (RT.Quests.Weekly[questID]) then
-		local quest = RT.Quests.Weekly[questID]
-		Log("Turned in Weekly Quest for our faction: " .. quest.faction .. " with ID: " .. quest.id .. " and name: " .. quest.name(quest.id))
-	-- Its a daily quest, which one?
-	elseif (RT.Quests.Daily[questID]) then
-		local quest = RT.Quests.Daily[questID]
-		Log("Found Daily Quest with ID: " .. quest.id .. " and name: " .. quest.name(quest.id))
+function RackensTracker:OnEventQuestRemoved(event, questID)
+	Log("OnEventQuestRemoved")
+	Log("questID: " .. tostring(questID))
+	local quest = RT.Quests[questID]
+	if (quest) then
+		if (self.charDB.quests[quest.id]) then
+			Log("Removed tracked quest, isWeekly: " .. tostring(quest.isWeekly) .. " questID: " .. quest.id .. " and name: " .. quest.name(quest.id))
+			self.charDB.quests[questID] = nil
+		end
+	end
+end
+
+-- Update the current character's completed weekly or daily quest
+function RackensTracker:OnEventQuestTurnedIn(event, questID)
+	Log("OnEventQuestTurnedIn")
+	Log("questID: " .. tostring(questID))
+	local quest = RT.Quests[questID]
+	if (quest) then
+		if (self.charDB.quests[quest.id]) then
+			Log("Turned in tracked quest, isWeekly: " .. tostring(quest.isWeekly) .. " questID: " .. quest.id .. " and name: " .. quest.name(quest.id))
+			self.charDB.quests[questID].isTurnedIn = true
+		end
+	end
+end
+
+function RackensTracker:OnEventQuestLogCriteriaUpdate(event, questID, specificTreeID, description, numFulfilled, numRequired)
+	Log("OnEventQuestLogCriteriaUpdate")
+	-- Item ID for the daily gamma Defiler's Medallion 211206
+	-- Item ID for the daily heroic Mysterious Artifact 211207
+	Log("specificTreeID: " .. tostring(specificTreeID) .. " description: " .. description .. " numFulfilled: " .. tostring(numFulfilled) .. " numRequired: " .. tostring(numRequired))
+	-- Check if its a quest we care about
+	if (RT.Quests[questID]) then
+		if self.charDB.quests[questID] and C_QuestLog.IsOnQuest(quest.id) and IsQuestComplete(quest.id) then
+			self.charDB.quests[quest.id].isCompleted = true
+        end
 	end
 end
 
@@ -547,20 +593,37 @@ end
 -- The "List" Layout will simply stack all widgets on top of each other on the left side of the container.
 -- The "Fill" Layout will use the first widget in the list, and fill the whole container with it. Its only useful for containers 
 
+
+local function getQuestIcon(isDaily, isCompleted)
+	local atlasSize = 22
+	local textureAtlas = ""
+	local availableAtlas = "QuestNormal"
+	local availableDailyAtlas = "QuestDaily"
+	local completedAtlas = "QuestTurnin"
+	if isDaily then
+	   textureAtlas = availableDailyAtlas
+	else
+	   textureAtlas = availableAtlas
+	end
+	
+	local icon = CreateAtlasMarkup(textureAtlas, defaultSize, defaultSize)
+	return icon
+end
+
 function RackensTracker:GetLockoutTimeWithIcon(isRaid)
 
 	-- https://www.wowhead.com/wotlk/icon=134238/inv-misc-key-04
-	local raidFileIconID = 134238
+	local raidAtlas = "Raid"
 	-- https://www.wowhead.com/wotlk/icon=134237/inv-misc-key-03
-	local dungeonFileIconID = 134237
-
+	local dungeonAtlas = "Dungeon"
+	local atlasSize = 16
 	local iconMarkup = ""
 	if (isRaid and self.db.realm.secondsToWeeklyReset) then
-		iconMarkup = CreateTextureMarkup(raidFileIconID, 64, 64, 16, 16, 0, 1, 0, 1)
+		iconMarkup = CreateAtlasMarkup(raidAtlas, atlasSize, atlasSize)
 		return string.format("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], SecondsToTime(self.db.realm.secondsToWeeklyReset, true, nil, 3))
 	end
 	if (isRaid == false and self.db.realm.secondsToDailyReset) then
-		iconMarkup = CreateTextureMarkup(dungeonFileIconID, 64, 64, 16, 16, 0, 1, 0, 1)
+		iconMarkup = CreateAtlasMarkup(dungeonAtlas, atlasSize, atlasSize)
 		return string.format("%s %s: %s", iconMarkup, L["dungeonLockExpiresIn"], SecondsToTime(self.db.realm.secondsToDailyReset, true, nil, 3))
 	end
 end
@@ -714,7 +777,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		instanceNameLabel:SetHeight(labelHeight)
 		raidGroup:AddChild(instanceNameLabel)
 		instanceProgressLabel = AceGUI:Create("Label")
-		instanceProgressLabel:SetText(string.format("%s: %s", L["cleared"], lockoutInfo.progress)) -- TODO: AceLocale
+		instanceProgressLabel:SetText(string.format("%s%s: %s", CreateAtlasMarkup("DungeonSkull", 12, 12), L["progress"], lockoutInfo.progress))
 		instanceProgressLabel:SetFullWidth(true)
 		instanceProgressLabel:SetHeight(labelHeight)
 		raidGroup:AddChild(instanceProgressLabel)

@@ -11,7 +11,7 @@ if L then
     L["noTrackingAvailableDescription2"] = "You must log in to a max level character (level 80) to display tracking information. Only max level characters are currently tracked. This will change in the future through AddOn options."
     L["raids"] = "Raids"
     L["dungeons"] = "Dungeons"
-    L["cleared"] = "Cleared"
+    L["progress"] = "Progress"
     L["minimapLeftClickAction"] = "Left click"
     L["minimapRightClickAction"] = "Right click"
     L["minimapLeftClickDescription"] = "open the lockout tracker window"
