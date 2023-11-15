@@ -416,7 +416,7 @@ function RackensTracker:OnEnable()
 	self:RegisterEvent("QUEST_REMOVED", "OnEventQuestRemoved")
 	self:RegisterEvent("QUEST_TURNED_IN", "OnEventQuestTurnedIn")
 	-- TODO: maybe register for UNIT_QUEST_LOG_CHANGED or last resort QUEST_LOG_UPDATE to check if we made progress to complete a quest
-	self.RegisterEvent("UNIT_QUEST_LOG_CHANGED", "OnEventUnitQuestLogChanged")
+	self:RegisterEvent("UNIT_QUEST_LOG_CHANGED", "OnEventUnitQuestLogChanged")
 	self:RegisterEvent("QUEST_LOG_CRITERIA_UPDATE", "OnEventQuestLogCriteriaUpdate")
 
 	-- Level up event
