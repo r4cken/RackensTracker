@@ -363,6 +363,7 @@ function RackensTracker:CreateExistingButNotTrackedQuest()
 				secondsToReset = trackableQuest.isWeekly and C_DateAndTime.GetSecondsUntilWeeklyReset() or C_DateAndTime.GetSecondsUntilDailyReset(),
 				isCompleted = IsQuestComplete(trackableQuest.id),
 				isTurnedIn = false,
+				craftedFromExistingQuest = true
 			}
 			self.currentCharacter.quests[questID] = newTrackedQuest
 
