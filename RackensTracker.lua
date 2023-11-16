@@ -1,18 +1,18 @@
 local addOnName, RT = ...
 
-local table, math, type, string, pairs, ipairs = 
+local table, math, type, string, pairs, ipairs =
 	  table, math, type, string, pairs, ipairs
 
-local GetServerTime, SecondsToTime, C_DateAndTime = 
+local GetServerTime, SecondsToTime, C_DateAndTime =
 	  GetServerTime, SecondsToTime, C_DateAndTime
 
-local RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstanceInfo = 
+local RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstanceInfo =
 	  RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstanceInfo
 
-local C_CurrencyInfo = 
+local C_CurrencyInfo =
 	  C_CurrencyInfo
 
-local UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup = 
+local UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup =
 	  UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup
 
 local NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, YELLOW_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE =
@@ -26,6 +26,7 @@ local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
 local C_QuestLog, IsQuestComplete =
 	  C_QuestLog, IsQuestComplete
 
+---@class RackensTracker : AceAddon, AceConsole-3.0, AceEvent-3.0
 local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceConsole-3.0", "AceEvent-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("RackensTracker", true)
 local AceGUI = LibStub("AceGUI-3.0")
@@ -154,7 +155,7 @@ end
 
 local function GetCharacterIcon(class, iconSize)
 	local textureAtlas = GetClassAtlas(class)
-	local icon = CreateAtlasMarkup(textureAtlas, size, size)
+	local icon = CreateAtlasMarkup(textureAtlas, iconSize, iconSize)
 	return icon
 end
 
@@ -201,7 +202,7 @@ local function GetCharacterCurrencies()
 	for currencyID = 61, 3000, 1 do
 		-- Exclude some currencies which arent useful or those that are deprecated
 		if (not RT.ExcludedCurrencyIds[currencyID]) then
-		   currency = C_CurrencyInfo.GetCurrencyInfo(currencyID)
+		   local currency = C_CurrencyInfo.GetCurrencyInfo(currencyID)
 		   if currency and currency.name ~= nil and currency.name:trim() ~= "" then
 			currencies[currencyID] =
 				{
@@ -301,8 +302,6 @@ function RackensTracker:ResetQuestsIfNecessary()
 
 			Log("Checking if quest for: " .. characterName .. " with name: " .. quest.name .. " meets criteria to be deleted after weekly/daily reset")
 			Log("Quest should expire at server time: " .. quest.acceptedAt + quest.secondsToReset)
-			Log("Timestamp for expire is: " .. SecondsToTime(quest.secondsToReset, true, nil, 3))
-			Log("Current server time is: " .. GetServerTime())
 			if (quest.acceptedAt + quest.secondsToReset < GetServerTime()) then
 				-- Found a tracked weekly or daily quest that has expired past the weekly reset time
 				-- It is now stale and a new one should be picked up by the player.
@@ -421,7 +420,7 @@ function RackensTracker:OnInitialize()
 		 -- Look at our database_defaults for a default value.
 		local defaultValue = database_defaults.global.options.shownCurrencies[variable]
 		local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, type(defaultValue), defaultValue)
-		local initializer = Settings.CreateCheckBox(self.optionsCategory, setting, showHideCurrencyTooltip)
+		Settings.CreateCheckBox(self.optionsCategory, setting, showHideCurrencyTooltip)
 		Settings.SetOnValueChangedCallback(variable, OnCurrencySettingChanged)
 
 		-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
@@ -436,7 +435,6 @@ function RackensTracker:OnInitialize()
 	self.libDBIcon = self.libDataBroker and LibStub("LibDBIcon-1.0", true)
 	local minimapBtn = self.libDataBroker:NewDataObject(addOnName, {
 		type = "launcher",
-		text = addOnName,
 		icon = "Interface\\Icons\\Achievement_boss_lichking",
 		OnClick = function(_, button)
 			if (button == "LeftButton") then
@@ -447,6 +445,9 @@ function RackensTracker:OnInitialize()
 				self:OpenOptionsFrame()
 			end
 		end,
+		tocname = addOnName,
+		label = addOnName,
+		---@type function|GameTooltip
 		OnTooltipShow = function(tooltip)
 			tooltip:AddLine(HIGHLIGHT_FONT_COLOR_CODE.. addOnName .. FONT_COLOR_CODE_CLOSE )
 			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. L["minimapLeftClickAction"]  .. ": " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. L["minimapLeftClickDescription"] .. FONT_COLOR_CODE_CLOSE)
@@ -822,7 +823,7 @@ function RackensTracker:DrawQuests(container, characterName)
 	local weeklyQuest = nil
 	local dailyQuest = nil
 
-	for questID, quest in pairs(quests) do
+	for _, quest in pairs(quests) do
 		if (quest.isWeekly) then
 			weeklyQuest = createQuestLogItemEntry(quest)
 			container:AddChild(weeklyQuest)
@@ -981,7 +982,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	local hasMoreRaidsThanDungeons = nRaids > nDungeons
 	local hasEqualRaidsAndDungeons = nRaids == nDungeons
 
-	local instanceNameLabel, instanceProgressLabel, instanceColorizedName, instanceResetDatetime, instanceProgress = nil
+	local instanceNameLabel, instanceProgressLabel, instanceColorizedName = nil, nil, nil
 	local labelHeight = 20
 	local lockoutInfo = {}
 	for _, instance in ipairs(raidInstances.sorted) do
@@ -1089,7 +1090,7 @@ function RackensTracker:OpenTrackerFrame()
 
 	-- Setup which tabs to show, one tab per character
 	local tabsData = {}
-	local tabIconSize = 8
+	local tabIconSize = 12
 	local tabIcon = ""
 	local tabName = ""
 
