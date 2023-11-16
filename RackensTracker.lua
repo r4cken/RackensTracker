@@ -821,7 +821,7 @@ function RackensTracker:GetLockoutTimeWithIcon(isRaid)
 end
 
 function RackensTracker:DrawSavedInstances(container, characterName)
-	
+
 	-- Refresh the currently known daily and weekly reset timers
 	RackensTracker:UpdateCurrentWeeklyDailyResets()
 
@@ -870,13 +870,15 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	local lockoutsGroup = AceGUI:Create("SimpleGroup")
 	lockoutsGroup:SetLayout("Flow")
 	lockoutsGroup:SetFullWidth(true)
-	
+
+	container:AddChild(lockoutsGroup)
+
 	local raidGroup = AceGUI:Create("InlineGroup")
 	raidGroup:SetLayout("List")
 	raidGroup:SetTitle(L["raids"]) -- TODO: AceLocale
 	raidGroup:SetFullHeight(true)
 	raidGroup:SetRelativeWidth(0.50) -- Half of the parent
-
+	
 	local dungeonGroup = AceGUI:Create("InlineGroup")
 	dungeonGroup:SetLayout("List")
 	dungeonGroup:SetTitle(L["dungeons"]) -- TODO: AceLocale
@@ -944,7 +946,6 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	-- If these arent added AFTER all the child objects have been added, the anchor points and positioning gets all screwed up : (
 	lockoutsGroup:AddChild(raidGroup)
 	lockoutsGroup:AddChild(dungeonGroup)
-	container:AddChild(lockoutsGroup)
 end
 
 
@@ -993,7 +994,7 @@ function RackensTracker:OpenTrackerFrame()
 
 	-- Create our TabGroup
 	self.tracker_tabs = AceGUI:Create("TabGroup")
-	
+
 	-- The frames inside the selected tab are stacked
 	self.tracker_tabs:SetLayout("List")
 	self.tracker_tabs:SetFullHeight(true)
@@ -1025,6 +1026,9 @@ function RackensTracker:OpenTrackerFrame()
 	-- Do we have ANY level 80 characters at all?
 	local isAnyCharacterMaxLevel = #tabsData > 0
 	if (isAnyCharacterMaxLevel) then
+		-- Add the TabGroup to the main frame
+		self.tracker_frame:AddChild(self.tracker_tabs)
+
 		self.tracker_tabs:SetTabs(tabsData)
 		-- Register callbacks on tab selected
 		self.tracker_tabs:SetCallback("OnGroupSelected", SelectCharacterTab)
@@ -1037,8 +1041,6 @@ function RackensTracker:OpenTrackerFrame()
 			self.tracker_tabs:SelectTab(tabsData[1].value)
 		end
 
-		-- Add the TabGroup to the main frame
-		self.tracker_frame:AddChild(self.tracker_tabs)
 	else
 		local noTrackingInformationGroup = AceGUI:Create("SimpleGroup")
 		noTrackingInformationGroup:SetLayout("List")
