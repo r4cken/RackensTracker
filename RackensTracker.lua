@@ -118,6 +118,7 @@ local database_defaults = {
 							questTag = string,
 							isWeekly = boolean
 							acceptedAt = number
+							secondsToReset = number
 							isCompleted = boolean
 							isTurnedIn = boolean
 						}
@@ -539,14 +540,15 @@ end
 
 function RackensTracker:OnEventQuestAccepted(event, questLogIndex, questID)
 	Log("OnEventQuestAccepted")
-	Log("questID: " .. questID)
+	--Log("questID: " .. questID)
 
 	local newTrackedQuest = {
 		id = questID,
 		name = "",
 		questTag = "",
 		isWeekly = true,
-		acceptedAt = GetServerTime(),
+		acceptedAt = 0,
+		secondsToReset = 0,
 		isCompleted = false,
 		isTurnedIn = false,
 	}
@@ -559,6 +561,13 @@ function RackensTracker:OnEventQuestAccepted(event, questLogIndex, questID)
 			newTrackedQuest.name = trackableQuest.getName(questID)
 			newTrackedQuest.questTag = trackableQuest.getQuestTag(questID)
 			newTrackedQuest.isWeekly = trackableQuest.isWeekly
+			newTrackedQuest.acceptedAt = GetServerTime()
+			if (trackableQuest.isWeekly) then
+				newTrackedQuest.secondsToReset = C_DateAndTime.GetSecondsUntilWeeklyReset()
+			else 
+				newTrackedQuest.secondsToReset = C_DateAndTime.GetSecondsUntilDailyReset()
+			end
+
 			self.charDB.quests[questID] = newTrackedQuest
 		end
 	end
@@ -566,7 +575,7 @@ end
 
 function RackensTracker:OnEventQuestRemoved(event, questID)
 	Log("OnEventQuestRemoved")
-	Log("questID: " .. tostring(questID))
+	--Log("questID: " .. tostring(questID))
 
 	local trackableQuest = RT.Quests[questID]
 	local trackedQuest = self.charDB.quests[questID]
@@ -585,7 +594,7 @@ end
 -- by pressing the complete button in a quest dialog.
 function RackensTracker:OnEventQuestTurnedIn(event, questID)
 	Log("OnEventQuestTurnedIn")
-	Log("questID: " .. tostring(questID))
+	--Log("questID: " .. tostring(questID))
 
 	local trackedQuest = self.charDB.quests[questID]
 	if (trackedQuest) then
