@@ -176,7 +176,7 @@ local function GetCharacterCurrencies()
 	for currencyID = 61, 3000, 1 do
 		-- Exclude some currencies which arent useful or those that are deprecated
 		if (not RT.ExcludedCurrencyIds[currencyID]) then
-		   currency = C_CurrencyInfo.GetCurrencyInfo(currencyID)
+		   local currency = C_CurrencyInfo.GetCurrencyInfo(currencyID)
 		   if currency and currency.name ~= nil and currency.name:trim() ~= "" then
 			currencies[currencyID] = 
 				{
