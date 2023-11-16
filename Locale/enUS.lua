@@ -1,8 +1,8 @@
 local L = LibStub("AceLocale-3.0"):NewLocale("RackensTracker", "enUS", true);
 
 if L then
-    L["raidLockExpiresIn"] = "Raid Lock Expires In"
-    L["dungeonLockExpiresIn"] = "Dungeon Lock Expires In"
+    L["raidLockExpiresIn"] = "Raid Locks Expire In"
+    L["dungeonLockExpiresIn"] = "Dungeon Locks Expire In"
     L["currencies"] = "Currencies"
     L["weeklyDailyQuests"] = "Weekly / Daily Quests"
     L["noWeeklyDailyQuests"] = "No Weekly / Daily Quests"
