@@ -459,6 +459,8 @@ function RackensTracker:OnInitialize()
 	if self.libDBIcon then
 		self.libDBIcon:Register(addOnName, minimapBtn, self.db.char.minimap)
 	end
+
+	tinsert(UISpecialFrames, "RackensTrackerWindowFrame")
 end
 
 -- local function checkDailyWeeklyResets()
@@ -1067,6 +1069,10 @@ function RackensTracker:OpenTrackerFrame()
 	-- TODO: Figure out why ElvUI is tainting AceGUI making the height calculations all fucked
 	-- AND making extra borders / backdrops
 	self.tracker_frame = AceGUI:Create("Window")
+
+	-- Make it so pressing Escape closes the tracker window
+	_G["RackensTrackerWindowFrame"] = self.tracker_frame.frame
+
 	self.tracker_frame:SetTitle(addOnName)
 	self.tracker_frame:SetLayout("Fill")
 	self.tracker_frame:SetWidth(650)
