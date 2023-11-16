@@ -327,6 +327,8 @@ function RackensTracker:OnInitialize()
 	if self.libDBIcon then
 		self.libDBIcon:Register(addOnName, minimapBtn, self.db.char.minimap)
 	end
+
+	tinsert(UISpecialFrames, "RackensTrackerWindowFrame")
 end
 
 function RackensTracker:OnEnable()
@@ -723,6 +725,10 @@ function RackensTracker:OpenTrackerFrame()
 	end
 
 	self.tracker_frame = AceGUI:Create("Window")
+	
+	-- Make it so pressing Escape closes the tracker window
+	_G["RackensTrackerWindowFrame"] = self.tracker_frame.frame
+
 	self.tracker_frame:SetTitle(addOnName)
 	self.tracker_frame:SetLayout("Fill")
 	self.tracker_frame:SetWidth(650)
