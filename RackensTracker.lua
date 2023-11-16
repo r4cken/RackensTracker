@@ -641,6 +641,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	-- but rather fills its height by content, this is an ugly hack to fill dummy frames into either raidGroup or dungeonGroup to match the number of rows, thus making their heights equal :/
 	local nDummyFramesNeeded = math.max(nRaids, nDungeons)
 	local hasMoreRaidsThanDungeons = nRaids > nDungeons
+	local hasEqualRaidsAndDungeons = nRaids == nDungeons
 
 	local instanceNameLabel, instanceProgressLabel, instanceColorizedName, instanceResetDatetime, instanceProgress = nil
 	local labelHeight = 20
@@ -660,9 +661,11 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		raidGroup:AddChild(instanceProgressLabel)
 	end
 
-	if (hasMoreRaidsThanDungeons == false) then
-		for i = 1, nDummyFramesNeeded * 2 do -- * 2 to account for the instance name row + the lockout progress row
-			raidGroup:AddChild(CreateDummyFrame())
+	if (not hasEqualRaidsAndDungeons) then
+		if (hasMoreRaidsThanDungeons == false) then
+			for i = 1, nDummyFramesNeeded * 2 do -- * 2 to account for the instance name row + the lockout progress row
+				raidGroup:AddChild(CreateDummyFrame())
+			end
 		end
 	end
 
@@ -682,10 +685,12 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		dungeonGroup:AddChild(instanceProgressLabel)
 	end
 
-	if (hasMoreRaidsThanDungeons) then
-		for i = 1, nDummyFramesNeeded * 2 do
-			dungeonGroup:AddChild(CreateDummyFrame())
-		end
+	if (not hasEqualRaidsAndDungeons) then
+		if (hasMoreRaidsThanDungeons) then
+			for i = 1, nDummyFramesNeeded * 2 do
+				dungeonGroup:AddChild(CreateDummyFrame())
+			end
+		end	
 	end
 	-- If these arent added AFTER all the child objects have been added, the anchor points and positioning gets all screwed up : (
 	lockoutsGroup:AddChild(raidGroup)
@@ -703,6 +708,7 @@ function RackensTracker:CloseTrackerFrame()
 	if (self.tracker_frame and self.tracker_frame:IsVisible()) then
 		AceGUI:Release(self.tracker_frame)
 		self.tracker_frame = nil
+		self.tracker_tabs = nil
 	end
 end
 
@@ -729,6 +735,7 @@ function RackensTracker:OpenTrackerFrame()
 		-- Clear any local tables containing processed instances and currencies
 		AceGUI:Release(widget)
 		self.tracker_frame = nil
+		self.tracker_tabs = nil
 	end)
 
 	-- Create our TabGroup
