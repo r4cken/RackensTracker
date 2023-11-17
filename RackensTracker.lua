@@ -26,6 +26,9 @@ local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
 local C_QuestLog, IsQuestComplete =
 	  C_QuestLog, IsQuestComplete
 
+local CreateAndInitFromMixin, SecondsFormatter =
+	  CreateAndInitFromMixin, SecondsFormatter
+
 ---@class RackensTracker : AceAddon, AceConsole-3.0, AceEvent-3.0
 local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceConsole-3.0", "AceEvent-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("RackensTracker", true)
@@ -77,7 +80,8 @@ local database_defaults = {
 					class = "ROGUE",
 					realm = Earthshaker
 					savedInstances = {
-						{
+						-- instanceID is made up by instanceName + difficultyName
+						[instanceID] = {
 							["instanceName"] = instanceName,
 							["instanceID"] = instanceID,
 							["lockoutID"] = lockoutID,
@@ -93,7 +97,7 @@ local database_defaults = {
 						}
 					},
 					currencies = {
-						[currencyID] = 	{
+						[currencyID] = {
 							[currencyID] = currencyID,
 							[name] = currency.name,
 							[description] = currency.description or "",
@@ -168,11 +172,11 @@ local function GetCharacterLockouts()
 			if ( i <= nSavedInstances) then
 				local instanceName, lockoutID, resetsIn, difficultyID, isLocked, _, _, isRaid, maxPlayers, difficultyName, encountersTotal, encountersCompleted, _, instanceID = GetSavedInstanceInfo(i)
 				local _, _, isHeroic, _, _, _, _ = GetDifficultyInfo(difficultyID);
-	
+
 				-- Only store active lockouts
 				if resetsIn > 0 and isLocked then
 					local id = string.format("%s %s", instanceName, difficultyName)
-					savedInstances[id] = 
+					savedInstances[id] =
 					{
 						instanceName = instanceName,
 						instanceID = instanceID,
@@ -295,13 +299,13 @@ end
 function RackensTracker:ResetQuestsIfNecessary()
 	for characterName, character in pairs(self.db.realm.characters) do
 		for questID, quest in pairs(character.quests) do
-			-- Edge case, if someone picked up quests before using our addon, in that case we do not know anything about the
-			-- secondsToReset or the acceptedAt timestamps :/
-			quest.acceptedAt = quest.acceptedAt or 0
-			quest.secondsToReset = quest.secondsToReset or 0
-
 			Log("Checking if quest for: " .. characterName .. " with name: " .. quest.name .. " meets criteria to be deleted after weekly/daily reset")
-			Log("Quest should expire at server time: " .. quest.acceptedAt + quest.secondsToReset)
+			local timeNow = GetServerTime()
+			Log("Current server time: " .. timeNow)
+			Log("Quest: Expires at server time: " .. quest.acceptedAt + quest.secondsToReset)
+			--Log("Quest Expired: " .. self.TimeFormatter.Format(timeNow - (quest.acceptedAt + quest.secondsToReset)) .. " ago")
+			Log("Clock time for expiration: " .. SecondsToClock(quest.secondsToReset, true))
+	
 			if (quest.acceptedAt + quest.secondsToReset < GetServerTime()) then
 				-- Found a tracked weekly or daily quest that has expired past the weekly reset time
 				-- It is now stale and a new one should be picked up by the player.
@@ -310,7 +314,9 @@ function RackensTracker:ResetQuestsIfNecessary()
 				-- If they turn it in past the "deadline" it counts as completed for that lockout period anyway.
 				if (quest.isCompleted and quest.isTurnedIn) then
 					Log("Completed and turned in tracked quest has passed its weekly or daily reset and will be removed, questID: " .. quest.id .. " questTag: " .. quest.questTag .. " and name: " .. quest.name)
-					character.quests[questID] = nil
+
+					self.db.realm.characters[characterName].quests[questID] = nil
+					Log("Is quest deleted now?: " .. tostring(self.db.realm.characters[characterName].quests[questID] == nil))
 				end
 			end
 		end
@@ -321,8 +327,11 @@ function RackensTracker:ResetSavedInstancesIfNecessary()
 	for characterName, character in pairs(self.db.realm.characters) do
 		for id, savedInstance in pairs(character.savedInstances) do
 			if (savedInstance.resetTime and savedInstance.resetTime < GetServerTime()) then
-				Log("Found tracked instance that has passed its weekly or daily reset, character: " .. characterName .. " is not locked anymore.")
-				savedInstance = nil
+				Log("Found tracked instance that has passed its weekly or daily reset for character: " .. characterName .. " is not locked anymore.")
+				Log("Instance id: " .. savedInstance.instanceName .. " " .. savedInstance.difficultyName)
+
+				self.db.realm.characters[characterName].savedInstances[id] = nil
+				Log("Is saved instance deleted now?: " .. tostring(self.db.realm.characters[characterName].savedInstances[id] == nil))
 			end
 		end
 	end
@@ -363,8 +372,9 @@ function RackensTracker:CreateExistingButNotTrackedQuest()
 				secondsToReset = trackableQuest.isWeekly and C_DateAndTime.GetSecondsUntilWeeklyReset() or C_DateAndTime.GetSecondsUntilDailyReset(),
 				isCompleted = IsQuestComplete(trackableQuest.id),
 				isTurnedIn = false,
-				craftedFromExistingQuest = true
+				craftedFromExistingQuest = true -- Just there to differentiate between quest handled fully by our addon.
 			}
+			
 			self.currentCharacter.quests[questID] = newTrackedQuest
 
 			Log("Trackable active quest found in quest log but not in the database, adding it to the tracker..")
@@ -379,6 +389,8 @@ function RackensTracker:OnInitialize()
 	self.tracker_frame = nil
 	self.optionsCategory = nil
 	self.optionsLayout = nil
+
+	self.TimeFormatter = CreateAndInitFromMixin(SecondsFormatterMixin, nil, SecondsFormatter.Abbreviation.Truncate, false, true)
 
 	-- Load saved variables
 	self.db = LibStub("AceDB-3.0"):New("RackensTrackerDB", database_defaults, true)
