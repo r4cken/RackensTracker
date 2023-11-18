@@ -303,28 +303,27 @@ end
 function RackensTracker:ResetQuestsIfNecessary()
 	for characterName, character in pairs(self.db.realm.characters) do
 		for questID, quest in pairs(character.quests) do
-			Log("Checking if quest for: " .. characterName .. " with name: " .. quest.name .. " meets criteria to be deleted after weekly/daily reset")
 			if (quest.acceptedAt + quest.secondsToReset < GetServerTime()) then
+				Log("Found tracked quest that expired in a previous reset for: " .. characterName)
 				local timeNow = GetServerTime()
 				Log("Current server time: " .. timeNow)
-				Log("Quest: Expires at server time: " .. quest.acceptedAt + quest.secondsToReset)
-				Log("Quest Expired: " .. timeFormatter:Format(timeNow - (quest.acceptedAt + quest.secondsToReset)) .. " ago")
-				Log("At the time of accepting the quest there was: " .. timeFormatter:Format(quest.secondsToReset) .. " left until expiration")
+				Log("Tracked quest set to expire at server time: " .. quest.acceptedAt + quest.secondsToReset)
+				Log("Tracked quest expired: " .. timeFormatter:Format(timeNow - (quest.acceptedAt + quest.secondsToReset)) .. " ago")
+				Log("At the time of accepting the quest there was: " .. timeFormatter:Format(quest.secondsToReset) .. " left until reset")
 				-- Found a tracked weekly or daily quest that has expired past the weekly reset time
 				-- It is now stale and a new one should be picked up by the player.
 				-- Stop tracking quests that are past its current reset date
 				-- There is an edge case where the player can hold on to a completed but not turned in quest so dont delete that one
 				-- If they turn it in past the "deadline" it counts as completed for that lockout period anyway.
 				if (quest.isCompleted and quest.isTurnedIn) then
-					Log("Completed and turned in tracked quest has passed its weekly or daily reset and will be removed, questID: " .. quest.id .. " questTag: " .. quest.questTag .. " and name: " .. quest.name)
-
+					Log("Expired quest is completed and turned in, now removing quest with questID: " .. quest.id .. " name: " .. quest.name .. " from the tracker database")
 					self.db.realm.characters[characterName].quests[questID] = nil
-					Log("Is quest deleted now?: " .. tostring(self.db.realm.characters[characterName].quests[questID] == nil))
 				end
 
 				-- If the player has an in progress quest that belongs to an older daily or weekly reset then just flag it
 				-- This will show up in the UI with a warning triangle and a message so they know they are on a quest belonging to an older reset.
 				if (not quest.isCompleted and not quest.isTurnedIn) then
+					Log("Expired quest is NOT completed and NOT turned in, flagging quest with a user warning for questID: " .. quest.id .. " name: " .. quest.name .. " in the tracker database")
 					self.db.realm.characters[characterName].quests[questID].hasExpired = true
 				end
 			end
@@ -335,17 +334,17 @@ end
 function RackensTracker:ResetSavedInstancesIfNecessary()
 	for characterName, character in pairs(self.db.realm.characters) do
 		for id, savedInstance in pairs(character.savedInstances) do
+			-- TODO: Look into if this savedInstance.resetTime is completely accurate as we update our information about it very frequently on events
 			if (savedInstance.resetTime and savedInstance.resetTime < GetServerTime()) then
-				Log("Found tracked instance that has passed its weekly or daily reset for character: " .. characterName .. " is not locked anymore.")
-				Log("Instance id: " .. savedInstance.instanceName .. " " .. savedInstance.difficultyName)
+				Log("Found tracked instance that expired in a previous reset for: " .. characterName)
+				Log("Tracked instance id: " .. savedInstance.instanceName .. " " .. savedInstance.difficultyName)
 				local timeNow = GetServerTime()
 				Log("Current server time: " .. timeNow)
-				Log("Instance: Expires at server time: " .. savedInstance.resetTime)
-				Log("Instance Expired: " .. timeFormatter:Format(timeNow - (savedInstance.resetTime)) .. " ago")
-				Log("At the time of getting saved to the instance there was: " .. timeFormatter:Format(timeNow - savedInstance.resetTime) .. " left until expiration")
-				
+				Log("Tracked instance set to expire at server time: " .. savedInstance.resetTime)
+				Log("Tracked instance expired: " .. timeFormatter:Format(timeNow - (savedInstance.resetTime)) .. " ago")
+				Log("At the time of getting saved to the instance there was: " .. timeFormatter:Format(timeNow - savedInstance.resetTime) .. " left until reset")
+
 				self.db.realm.characters[characterName].savedInstances[id] = nil
-				Log("Is saved instance deleted now?: " .. tostring(self.db.realm.characters[characterName].savedInstances[id] == nil))
 			end
 		end
 	end
