@@ -18,7 +18,7 @@ local UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup =
 local NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, YELLOW_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE =
 	  NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, YELLOW_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE
 
-local Settings, CreateSettingsListSectionHeaderInitializer = 
+local Settings, CreateSettingsListSectionHeaderInitializer =
 	  Settings, CreateSettingsListSectionHeaderInitializer
 
 local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
@@ -26,8 +26,11 @@ local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
 local C_QuestLog, IsQuestComplete =
 	  C_QuestLog, IsQuestComplete
 
-local CreateAndInitFromMixin, SecondsFormatter =
-	  CreateAndInitFromMixin, SecondsFormatter
+local CreateFromMixins, SecondsFormatterMixin, SecondsFormatter =
+	  CreateFromMixins, SecondsFormatterMixin, SecondsFormatter
+
+local timeFormatter = CreateFromMixins(SecondsFormatterMixin)
+timeFormatter:Init(nil, SecondsFormatter.Abbreviation.Truncate, false, true)
 
 ---@class RackensTracker : AceAddon, AceConsole-3.0, AceEvent-3.0
 local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceConsole-3.0", "AceEvent-3.0")
@@ -128,6 +131,7 @@ local database_defaults = {
 							secondsToReset = number
 							isCompleted = boolean
 							isTurnedIn = boolean
+							hasExpired = boolean
 						}
 					--]]
 				},
@@ -300,13 +304,12 @@ function RackensTracker:ResetQuestsIfNecessary()
 	for characterName, character in pairs(self.db.realm.characters) do
 		for questID, quest in pairs(character.quests) do
 			Log("Checking if quest for: " .. characterName .. " with name: " .. quest.name .. " meets criteria to be deleted after weekly/daily reset")
-			local timeNow = GetServerTime()
-			Log("Current server time: " .. timeNow)
-			Log("Quest: Expires at server time: " .. quest.acceptedAt + quest.secondsToReset)
-			--Log("Quest Expired: " .. self.TimeFormatter.Format(timeNow - (quest.acceptedAt + quest.secondsToReset)) .. " ago")
-			Log("Clock time for expiration: " .. SecondsToClock(quest.secondsToReset, true))
-	
 			if (quest.acceptedAt + quest.secondsToReset < GetServerTime()) then
+				local timeNow = GetServerTime()
+				Log("Current server time: " .. timeNow)
+				Log("Quest: Expires at server time: " .. quest.acceptedAt + quest.secondsToReset)
+				Log("Quest Expired: " .. timeFormatter:Format(timeNow - (quest.acceptedAt + quest.secondsToReset)) .. " ago")
+				Log("At the time of accepting the quest there was: " .. timeFormatter:Format(quest.secondsToReset) .. " left until expiration")
 				-- Found a tracked weekly or daily quest that has expired past the weekly reset time
 				-- It is now stale and a new one should be picked up by the player.
 				-- Stop tracking quests that are past its current reset date
@@ -317,6 +320,12 @@ function RackensTracker:ResetQuestsIfNecessary()
 
 					self.db.realm.characters[characterName].quests[questID] = nil
 					Log("Is quest deleted now?: " .. tostring(self.db.realm.characters[characterName].quests[questID] == nil))
+				end
+
+				-- If the player has an in progress quest that belongs to an older daily or weekly reset then just flag it
+				-- This will show up in the UI with a warning triangle and a message so they know they are on a quest belonging to an older reset.
+				if (not quest.isCompleted and not quest.isTurnedIn) then
+					self.db.realm.characters[characterName].quests[questID].hasExpired = true
 				end
 			end
 		end
@@ -329,7 +338,12 @@ function RackensTracker:ResetSavedInstancesIfNecessary()
 			if (savedInstance.resetTime and savedInstance.resetTime < GetServerTime()) then
 				Log("Found tracked instance that has passed its weekly or daily reset for character: " .. characterName .. " is not locked anymore.")
 				Log("Instance id: " .. savedInstance.instanceName .. " " .. savedInstance.difficultyName)
-
+				local timeNow = GetServerTime()
+				Log("Current server time: " .. timeNow)
+				Log("Instance: Expires at server time: " .. savedInstance.resetTime)
+				Log("Instance Expired: " .. timeFormatter:Format(timeNow - (savedInstance.resetTime)) .. " ago")
+				Log("At the time of getting saved to the instance there was: " .. timeFormatter:Format(timeNow - savedInstance.resetTime) .. " left until expiration")
+				
 				self.db.realm.characters[characterName].savedInstances[id] = nil
 				Log("Is saved instance deleted now?: " .. tostring(self.db.realm.characters[characterName].savedInstances[id] == nil))
 			end
@@ -357,7 +371,7 @@ function RackensTracker:CreateExistingButNotTrackedQuest()
 		-- This does mean however that the quest might be removed from the tracker after completion and turn in
 		-- as the code that checks if we are past the weekly or daily reset assumes these timestamps exist.
 		-- It is a small price to pay to be more inclusive.
-		if (C_QuestLog.IsOnQuest(trackableQuest.id) and not self.currentCharacter.quests[questID]) then
+		if (C_QuestLog.IsOnQuest(trackableQuest.id) and not self.currentCharacter.quests[trackableQuest.id]) then
 			local newTrackedQuest = {
 				id = trackableQuest.id,
 				name = trackableQuest.getName(trackableQuest.id),
@@ -375,7 +389,7 @@ function RackensTracker:CreateExistingButNotTrackedQuest()
 				craftedFromExistingQuest = true -- Just there to differentiate between quest handled fully by our addon.
 			}
 			
-			self.currentCharacter.quests[questID] = newTrackedQuest
+			self.currentCharacter.quests[trackableQuest.id] = newTrackedQuest
 
 			Log("Trackable active quest found in quest log but not in the database, adding it to the tracker..")
 			Log("Found new trackable quest, questID: " .. newTrackedQuest.id .. " questTag: " .. newTrackedQuest.questTag .. " and name: " .. newTrackedQuest.name)
@@ -390,8 +404,6 @@ function RackensTracker:OnInitialize()
 	self.optionsCategory = nil
 	self.optionsLayout = nil
 
-	self.TimeFormatter = CreateAndInitFromMixin(SecondsFormatterMixin, nil, SecondsFormatter.Abbreviation.Truncate, false, true)
-
 	-- Load saved variables
 	self.db = LibStub("AceDB-3.0"):New("RackensTrackerDB", database_defaults, true)
 
@@ -403,18 +415,6 @@ function RackensTracker:OnInitialize()
 	
 	-- Update weekly and daily reset timers
 	self:UpdateWeeklyDailyResetTime()
-
-	local characterName = GetCharacterDatabaseID()
-
-	self.currentCharacter = self.db.realm.characters[characterName]
-	self.currentCharacter.name = characterName
-	self.currentCharacter.class = GetCharacterClass()
-	self.currentCharacter.level = UnitLevel("player")
-	self.currentCharacter.realm = GetRealmName()
-	self.currentCharacter.faction = UnitFactionGroup("player")
-
-	-- Look for any trackable quests in the players quest log that are NOT in the tracked collection
-	self:CreateExistingButNotTrackedQuest()
 
 	-- Check for
 	local function OnCurrencySettingChanged(_, setting, value)
@@ -475,38 +475,21 @@ function RackensTracker:OnInitialize()
 	tinsert(UISpecialFrames, "RackensTrackerWindowFrame")
 end
 
--- local function checkDailyWeeklyResets()
--- 	local timestamp = GetServerTime()
-	
--- 	-- Weekly quest reset
--- 	if (self.db.realm.secondsToWeeklyReset + timestamp < timestamp) then
--- 		for characterName, character in pairs(self.db.realm.characters) do
--- 			for questID, quest in pairs(RT.Quests) do
--- 				if (quest.isWeekly) then
--- 					if (character.quests[questID]) then
--- 						character.quests[questID].isCompleted = false
--- 					end
--- 				end
--- 			end  
--- 		end
--- 	end
-
--- 	-- Daily quest reset
--- 	if (self.db.realm.secondsToDailyReset + timestamp < timestamp) then
--- 		for characterName, character in pairs(self.db.realm.characters) do
--- 			for questID, quest in pairs(RT.Quests) do
--- 				if (quest.isWeekly == false) then
--- 					if (character.quests[questID]) then
--- 						character.quests[questID].isCompleted = false
--- 					end
--- 				end
--- 			end  
--- 		end
--- 	end
--- end
 
 function RackensTracker:OnEnable()
 	-- Called when the addon is enabled
+
+	local characterName = GetCharacterDatabaseID()
+
+	self.currentCharacter = self.db.realm.characters[characterName]
+	self.currentCharacter.name = characterName
+	self.currentCharacter.class = GetCharacterClass()
+	self.currentCharacter.level = UnitLevel("player")
+	self.currentCharacter.realm = GetRealmName()
+	self.currentCharacter.faction = UnitFactionGroup("player")
+
+	-- Look for any trackable quests in the players quest log that are NOT in the tracked collection
+	self:CreateExistingButNotTrackedQuest()
 
 	-- Raid and dungeon related events
 	self:RegisterEvent("BOSS_KILL", "OnEventBossKill")
@@ -588,11 +571,6 @@ end
 
 function RackensTracker:TriggerUpdateInstanceInfo()
 	RequestRaidInfo()
-end
-
-function RackensTracker:OnEventPlayerEnteringWorld()
-	--Log("OnEventPlayerEnteringWorld")
-	self:TriggerUpdateInstanceInfo()
 end
 
 function RackensTracker:OnEventBossKill()
@@ -707,20 +685,20 @@ function RackensTracker:OnEventQuestTurnedIn(event, questID)
 	local trackedQuest = self.currentCharacter.quests[questID]
 	if (trackedQuest) then
 		Log("Turned in tracked quest, isWeekly: " .. tostring(trackedQuest.isWeekly) .. " questID: " .. trackedQuest.id .. " and name: " .. trackedQuest.name)
-		trackedQuest.isTurnedIn = true
+		self.currentCharacter.quests[questID].isTurnedIn = true
 	end
 end
 
 function RackensTracker:OnEventQuestLogCriteriaUpdate(event, questID, specificTreeID, description, numFulfilled, numRequired)
 	Log("OnEventQuestLogCriteriaUpdate")
 	Log("specificTreeID: " .. tostring(specificTreeID) .. " description: " .. description .. " numFulfilled: " .. tostring(numFulfilled) .. " numRequired: " .. tostring(numRequired))
-	
+
 	local trackedQuest = self.currentCharacter.quests[questID]
 	if (trackedQuest) then
 		if (C_QuestLog.IsOnQuest(trackedQuest.id) and IsQuestComplete(trackedQuest.id)) then
 			if (trackedQuest.isCompleted == false) then
-				trackedQuest.isCompleted = true
 				Log("Completed tracked quest, isWeekly: " .. tostring(trackedQuest.isWeekly) .. " questID: " .. trackedQuest.id .. " and name: " .. trackedQuest.name)
+				self.currentCharacter.quests[questID].isCompleted = true
 			end
         end
 	end
@@ -734,8 +712,8 @@ function RackensTracker:OnEventUnitQuestLogChanged(event, unitTarget)
 		for questID, trackedQuest in pairs(self.currentCharacter.quests) do
 			if (C_QuestLog.IsOnQuest(trackedQuest.id) and IsQuestComplete(trackedQuest.id)) then
 				if (trackedQuest.isCompleted == false) then
-					trackedQuest.isCompleted = true
 					Log("Completed tracked quest, isWeekly: " .. tostring(trackedQuest.isWeekly) .. " questID: " .. trackedQuest.id .. " and name: " .. trackedQuest.name)
+					self.currentCharacter.quests[questID].isCompleted = true
 				end
 			end
 		end
@@ -765,6 +743,7 @@ local function getQuestIcon(quest)
 	local availableDailyAtlas = "QuestDaily"
 	local completedAtlas = "QuestTurnin"
 	local turnedInAtlas = "common-icon-checkmark"
+	local expiredAtlas = "services-icon-warning"
 
 	if (quest.isCompleted) then
 		textureAtlas = completedAtlas
@@ -779,7 +758,11 @@ local function getQuestIcon(quest)
 			textureAtlas = availableDailyAtlas
 		end
 	end
-	
+
+	if (quest.hasExpired) then
+		textureAtlas = expiredAtlas
+	end
+
 	local icon = CreateAtlasMarkup(textureAtlas, atlasSize, atlasSize)
 	return icon
 end
@@ -798,7 +781,7 @@ local function createQuestLogItemEntry(quest)
 	end
 
 	-- TODO: AceLocale
-	local status = "Available"
+	local status = ""
 	if (not quest.isCompleted) then
 		status = "In progress"
 	else
@@ -806,6 +789,10 @@ local function createQuestLogItemEntry(quest)
 		if (quest.isTurnedIn) then
 			status = "Turned in"
 		end
+	end
+
+	if (quest.hasExpired) then
+		status = "In progress (quest accepted from a previous reset)"
 	end
 
 	local colorizedText = RT.Util:FormatColor(YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", quest.name, questTag, status)
