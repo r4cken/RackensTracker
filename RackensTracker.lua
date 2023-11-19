@@ -300,7 +300,7 @@ function RackensTracker:RetrieveSavedInstanceInformation(characterName)
 end
 
 
-function RackensTracker:ResetQuestsIfNecessary()
+function RackensTracker:ResetTrackedQuestsIfNecessary()
 	for characterName, character in pairs(self.db.realm.characters) do
 		for questID, quest in pairs(character.quests) do
 			if (quest.acceptedAt + quest.secondsToReset < GetServerTime()) then
@@ -331,7 +331,7 @@ function RackensTracker:ResetQuestsIfNecessary()
 	end
 end
 
-function RackensTracker:ResetSavedInstancesIfNecessary()
+function RackensTracker:ResetTrackedInstancesIfNecessary()
 	for characterName, character in pairs(self.db.realm.characters) do
 		for id, savedInstance in pairs(character.savedInstances) do
 			-- TODO: Look into if this savedInstance.resetTime is completely accurate as we update our information about it very frequently on events
@@ -407,10 +407,10 @@ function RackensTracker:OnInitialize()
 	self.db = LibStub("AceDB-3.0"):New("RackensTrackerDB", database_defaults, true)
 
 	-- Reset any character's weekly or daily quests if it meets the criteria to do so
-	self:ResetQuestsIfNecessary()
+	self:ResetTrackedQuestsIfNecessary()
 
 	-- Reset any character's weekly raid or daily dungeon lockouts if it meets the criteria to do so
-	self:ResetSavedInstancesIfNecessary()
+	self:ResetTrackedInstancesIfNecessary()
 	
 	-- Update weekly and daily reset timers
 	self:UpdateWeeklyDailyResetTime()
@@ -685,6 +685,25 @@ function RackensTracker:OnEventQuestTurnedIn(event, questID)
 	if (trackedQuest) then
 		Log("Turned in tracked quest, isWeekly: " .. tostring(trackedQuest.isWeekly) .. " questID: " .. trackedQuest.id .. " and name: " .. trackedQuest.name)
 		self.currentCharacter.quests[questID].isTurnedIn = true
+
+		-- Need to check if we turned in an expired quest that was accepted in a previous weekly/daily reset.
+		-- This means that we cannot pick up a new one for that week/day as it counts towards the current ACTIVE reset.
+		-- We have to update both the acceptedAt and the secondsToReset because it now belongs in the ACTIVE reset.
+		-- If we don't do this, the quest will be removed from the tracker as soon as ResetTrackedQuestsIfNecessary
+		-- runs as its way way past its expiration because isCompleted and isTurnedIn will be set to true.
+		if (trackedQuest.isTurnedIn and trackedQuest.hasExpired) then
+			Log("Tracked quest already expired when turned in and was set to expire at server time: " .. trackedQuest.acceptedAt + trackedQuest.secondsToReset)
+			Log("Tracked quest had originally expired: " .. timeFormatter:Format(GetServerTime() - (trackedQuest.acceptedAt + trackedQuest.secondsToReset)) .. " ago")
+			self.currentCharacter.quests[questID].acceptedAt = GetServerTime()
+			if (trackedQuest.isWeekly) then
+				self.currentCharacter.quests[questID].secondsToReset = C_DateAndTime.GetSecondsUntilWeeklyReset()
+			else
+				self.currentCharacter.quests[questID].secondsToReset = C_DateAndTime.GetSecondsUntilDailyReset()
+			end
+
+			Log("Tracked quest is now belongs to the active reset, set to expire at new server time: " .. trackedQuest.acceptedAt + trackedQuest.secondsToReset)
+			Log("Tracked quest will now expire in: " .. timeFormatter:Format(trackedQuest.secondsToReset))
+		end
 	end
 end
 
@@ -746,7 +765,6 @@ local function getQuestIcon(quest)
 
 	if (quest.isCompleted) then
 		textureAtlas = completedAtlas
-
 		if (quest.isTurnedIn) then
 			textureAtlas = turnedInAtlas
 		end
@@ -756,10 +774,9 @@ local function getQuestIcon(quest)
 		else
 			textureAtlas = availableDailyAtlas
 		end
-	end
-
-	if (quest.hasExpired) then
-		textureAtlas = expiredAtlas
+		if (quest.hasExpired) then
+			textureAtlas = expiredAtlas
+		end
 	end
 
 	local icon = CreateAtlasMarkup(textureAtlas, atlasSize, atlasSize)
@@ -791,7 +808,7 @@ local function createQuestLogItemEntry(quest)
 	end
 
 	if (quest.hasExpired) then
-		status = "In progress (quest accepted from a previous reset)"
+		status = status .. " (quest accepted from a previous reset)"
 	end
 
 	local colorizedText = RT.Util:FormatColor(YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", quest.name, questTag, status)
