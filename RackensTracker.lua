@@ -1150,6 +1150,11 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	local hasMoreRaidsThanDungeons = nRaids > nDungeons
 	local hasEqualRaidsAndDungeons = nRaids == nDungeons
 
+	Log("characterName: " .. characterName .. " nRaids: " .. nRaids .. " nDungeons: " .. nDungeons)
+	Log("hasMoreRaidsThanDungeons?: " .. tostring(hasMoreRaidsThanDungeons))
+	Log("hasEqualRaidsAndDungeons?: " .. tostring(hasEqualRaidsAndDungeons))
+	Log("nDummyFramesNeeded: " .. nDummyFramesNeeded)
+
 	local instanceNameLabel, instanceProgressLabel, instanceColorizedName = nil, nil, nil
 	local labelHeight = 20
 	local lockoutInfo = {}
@@ -1170,7 +1175,8 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 
 	if (not hasEqualRaidsAndDungeons) then
 		if (hasMoreRaidsThanDungeons == false) then
-			for i = 1, nDummyFramesNeeded * 2 do -- * 2 to account for the instance name row + the lockout progress row
+			for i = 1, nDummyFramesNeeded - nRaids do
+				raidGroup:AddChild(CreateDummyFrame())
 				raidGroup:AddChild(CreateDummyFrame())
 			end
 		end
@@ -1194,7 +1200,9 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 
 	if (not hasEqualRaidsAndDungeons) then
 		if (hasMoreRaidsThanDungeons) then
-			for i = 1, nDummyFramesNeeded * 2 do
+			for i = 1, nDummyFramesNeeded - nDungeons do
+				Log("adding dummy frame")
+				dungeonGroup:AddChild(CreateDummyFrame())
 				dungeonGroup:AddChild(CreateDummyFrame())
 			end
 		end
