@@ -1,6 +1,6 @@
 local addOnName, RT = ...
 
-local setmetatable  = 
+local setmetatable =
       setmetatable
 
 local Character = {}

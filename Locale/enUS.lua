@@ -6,6 +6,7 @@ if L then
     L["currencies"] = "Currencies"
     L["weeklyDailyQuests"] = "Weekly / Daily Quests"
     L["noWeeklyDailyQuests"] = "No Weekly / Daily Quests"
+    L["untrackedQuest"] = "Untracked quest"
     L["lockouts"] = "Lockouts"
     L["noLockouts"] = "No lockouts"
     L["noTrackingAvailable"] = "No tracking information available"

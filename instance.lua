@@ -1,6 +1,6 @@
 local addOnName, RT = ...
 
-local setmetatable, string = 
+local setmetatable, string =
       setmetatable, string
 
 local Instance = {}
@@ -8,11 +8,11 @@ RT.Instance = Instance
 
 -- TODO: change the signature of the method to accept a table instead
 function Instance:New(instanceName, instanceID, lockoutID, resetsIn, isRaid, isHeroic, maxPlayers, difficultyID, difficultyName, encountersTotal, encountersCompleted)
-	local instance = { 
-        instanceName = instanceName, 
-        instanceID = instanceID, 
-        lockoutID = lockoutID, 
-        resetsIn = resetsIn, 
+	local instance = {
+        instanceName = instanceName,
+        instanceID = instanceID,
+        lockoutID = lockoutID,
+        resetsIn = resetsIn,
         isRaid = isRaid,
         isHeroic = isHeroic,
         maxPlayers = maxPlayers,

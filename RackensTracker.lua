@@ -23,8 +23,8 @@ local Settings, CreateSettingsListSectionHeaderInitializer =
 
 local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
 
-local C_QuestLog, IsQuestComplete =
-	  C_QuestLog, IsQuestComplete
+local C_QuestLog, IsQuestComplete, GetQuestsCompleted =
+	  C_QuestLog, IsQuestComplete, GetQuestsCompleted
 
 local CreateFromMixins, SecondsFormatterMixin, SecondsFormatter =
 	  CreateFromMixins, SecondsFormatterMixin, SecondsFormatter
@@ -131,7 +131,9 @@ local database_defaults = {
 							secondsToReset = number
 							isCompleted = boolean
 							isTurnedIn = boolean
-							hasExpired = boolean
+							[hasExpired = boolean] -- Key only set when the player has an in progress quest that belongs to an older reset
+							[craftedFromExistingQuest = boolean] -- Key only set when the player is already on a trackable quest but the db doesnt have the information
+							[craftedFromHeuristicGuess = boolean] -- Key only set when the player has completed and turned in a trackable quest but the db doesnt have that information
 						}
 					--]]
 				},
@@ -299,6 +301,32 @@ function RackensTracker:RetrieveSavedInstanceInformation(characterName)
 
 end
 
+function RackensTracker:TryToFindCurrentWeeklyQuest()
+	for characterName, character in pairs(self.db.realm.characters) do
+		if (characterName ~= self.currentCharacter.name) then
+			for _, quest in pairs(character.quests) do
+				-- todo: Maybe we dont need to check against this flag
+				if (quest.isWeekly and not quest.craftedFromHeuristicGuess) then
+					if (quest.acceptedAt + quest.secondsToReset > GetServerTime()) then
+						return quest
+					end
+				end
+			end
+		end
+	end
+	return nil
+end
+
+function RackensTracker:GetCurrentFinishedWeeklyQuest()
+	for _, quest in pairs(self.currentCharacter.quests) do
+		if (quest.isWeekly) then
+			if (quest.acceptedAt + quest.secondsToReset > GetServerTime()) then
+				return quest
+			end
+		end
+	end
+	return nil
+end
 
 function RackensTracker:ResetTrackedQuestsIfNecessary()
 	for characterName, character in pairs(self.db.realm.characters) do
@@ -350,31 +378,22 @@ function RackensTracker:ResetTrackedInstancesIfNecessary()
 	end
 end
 
-
-function RackensTracker:UpdateWeeklyDailyResetTime()
-	-- Update to get the absolute latest timers
-	self.db.realm.secondsToWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset()
-	self.db.realm.secondsToDailyReset  = C_DateAndTime.GetSecondsUntilDailyReset()
-	self.db.realm.weeklyResetTime = GetServerTime() + self.db.realm.secondsToWeeklyReset
-	self.db.realm.dailyResetTime = GetServerTime() + self.db.realm.secondsToDailyReset
-end
-
-function RackensTracker:CreateExistingButNotTrackedQuest()
+function RackensTracker:CreateActiveMissingQuests()
 	for questID, trackableQuest in pairs(RT.Quests) do
 		-- If the current player is already on a trackable quest but they dont have it tracked that means they 
 		-- accepted it before they used this addon or had it disabled during a time in which they
 		-- accepted the quest.
-		
+
 		-- We can not make any assumptions on the internal secondsToReset or acceptedAt timestamps
 		-- but we should be able to handle this tracked quest object like any other created by our event handlers anyway
 		-- This does mean however that the quest might be removed from the tracker after completion and turn in
 		-- as the code that checks if we are past the weekly or daily reset assumes these timestamps exist.
 		-- It is a small price to pay to be more inclusive.
-		if (C_QuestLog.IsOnQuest(trackableQuest.id) and not self.currentCharacter.quests[trackableQuest.id]) then
+		if (C_QuestLog.IsOnQuest(questID) and not self.currentCharacter.quests[questID]) then
 			local newTrackedQuest = {
-				id = trackableQuest.id,
-				name = trackableQuest.getName(trackableQuest.id),
-				questTag = trackableQuest.getQuestTag(trackableQuest.id),
+				id = questID,
+				name = trackableQuest.getName(questID),
+				questTag = trackableQuest.getQuestTag(questID),
 				isWeekly = trackableQuest.isWeekly,
 				 -- Assume it was just picked up, we cant know anyway
 				acceptedAt = GetServerTime(),
@@ -383,12 +402,12 @@ function RackensTracker:CreateExistingButNotTrackedQuest()
 				-- by the tracker at the next available daily or weekly reset.
 				-- TODO: This might cause bug reports, so maybe take a second look at this at some point.
 				secondsToReset = trackableQuest.isWeekly and C_DateAndTime.GetSecondsUntilWeeklyReset() or C_DateAndTime.GetSecondsUntilDailyReset(),
-				isCompleted = IsQuestComplete(trackableQuest.id),
+				isCompleted = IsQuestComplete(questID),
 				isTurnedIn = false,
-				craftedFromExistingQuest = true -- Just there to differentiate between quest handled fully by our addon.
+				craftedFromExistingQuest = true -- Just there to differentiate between quest handled fully by our addon.		
 			}
-			
-			self.currentCharacter.quests[trackableQuest.id] = newTrackedQuest
+
+			self.currentCharacter.quests[questID] = newTrackedQuest
 
 			Log("Trackable active quest found in quest log but not in the database, adding it to the tracker..")
 			Log("Found new trackable quest, questID: " .. newTrackedQuest.id .. " questTag: " .. newTrackedQuest.questTag .. " and name: " .. newTrackedQuest.name)
@@ -396,6 +415,127 @@ function RackensTracker:CreateExistingButNotTrackedQuest()
 	end
 end
 
+function RackensTracker:CreateFinishedMissingQuests()
+	-- This is a collection of all quests the current character has completed in its lifetime.
+	-- Daily quests appear completed only if they have been completed that day.
+	-- Weekly quests appear completed only if they have been completed that week.
+	local allQuestsCompletedTurnedIn = GetQuestsCompleted()
+	local currentWeeklyQuest = self:TryToFindCurrentWeeklyQuest()
+	local currentCharacterFinishedWeeklyQuest = self:GetCurrentFinishedWeeklyQuest()
+	local newTrackedQuest = {
+		id = 0,
+		name = "",
+		questTag = "",
+		isWeekly = true,
+		acceptedAt = 0,
+		secondsToReset = 0,
+		isCompleted = true,
+		isTurnedIn = true,
+	}
+
+	for questID, isCompletedAndTurnedIn in pairs(allQuestsCompletedTurnedIn) do
+		if (RT.Quests[questID] and isCompletedAndTurnedIn) then
+			local trackableQuest = RT.Quests[questID]
+			if (not trackableQuest.isWeekly) then
+				-- Found a completed and turned in daily quest for this ACTIVE reset that is not currently tracked for the character
+				if (not self.currentCharacter.quests[questID]) then
+					newTrackedQuest = {
+						id = questID,
+						name = trackableQuest.getName(questID),
+						questTag = trackableQuest.getQuestTag(questID),
+						isWeekly = false,
+						-- Assume it was just turned in, we cant know anyway
+						acceptedAt = GetServerTime(),
+						-- We know it's for the current reset
+						secondsToReset = C_DateAndTime.GetSecondsUntilDailyReset(),
+						isCompleted = true,
+						isTurnedIn = true,
+						craftedFromExistingQuest = true,
+					}
+
+					self.currentCharacter.quests[questID] = newTrackedQuest
+
+					Log("Trackable completed and turned in daily quest found but not found in the database, adding it to the tracker..")
+					Log("Found new trackable daily quest with questID: " .. questID .. " name: " .. newTrackedQuest.name)
+				end
+			else
+				-- NOTE: If one of the raid weekly quests have been completed and turned in, they are ALL marked as completed and turned in
+				-- We will try to select this week's active quest by using the following heuristic process.
+				-- * Do we have a weekly quest stored in the database for a character that is not the current character?
+				-- * If so, does the quest not have the flag craftedFromHeuristicGuess set?
+				-- * If so, is the quest acceptedAt + secondsToReset > GetServerTime()?
+				-- In case we couldn't find a weekly quest matching the above criteria we will just grab the first one that matches our prerequesites
+				if (not currentCharacterFinishedWeeklyQuest) then
+					if (currentWeeklyQuest) then
+						Log("Found a weekly candidate by heuristics, questID: " .. currentWeeklyQuest)
+						if (currentWeeklyQuest.faction == nil or (currentWeeklyQuest.faction and currentWeeklyQuest.faction == self.currentCharacter.faction)) then
+							if (not self.currentCharacter.quests[currentWeeklyQuest.id]) then
+
+								newTrackedQuest = {
+									id = currentWeeklyQuest.id,
+									name = currentWeeklyQuest.name,
+									questTag = currentWeeklyQuest.questTag,
+									isWeekly = true,
+									-- Assume it was just turned in, we cant know anyway
+									acceptedAt = GetServerTime(),
+									-- We know it's for the current reset
+									secondsToReset = C_DateAndTime.GetSecondsUntilWeeklyReset(),
+									isCompleted = true,
+									isTurnedIn = true,
+									-- This quest is guaranteed to belong to another character's tracked quests which must be for this active reset
+									-- therefore its crafted from an existing quest from another character.
+									craftedFromExistingQuest = true
+								}
+
+								self.currentCharacter.quests[currentWeeklyQuest.id] = newTrackedQuest
+
+								Log("Trackable completed and turned in weekly quest found but not found in the database, adding it to the tracker..")
+								Log("Heuristics found current active weekly quest with questID: " .. questID .. " name: " .. newTrackedQuest.name)
+								-- TODO: Maybe optimize this to set a field in the currentCharacter such as hasCompletedRaidWeekly
+								-- this must be unflagged though when the weekly reset happens which could be a source for more bugs, so the tradeoff is more computing, less flags
+								currentCharacterFinishedWeeklyQuest = self:GetCurrentFinishedWeeklyQuest()
+
+							end
+						end
+					else
+						if (trackableQuest.faction == nil or (trackableQuest.faction and trackableQuest.faction == self.currentCharacter.faction)) then
+							if (not self.currentCharacter.quests[questID]) then
+								newTrackedQuest = {
+									id = questID,
+									name = trackableQuest.getName(questID),
+									questTag = trackableQuest.getQuestTag(questID),
+									isWeekly = true,
+									-- Assume it was just turned in, we cant know anyway
+									acceptedAt = GetServerTime(),
+									-- We know it's for the current reset
+									secondsToReset = C_DateAndTime.GetSecondsUntilWeeklyReset(),
+									isCompleted = true,
+									isTurnedIn = true,
+									craftedFromHeuristicGuess = true,
+								}
+
+								self.currentCharacter.quests[questID] = newTrackedQuest
+								-- TODO: Maybe optimize this to set a field in the currentCharacter such as hasCompletedRaidWeekly
+								-- this must be unflagged though when the weekly reset happens which could be a source for more bugs, so the tradeoff is more computing, less flags
+								currentCharacterFinishedWeeklyQuest = self:GetCurrentFinishedWeeklyQuest()
+								Log("Trackable completed and turned in weekly quest found but not found in the database, adding it to the tracker..")
+								Log("Heuristics could not find the current active weekly quest, activating fallback to questID: " .. questID .. " name: " .. newTrackedQuest.name)
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+function RackensTracker:UpdateWeeklyDailyResetTime()
+	-- Update to get the absolute latest timers
+	self.db.realm.secondsToWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset()
+	self.db.realm.secondsToDailyReset  = C_DateAndTime.GetSecondsUntilDailyReset()
+	self.db.realm.weeklyResetTime = GetServerTime() + self.db.realm.secondsToWeeklyReset
+	self.db.realm.dailyResetTime = GetServerTime() + self.db.realm.secondsToDailyReset
+end
 
 function RackensTracker:OnInitialize()
 	-- Called when the addon is Initialized
@@ -477,7 +617,6 @@ end
 
 function RackensTracker:OnEnable()
 	-- Called when the addon is enabled
-
 	local characterName = GetCharacterDatabaseID()
 
 	self.currentCharacter = self.db.realm.characters[characterName]
@@ -488,7 +627,9 @@ function RackensTracker:OnEnable()
 	self.currentCharacter.faction = UnitFactionGroup("player")
 
 	-- Look for any trackable quests in the players quest log that are NOT in the tracked collection
-	self:CreateExistingButNotTrackedQuest()
+	self:CreateActiveMissingQuests()
+
+	self:CreateFinishedMissingQuests()
 
 	-- Raid and dungeon related events
 	self:RegisterEvent("BOSS_KILL", "OnEventBossKill")
@@ -500,7 +641,7 @@ function RackensTracker:OnEnable()
 	-- Currency related events
 	self:RegisterEvent("CURRENCY_DISPLAY_UPDATE", "OnEventCurrencyDisplayUpdate")
 	self:RegisterEvent("CHAT_MSG_CURRENCY", "OnEventChatMsgCurrency")
-	
+
 	-- Daily - Weekly quest related events
 	self:RegisterEvent("QUEST_ACCEPTED", "OnEventQuestAccepted")
 	self:RegisterEvent("QUEST_REMOVED", "OnEventQuestRemoved")
@@ -641,6 +782,7 @@ function RackensTracker:OnEventQuestAccepted(event, questLogIndex, questID)
 	-- It's a weekly or daily quest we care to track
 	local trackableQuest = RT.Quests[questID]
 	if (trackableQuest) then
+		-- TODO: Might be able to remove this check because you cant accept a quest you arent eligible for in the first place
 		if (trackableQuest.faction == nil or (trackableQuest.faction and trackableQuest.faction == self.currentCharacter.faction) and trackableQuest.prerequesite(self.currentCharacter.level)) then
 			newTrackedQuest.name = trackableQuest.getName(questID)
 			newTrackedQuest.questTag = trackableQuest.getQuestTag(questID)
@@ -761,12 +903,15 @@ local function getQuestIcon(quest)
 	local availableDailyAtlas = "QuestDaily"
 	local completedAtlas = "QuestTurnin"
 	local turnedInAtlas = "common-icon-checkmark"
-	local expiredAtlas = "services-icon-warning"
+	local warningAtlas = "services-icon-warning"
 
 	if (quest.isCompleted) then
 		textureAtlas = completedAtlas
 		if (quest.isTurnedIn) then
 			textureAtlas = turnedInAtlas
+		end
+		if (quest.craftedFromHeuristicGuess) then
+			textureAtlas = warningAtlas
 		end
 	else
 		if quest.isWeekly then
@@ -775,7 +920,7 @@ local function getQuestIcon(quest)
 			textureAtlas = availableDailyAtlas
 		end
 		if (quest.hasExpired) then
-			textureAtlas = expiredAtlas
+			textureAtlas = warningAtlas
 		end
 	end
 
@@ -788,7 +933,7 @@ local function createQuestLogItemEntry(quest)
 	questLabel:SetFullWidth(true)
 
 	local icon = getQuestIcon(quest)
-	
+	local status = ""
 	local questTag = ""
 	if (quest.isWeekly) then
 		questTag = quest.questTag
@@ -796,22 +941,20 @@ local function createQuestLogItemEntry(quest)
 		questTag = string.format(DAILY_QUEST_TAG_TEMPLATE, quest.questTag)
 	end
 
-	-- TODO: AceLocale
-	local status = ""
-	if (not quest.isCompleted) then
-		status = "In progress"
-	else
+	if (quest.isCompleted) then
 		status = "Completed"
 		if (quest.isTurnedIn) then
 			status = "Turned in"
 		end
+	else
+		status = "In progress"
 	end
 
 	if (quest.hasExpired) then
 		status = status .. " (quest accepted from a previous reset)"
 	end
 
-	local colorizedText = RT.Util:FormatColor(YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", quest.name, questTag, status)
+	local colorizedText = RT.Util:FormatColor(YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", quest.craftedFromHeuristicGuess and L["untrackedQuest"] or quest.name, questTag, status)
 	local labelText = string.format("%s %s", icon, colorizedText)
 
 	questLabel:SetText(labelText)
@@ -820,7 +963,15 @@ end
 
 function RackensTracker:DrawQuests(container, characterName)
 	local quests = self.db.realm.characters[characterName].quests
-	local characterHasQuests = RT.Util:Tablelen(quests) > 0
+
+	-- Sorted collection of the quests with weekly quests coming first
+	local sortedQuests = {}
+	for _, quest in pairs(quests) do
+		table.insert(sortedQuests, quest)
+		table.sort(sortedQuests, function(q1, q2) return q1.isWeekly and not q2.isWeekly end)
+	end
+
+	local characterHasQuests = #sortedQuests > 0
 	container:AddChild(CreateDummyFrame())
 
 	local questsHeading = AceGUI:Create("Heading")
@@ -841,7 +992,7 @@ function RackensTracker:DrawQuests(container, characterName)
 	local weeklyQuest = nil
 	local dailyQuest = nil
 
-	for _, quest in pairs(quests) do
+	for _, quest in ipairs(sortedQuests) do
 		if (quest.isWeekly) then
 			weeklyQuest = createQuestLogItemEntry(quest)
 			container:AddChild(weeklyQuest)
@@ -868,7 +1019,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	container:AddChild(currenciesHeading)
 
 	container:AddChild(CreateDummyFrame())
-	
+
 	local currenciesGroup = AceGUI:Create("SimpleGroup")
 	currenciesGroup:SetLayout("Flow")
 	currenciesGroup:SetFullHeight(true)
@@ -879,7 +1030,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 
 	for _, currency in ipairs(RT.Currencies) do
 		if (self.db.global.options.shownCurrencies[tostring(currency.id)]) then
-					
+
 			currencyDisplayLabel = AceGUI:Create("Label")
 			currencyDisplayLabel:SetHeight(labelHeight)	
 			currencyDisplayLabel:SetRelativeWidth(relWidthPerCurrency) -- Make each currency take up equal space and give each an extra 10%
@@ -894,11 +1045,11 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				-- The selected character doesnt have any quantity for the currency.
 				quantity = 0
 			end
-			
+
 			if (quantity == 0) then
 				local disabledAmount = RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, quantity)
 				currencyDisplayLabel:SetText(string.format("%s\n%s %s", colorizedName, icon, disabledAmount))
-			else 
+			else
 				currencyDisplayLabel:SetText(string.format("%s\n%s %s", colorizedName, icon, quantity))
 			end
 
@@ -978,14 +1129,13 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	lockoutsGroup:SetLayout("Flow")
 	lockoutsGroup:SetFullWidth(true)
 
-	container:AddChild(lockoutsGroup)
 
 	local raidGroup = AceGUI:Create("InlineGroup")
 	raidGroup:SetLayout("List")
 	raidGroup:SetTitle(L["raids"]) -- TODO: AceLocale
 	raidGroup:SetFullHeight(true)
 	raidGroup:SetRelativeWidth(0.50) -- Half of the parent
-	
+
 	local dungeonGroup = AceGUI:Create("InlineGroup")
 	dungeonGroup:SetLayout("List")
 	dungeonGroup:SetTitle(L["dungeons"]) -- TODO: AceLocale
@@ -1053,6 +1203,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	-- If these arent added AFTER all the child objects have been added, the anchor points and positioning gets all screwed up : (
 	lockoutsGroup:AddChild(raidGroup)
 	lockoutsGroup:AddChild(dungeonGroup)
+	container:AddChild(lockoutsGroup)
 end
 
 

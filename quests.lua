@@ -1,7 +1,7 @@
 local addOnName, RT = ...
 
-local IsLevelAtEffectiveMaxLevel, select, C_QuestLog = 
-      IsLevelAtEffectiveMaxLevel, select, C_QuestLog
+local IsLevelAtEffectiveMaxLevel, select, C_QuestLog, GetQuestTagInfo =
+      IsLevelAtEffectiveMaxLevel, select, C_QuestLog, GetQuestTagInfo
 
 local isMaxLevel = function(playerLevel)
     return IsLevelAtEffectiveMaxLevel(playerLevel)
