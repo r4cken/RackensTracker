@@ -665,7 +665,8 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 
 	if (not hasEqualRaidsAndDungeons) then
 		if (hasMoreRaidsThanDungeons == false) then
-			for i = 1, nDummyFramesNeeded * 2 do -- * 2 to account for the instance name row + the lockout progress row
+			for i = 1, nDummyFramesNeeded - nRaids do -- * 2 to account for the instance name row + the lockout progress row
+				raidGroup:AddChild(CreateDummyFrame())
 				raidGroup:AddChild(CreateDummyFrame())
 			end
 		end
@@ -689,7 +690,8 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 
 	if (not hasEqualRaidsAndDungeons) then
 		if (hasMoreRaidsThanDungeons) then
-			for i = 1, nDummyFramesNeeded * 2 do
+			for i = 1, nDummyFramesNeeded - nDungeons do
+				dungeonGroup:AddChild(CreateDummyFrame())
 				dungeonGroup:AddChild(CreateDummyFrame())
 			end
 		end	
