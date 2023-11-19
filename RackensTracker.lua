@@ -851,7 +851,7 @@ end
 
 function RackensTracker:OnEventQuestLogCriteriaUpdate(event, questID, specificTreeID, description, numFulfilled, numRequired)
 	Log("OnEventQuestLogCriteriaUpdate")
-	Log("specificTreeID: " .. tostring(specificTreeID) .. " description: " .. description .. " numFulfilled: " .. tostring(numFulfilled) .. " numRequired: " .. tostring(numRequired))
+	--Log("specificTreeID: " .. tostring(specificTreeID) .. " description: " .. description .. " numFulfilled: " .. tostring(numFulfilled) .. " numRequired: " .. tostring(numRequired))
 
 	local trackedQuest = self.currentCharacter.quests[questID]
 	if (trackedQuest) then
@@ -1150,11 +1150,6 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	local hasMoreRaidsThanDungeons = nRaids > nDungeons
 	local hasEqualRaidsAndDungeons = nRaids == nDungeons
 
-	Log("characterName: " .. characterName .. " nRaids: " .. nRaids .. " nDungeons: " .. nDungeons)
-	Log("hasMoreRaidsThanDungeons?: " .. tostring(hasMoreRaidsThanDungeons))
-	Log("hasEqualRaidsAndDungeons?: " .. tostring(hasEqualRaidsAndDungeons))
-	Log("nDummyFramesNeeded: " .. nDummyFramesNeeded)
-
 	local instanceNameLabel, instanceProgressLabel, instanceColorizedName = nil, nil, nil
 	local labelHeight = 20
 	local lockoutInfo = {}
@@ -1201,7 +1196,6 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	if (not hasEqualRaidsAndDungeons) then
 		if (hasMoreRaidsThanDungeons) then
 			for i = 1, nDummyFramesNeeded - nDungeons do
-				Log("adding dummy frame")
 				dungeonGroup:AddChild(CreateDummyFrame())
 				dungeonGroup:AddChild(CreateDummyFrame())
 			end
