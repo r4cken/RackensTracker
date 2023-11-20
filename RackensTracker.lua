@@ -824,55 +824,28 @@ end
 -- Update the current character's completed weekly or daily quest
 -- This event fires when the user turns in a quest, whether automatically or
 -- by pressing the complete button in a quest dialog.
--- NOTE: This event handler is supposed to trigger BEFORE QUEST_REMOVED but it can happen AFTER :/
--- so the else statement protects us so we can still track what was removed in that case.
+-- NOTE: This event handler is supposed to trigger BEFORE QUEST_REMOVED but it can happen AFTER 
+-- And in that case the object for self.currentCharacter.quests[questID] is deleted :/ so create a new quest object with the correct state.
 function RackensTracker:OnEventQuestTurnedIn(event, questID)
 	Log("OnEventQuestTurnedIn")
 	--Log("questID: " .. tostring(questID))
+	local trackableQuest = RT.Quests[questID]
+	if (trackableQuest) then
+		Log("Turned in tracked quest, isWeekly: " .. tostring(trackableQuest.isWeekly) .. " questID: " .. trackableQuest.id .. " and name: " .. trackableQuest.getName(trackableQuest.id))
+		local trackedQuest = {
+			id = questID,
+			name = trackableQuest.getName(questID),
+			questTag = trackableQuest.getQuestTag(questID),
+			isWeekly = trackableQuest.isWeekly,
+			acceptedAt = GetServerTime(),
+			secondsToReset = trackableQuest.isWeekly and C_DateAndTime.GetSecondsUntilWeeklyReset() or C_DateAndTime.GetSecondsUntilDailyReset(),
+			isCompleted = true,
+			isTurnedIn = true
+		}
 
-	local trackedQuest = self.currentCharacter.quests[questID]
-	if (trackedQuest) then
-		Log("Turned in tracked quest, isWeekly: " .. tostring(trackedQuest.isWeekly) .. " questID: " .. trackedQuest.id .. " and name: " .. trackedQuest.name)
-		self.currentCharacter.quests[questID].isTurnedIn = true
-
-		-- Need to check if we turned in an expired quest that was accepted in a previous weekly/daily reset.
-		-- This means that we cannot pick up a new one for that week/day as it counts towards the current ACTIVE reset.
-		-- We have to update both the acceptedAt and the secondsToReset because it now belongs in the ACTIVE reset.
-		-- If we don't do this, the quest will be removed from the tracker as soon as ResetTrackedQuestsIfNecessary
-		-- runs as its way way past its expiration because isCompleted and isTurnedIn will be set to true.
-		if (trackedQuest.isTurnedIn and trackedQuest.hasExpired) then
-			Log("Tracked quest already expired when turned in and was set to expire at server time: " .. trackedQuest.acceptedAt + trackedQuest.secondsToReset)
-			Log("Tracked quest had originally expired: " .. timeFormatter:Format(GetServerTime() - (trackedQuest.acceptedAt + trackedQuest.secondsToReset)) .. " ago")
-			self.currentCharacter.quests[questID].acceptedAt = GetServerTime()
-			if (trackedQuest.isWeekly) then
-				self.currentCharacter.quests[questID].secondsToReset = C_DateAndTime.GetSecondsUntilWeeklyReset()
-			else
-				self.currentCharacter.quests[questID].secondsToReset = C_DateAndTime.GetSecondsUntilDailyReset()
-			end
-
-			Log("Tracked quest is now belongs to the active reset, set to expire at new server time: " .. trackedQuest.acceptedAt + trackedQuest.secondsToReset)
-			Log("Tracked quest will now expire in: " .. timeFormatter:Format(trackedQuest.secondsToReset))
-		end
-	else
-		-- TODO: Refactor into just using the else clause AFTER testing this thouroughly
-		local trackableQuest = RT.Quests[questID]
-		if (trackableQuest) then
-			Log("Turned in tracked quest, isWeekly: " .. tostring(trackableQuest.isWeekly) .. " questID: " .. trackableQuest.id .. " and name: " .. trackableQuest.getName(trackableQuest.id))
-			local newTrackedQuest = {
-				id = questID,
-				name = trackableQuest.getName(questID),
-				questTag = trackableQuest.getQuestTag(questID),
-				isWeekly = trackableQuest.isWeekly,
-				acceptedAt = GetServerTime(),
-				secondsToReset = trackableQuest.isWeekly and C_DateAndTime.GetSecondsUntilWeeklyReset() or C_DateAndTime.GetSecondsUntilDailyReset(),
-				isCompleted = true,
-				isTurnedIn = true
-			}
-
-			self.currentCharacter.quests[questID] = newTrackedQuest
-			Log("Tracked quest belongs to the active reset, set to expire at server time: " .. newTrackedQuest.acceptedAt + newTrackedQuest.secondsToReset)
-			Log("Tracked quest will expire in: " .. timeFormatter:Format(newTrackedQuest.secondsToReset))
-		end
+		self.currentCharacter.quests[questID] = trackedQuest
+		Log("Tracked quest belongs to the active reset, set to expire at server time: " .. trackedQuest.acceptedAt + trackedQuest.secondsToReset)
+		Log("Tracked quest will expire in: " .. timeFormatter:Format(trackedQuest.secondsToReset))
 	end
 end
 
