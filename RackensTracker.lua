@@ -596,7 +596,7 @@ function RackensTracker:OnInitialize()
 		OnClick = function(_, button)
 			if (button == "LeftButton") then
 				-- If the window is already created
-				self:OpenTrackerFrame()
+				self:ToggleTrackerFrame()
 			end
 			if (button == "RightButton") then
 				self:OpenOptionsFrame()
@@ -607,6 +607,7 @@ function RackensTracker:OnInitialize()
 		---@type function|GameTooltip
 		OnTooltipShow = function(tooltip)
 			tooltip:AddLine(RT.Util:FormatColor(HIGHLIGHT_FONT_COLOR_CODE, "%s - %s %s", addOnName, L["version"], addOnVersion))
+			tooltip:AddLine(RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, "%s", "/rackenstracker for available commands"))
 			tooltip:AddLine(RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, "%s: ", L["minimapLeftClickAction"]) .. RT.Util:FormatColor(NORMAL_FONT_COLOR_CODE, "%s", L["minimapLeftClickDescription"]))
 			tooltip:AddLine(RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, "%s: ", L["minimapRightClickAction"]) .. RT.Util:FormatColor(NORMAL_FONT_COLOR_CODE, "%s", L["minimapRightClickDescription"]))
 		end,
@@ -674,11 +675,10 @@ function RackensTracker:OnDisable()
 end
 
 local function slashCommandUsage()
-	SlashCmdLog("\"/rackenstracker open\" opens the tracking window")
-	SlashCmdLog("\"/rackenstracker close\" closes the tracking window")
+	SlashCmdLog("\"/rackenstracker toggle\" toggles visibility of the the tracking window")
 	SlashCmdLog("\"/rackenstracker options\" opens the options window")
-	SlashCmdLog("\"/rackenstracker minimap enable\" enables the minimap button")
-	SlashCmdLog("\"/rackenstracker minimap disable\" disables the minimap button")
+	SlashCmdLog("\"/rackenstracker minimap show\" shows the minimap button")
+	SlashCmdLog("\"/rackenstracker minimap hide\" hides the minimap button")
 end
 
 function RackensTracker:SlashCommand(msg)
@@ -688,23 +688,21 @@ function RackensTracker:SlashCommand(msg)
 		return slashCommandUsage()
 	end
 
-	if (command == "open") then
-		self:OpenTrackerFrame()
-	elseif (command == "close") then
-		self:CloseTrackerFrame()
-	elseif (command == "options") then
-		self:OpenOptionsFrame()
+	if (command == "toggle") then
+		return self:ToggleTrackerFrame()
+	elseif (command == "options" or command == "config") then
+		return self:OpenOptionsFrame()
 	elseif (command == "minimap") then
-		if (value == "enable") then
+		if (value == "show") then
 			--Log("Enabling the minimap button")
 			self.db.char.minimap.hide = false
 			--print("curr minimap hide state:" .. tostring(self.db.char.minimap.hide))
-			self.libDBIcon:Show(addOnName)
-		elseif (value == "disable") then
+			return self.libDBIcon:Show(addOnName)
+		elseif (value == "hide") then
 			--Log("Disabling the minimap button")
 			self.db.char.minimap.hide = true
 			--print("curr minimap hide state:" .. tostring(self.db.char.minimap.hide))
-			self.libDBIcon:Hide(addOnName)
+			return self.libDBIcon:Hide(addOnName)
 		else
 			return slashCommandUsage()
 		end
@@ -1277,15 +1275,23 @@ local function SelectCharacterTab(container, event, characterName)
 end
 
 function RackensTracker:CloseTrackerFrame()
-	if (self.tracker_frame and self.tracker_frame:IsVisible()) then
-		AceGUI:Release(self.tracker_frame)
-		self.tracker_frame = nil
-		self.tracker_tabs = nil
-	end
+	AceGUI:Release(self.tracker_frame)
+	self.tracker_frame = nil
+	self.tracker_tabs = nil
 end
 
 function RackensTracker:OpenOptionsFrame()
 	Settings.OpenToCategory(self.optionsCategory:GetID())
+end
+
+function RackensTracker:ToggleTrackerFrame()
+	if (self.tracker_frame) then
+		if (self.tracker_frame:IsVisible()) then
+			self:CloseTrackerFrame()
+		end
+	else
+		self:OpenTrackerFrame()
+	end
 end
 
 function RackensTracker:OpenTrackerFrame()

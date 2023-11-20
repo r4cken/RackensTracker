@@ -17,8 +17,8 @@ if L then
     L["progress"] = "Progress"
     L["minimapLeftClickAction"] = "Left click"
     L["minimapRightClickAction"] = "Right click"
-    L["minimapLeftClickDescription"] = "open the lockout tracker window"
-    L["minimapRightClickDescription"] = "open the addon options window"
+    L["minimapLeftClickDescription"] = "open the tracker window"
+    L["minimapRightClickDescription"] = "open the options window"
     L["version"] = "Version"
 end
 
