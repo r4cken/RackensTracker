@@ -319,7 +319,7 @@ end
 
 function RackensTracker:GetCurrentFinishedWeeklyQuest()
 	for _, quest in pairs(self.currentCharacter.quests) do
-		if (quest.isWeekly) then
+		if (quest.isWeekly and quest.isCompleted and quest.isTurnedIn) then
 			if (quest.acceptedAt + quest.secondsToReset > GetServerTime()) then
 				return quest
 			end
@@ -460,14 +460,19 @@ function RackensTracker:CreateFinishedMissingQuests()
 				end
 			else
 				-- NOTE: If one of the raid weekly quests have been completed and turned in, they are ALL marked as completed and turned in
-				-- We will try to select this week's active quest by using the following heuristic process.
+				-- We will try to select this week's active quest by using a heuristic process, this process is applied for both of the following conditions:
+				-- 1. If the current character has no tracked weekly raid quest but has finished one
+				-- 2. If the current character has a tracked weekly raid quest but another character can guarantee they know the quest that is active for this active reset (see note above)
+				-- Heuristic process:
 				-- * Do we have a weekly quest stored in the database for a character that is not the current character?
-				-- * If so, does the quest not have the flag craftedFromHeuristicGuess set?
-				-- * If so, is the quest acceptedAt + secondsToReset > GetServerTime()?
-				-- In case we couldn't find a weekly quest matching the above criteria we will just grab the first one that matches our prerequesites
-				if (not currentCharacterFinishedWeeklyQuest) then
+				-- * If so, does the quest lack the flag craftedFromHeuristicGuess set?
+				-- * If so, is the quest acceptedAt + secondsToReset > GetServerTime()? (meaning its for this active reset)
+				-- If all the above is true, we will take a known weekly quest for the active reset we are in, possibly throwing out a previous heuristic guess.
+				-- if all the above is not true we will just grab the first possible we find using a heuristic guess.
+				-- This process is executed frequently and will try to adjust to the correct weekly quest with new information found.
+				if (not currentCharacterFinishedWeeklyQuest or (currentCharacterFinishedWeeklyQuest and currentWeeklyQuest and currentCharacterFinishedWeeklyQuest.id ~= currentWeeklyQuest.id)) then
+					if currentCharacterFinishedWeeklyQuest then self.currentCharacter.quests[currentCharacterFinishedWeeklyQuest.id] = nil end
 					if (currentWeeklyQuest) then
-						Log("Found a weekly candidate by heuristics, questID: " .. currentWeeklyQuest)
 						if (currentWeeklyQuest.faction == nil or (currentWeeklyQuest.faction and currentWeeklyQuest.faction == self.currentCharacter.faction)) then
 							if (not self.currentCharacter.quests[currentWeeklyQuest.id]) then
 
@@ -494,7 +499,6 @@ function RackensTracker:CreateFinishedMissingQuests()
 								-- TODO: Maybe optimize this to set a field in the currentCharacter such as hasCompletedRaidWeekly
 								-- this must be unflagged though when the weekly reset happens which could be a source for more bugs, so the tradeoff is more computing, less flags
 								currentCharacterFinishedWeeklyQuest = self:GetCurrentFinishedWeeklyQuest()
-
 							end
 						end
 					else
@@ -519,7 +523,7 @@ function RackensTracker:CreateFinishedMissingQuests()
 								-- this must be unflagged though when the weekly reset happens which could be a source for more bugs, so the tradeoff is more computing, less flags
 								currentCharacterFinishedWeeklyQuest = self:GetCurrentFinishedWeeklyQuest()
 								Log("Trackable completed and turned in weekly quest found but not found in the database, adding it to the tracker..")
-								Log("Heuristics could not find the current active weekly quest, activating fallback to questID: " .. questID .. " name: " .. newTrackedQuest.name)
+								Log("Heuristics could not find the current active weekly quest, guessing its questID: " .. questID .. " name: " .. newTrackedQuest.name)
 							end
 						end
 					end
@@ -579,7 +583,7 @@ function RackensTracker:OnInitialize()
 		-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
 		setting:SetValue(self.db.global.options.shownCurrencies[variable], true) -- true means force
 	end
-	
+
 	Settings.RegisterAddOnCategory(self.optionsCategory)
 
 	-- Setup the data broken and the minimap icon
@@ -899,25 +903,25 @@ end
 local function getQuestIcon(quest)
 	local atlasSize = 14
 	local textureAtlas = ""
-	local availableAtlas = "QuestNormal"
-	local availableDailyAtlas = "QuestDaily"
-	local completedAtlas = "QuestTurnin"
+	local questionMarkAtlas = "QuestTurnin"
 	local turnedInAtlas = "common-icon-checkmark"
 	local warningAtlas = "services-icon-warning"
 
 	if (quest.isCompleted) then
-		textureAtlas = completedAtlas
+		textureAtlas = questionMarkAtlas
 		if (quest.isTurnedIn) then
 			textureAtlas = turnedInAtlas
 		end
 		if (quest.craftedFromHeuristicGuess) then
-			textureAtlas = warningAtlas
+			textureAtlas = turnedInAtlas
 		end
 	else
 		if quest.isWeekly then
-			textureAtlas = availableAtlas
+			textureAtlas = questionMarkAtlas
+			return CreateSimpleTextureMarkup("Interface\\GossipFrame\\IncompleteQuestIcon", atlasSize, atlasSize)
 		else
-			textureAtlas = availableDailyAtlas
+			textureAtlas = questionMarkAtlas
+			return CreateSimpleTextureMarkup("Interface\\GossipFrame\\IncompleteQuestIcon", atlasSize, atlasSize)
 		end
 		if (quest.hasExpired) then
 			textureAtlas = warningAtlas
@@ -928,7 +932,43 @@ local function getQuestIcon(quest)
 	return icon
 end
 
-local function createQuestLogItemEntry(quest)
+local function getAvailableQuestIcon(isWeekly)
+	local atlasSize = 14
+	local textureAtlas = ""
+	local availableAtlas = "QuestNormal"
+	local availableDailyAtlas = "QuestDaily"
+
+	if isWeekly then
+		textureAtlas = availableAtlas
+	else
+		textureAtlas = availableDailyAtlas
+	end
+	local icon = CreateAtlasMarkup(textureAtlas, atlasSize, atlasSize)
+	return icon
+end
+
+local function createAvailableQuestLogItemEntry(name, questTag, isWeekly)
+	local questLabel = AceGUI:Create("Label")
+	questLabel:SetFullWidth(true)
+
+	local icon = getAvailableQuestIcon(isWeekly)
+	local status = "Available"
+
+	local displayedQuestTag = ""
+	if (isWeekly) then
+		displayedQuestTag = questTag
+	else
+		displayedQuestTag = string.format(DAILY_QUEST_TAG_TEMPLATE, questTag)
+	end
+
+	local colorizedText = RT.Util:FormatColor(YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", isWeekly and L["weeklyQuest"] or name, displayedQuestTag, status)
+	local labelText = string.format("%s %s", icon, colorizedText)
+
+	questLabel:SetText(labelText)
+	return questLabel
+end
+
+local function createTrackedQuestLogItemEntry(quest)
 	local questLabel = AceGUI:Create("Label")
 	questLabel:SetFullWidth(true)
 
@@ -954,7 +994,7 @@ local function createQuestLogItemEntry(quest)
 		status = status .. " (quest accepted from a previous reset)"
 	end
 
-	local colorizedText = RT.Util:FormatColor(YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", quest.craftedFromHeuristicGuess and L["untrackedQuest"] or quest.name, questTag, status)
+	local colorizedText = RT.Util:FormatColor(YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", quest.isWeekly and L["weeklyQuest"] or quest.name, questTag, status)
 	local labelText = string.format("%s %s", icon, colorizedText)
 
 	questLabel:SetText(labelText)
@@ -962,45 +1002,69 @@ local function createQuestLogItemEntry(quest)
 end
 
 function RackensTracker:DrawQuests(container, characterName)
-	local quests = self.db.realm.characters[characterName].quests
+	local characterQuests = self.db.realm.characters[characterName].quests
 
-	-- Sorted collection of the quests with weekly quests coming first
-	local sortedQuests = {}
-	for _, quest in pairs(quests) do
-		table.insert(sortedQuests, quest)
-		table.sort(sortedQuests, function(q1, q2) return q1.isWeekly and not q2.isWeekly end)
+	local sortedAvailableQuests = {}
+	local availableWeeklyQuest = nil
+	local characterWeeklyQuest = nil
+	local questEntry = nil
+
+	-- Grab the first available weekly that this character has, may be none
+	for _, quest in pairs(characterQuests) do
+		if quest.isWeekly then
+			characterWeeklyQuest = quest
+			break
+		end
 	end
 
-	local characterHasQuests = #sortedQuests > 0
+	for _, quest in pairs(RT.Quests) do
+		table.insert(sortedAvailableQuests, quest)
+		table.sort(sortedAvailableQuests, function(q1, q2) return q1.isWeekly and not q2.isWeekly end)
+	end
+
+	-- Grab the last available weekly that is available
+	for _, quest in pairs(sortedAvailableQuests) do
+		if (quest.isWeekly) then
+			availableWeeklyQuest = quest
+		end
+	end
+
 	container:AddChild(CreateDummyFrame())
 
 	local questsHeading = AceGUI:Create("Heading")
 	questsHeading:SetFullWidth(true)
-	if (characterHasQuests == false) then
-		questsHeading:SetText(L["noWeeklyDailyQuests"])
-	else
-		questsHeading:SetText(L["weeklyDailyQuests"])
-	end
+	questsHeading:SetText(L["weeklyDailyQuests"])
 
 	container:AddChild(questsHeading)
 	container:AddChild(CreateDummyFrame())
 
-	if (characterHasQuests == false) then
-		return
-	end
-
-	local weeklyQuest = nil
-	local dailyQuest = nil
-
-	for _, quest in ipairs(sortedQuests) do
-		if (quest.isWeekly) then
-			weeklyQuest = createQuestLogItemEntry(quest)
-			container:AddChild(weeklyQuest)
+	-- Draw the current weekly quest if we have one, or just pick the available one to show as available,
+	-- all weekly quests share lockout so we don't care about its name anyway.
+	-- Draw all the characters daily quests or show the available ones below it.
+	for _, quest in ipairs(sortedAvailableQuests) do
+		if (characterQuests[quest.id]) then
+			if (characterWeeklyQuest and characterWeeklyQuest.id == quest.id) then
+				questEntry = createTrackedQuestLogItemEntry(characterWeeklyQuest)
+				container:AddChild(questEntry)
+				container:AddChild(CreateDummyFrame())
+			end
+			if (not characterQuests[quest.id].isWeekly) then
+				questEntry = createTrackedQuestLogItemEntry(characterQuests[quest.id])
+				container:AddChild(questEntry)
+			end
 		else
-			dailyQuest = createQuestLogItemEntry(quest)
-			container:AddChild(dailyQuest)
+			if (not characterWeeklyQuest and availableWeeklyQuest and availableWeeklyQuest.id == quest.id) then
+				questEntry = createAvailableQuestLogItemEntry(quest.getName(quest.id), quest.getQuestTag(quest.id), quest.isWeekly)
+				container:AddChild(questEntry)
+				container:AddChild(CreateDummyFrame())
+			end
+			if (not quest.isWeekly) then
+				questEntry = createAvailableQuestLogItemEntry(quest.getName(quest.id), quest.getQuestTag(quest.id), quest.isWeekly)
+				container:AddChild(questEntry)
+			end
 		end
 	end
+
 	container:AddChild(CreateDummyFrame())
 end
 
