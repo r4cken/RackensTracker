@@ -28,6 +28,13 @@
 
 
 local addOnName, RT = ...
+
+local setmetatable, string =
+      setmetatable, string
+
+local CreateTextureMarkup, C_CurrencyInfo =
+      CreateTextureMarkup, C_CurrencyInfo
+
 local DEFAULT_ICON_SIZE = 16
 
 local ITEM_QUALITY_COLORS = ITEM_QUALITY_COLORS

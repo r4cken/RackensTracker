@@ -1,6 +1,7 @@
 local addOnName, RT = ...
 
-local table = table
+local table, setmetatable =
+	  table, setmetatable
 
 local Container = {}
 RT.Container = Container

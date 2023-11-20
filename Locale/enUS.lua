@@ -1,9 +1,12 @@
 local L = LibStub("AceLocale-3.0"):NewLocale("RackensTracker", "enUS", true);
 
 if L then
-    L["raidLockExpiresIn"] = "Raid Lock Expires In"
-    L["dungeonLockExpiresIn"] = "Dungeon Lock Expires In"
+    L["raidLockExpiresIn"] = "Raid Locks Expire In"
+    L["dungeonLockExpiresIn"] = "Dungeon Locks Expire In"
     L["currencies"] = "Currencies"
+    L["weeklyDailyQuests"] = "Weekly / Daily Quests"
+    L["noWeeklyDailyQuests"] = "No Weekly / Daily Quests"
+    L["weeklyQuest"] = "Weekly Quest"
     L["lockouts"] = "Lockouts"
     L["noLockouts"] = "No lockouts"
     L["noTrackingAvailable"] = "No tracking information available"
@@ -11,10 +14,11 @@ if L then
     L["noTrackingAvailableDescription2"] = "You must log in to a max level character (level 80) to display tracking information. Only max level characters are currently tracked. This will change in the future through AddOn options."
     L["raids"] = "Raids"
     L["dungeons"] = "Dungeons"
-    L["cleared"] = "Cleared"
+    L["progress"] = "Progress"
     L["minimapLeftClickAction"] = "Left click"
     L["minimapRightClickAction"] = "Right click"
     L["minimapLeftClickDescription"] = "open the lockout tracker window"
     L["minimapRightClickDescription"] = "open the addon options window"
+    L["version"] = "Version"
 end
 
