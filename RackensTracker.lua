@@ -1,4 +1,5 @@
 local addOnName, RT = ...
+local addOnVersion = GetAddOnMetadata("RackensTracker", "Version") or 9999;
 
 local table, math, type, string, pairs, ipairs =
 	  table, math, type, string, pairs, ipairs
@@ -605,9 +606,9 @@ function RackensTracker:OnInitialize()
 		label = addOnName,
 		---@type function|GameTooltip
 		OnTooltipShow = function(tooltip)
-			tooltip:AddLine(HIGHLIGHT_FONT_COLOR_CODE.. addOnName .. FONT_COLOR_CODE_CLOSE )
-			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. L["minimapLeftClickAction"]  .. ": " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. L["minimapLeftClickDescription"] .. FONT_COLOR_CODE_CLOSE)
-			tooltip:AddLine(GRAY_FONT_COLOR_CODE .. L["minimapRightClickAction"] .. ": " .. FONT_COLOR_CODE_CLOSE .. NORMAL_FONT_COLOR_CODE .. L["minimapRightClickDescription"] .. FONT_COLOR_CODE_CLOSE)
+			tooltip:AddLine(RT.Util:FormatColor(HIGHLIGHT_FONT_COLOR_CODE, "%s - %s %s", addOnName, L["version"], addOnVersion))
+			tooltip:AddLine(RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, "%s: ", L["minimapLeftClickAction"]) .. RT.Util:FormatColor(NORMAL_FONT_COLOR_CODE, "%s", L["minimapLeftClickDescription"]))
+			tooltip:AddLine(RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, "%s: ", L["minimapRightClickAction"]) .. RT.Util:FormatColor(NORMAL_FONT_COLOR_CODE, "%s", L["minimapRightClickDescription"]))
 		end,
 	})
 
