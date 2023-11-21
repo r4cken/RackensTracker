@@ -560,25 +560,47 @@ function RackensTracker:OnInitialize()
 	-- Update weekly and daily reset timers
 	self:UpdateWeeklyDailyResetTime()
 
+	local function OnQuestOptionSettingChanged(_, setting, value)
+		local variable = setting:GetVariable()
+		self.db.global.options.shownQuests[variable] = value
+	end
+
 	-- Check for
-	local function OnCurrencySettingChanged(_, setting, value)
+	local function OnCurrencyOptionSettingChanged(_, setting, value)
 		local variable = setting:GetVariable()
 		self.db.global.options.shownCurrencies[variable] = value
 	end
 
 	-- Register the Options menu
 	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory("RackensTracker")
-	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Tracked Currencies")) -- Todo: AceLocale
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsQuestsHeader"]))
 
-	local showHideCurrencyTooltip = "If checked this currency will be displayed in the tracker window."
+	local weeklyQuestOptionVariable = L["optionsToggleNameWeeklyQuest"]
+	local weeklyQuestOptionDisplayName = L["optionsToggleDescriptionWeeklyQuest"]
+	local defaultWeeklyQuestVisibilityValue = database_defaults.global.options.shownQuests[weeklyQuestOptionVariable]
+	local weeklyQuestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, weeklyQuestOptionDisplayName, weeklyQuestOptionVariable, type(defaultWeeklyQuestVisibilityValue), defaultWeeklyQuestVisibilityValue)
+	Settings.CreateCheckBox(self.optionsCategory, weeklyQuestOptionVisibilitySetting)
+	Settings.SetOnValueChangedCallback(weeklyQuestOptionVariable, OnQuestOptionSettingChanged)
+	weeklyQuestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[weeklyQuestOptionVariable], true) -- true means force
+
+	local dailyQuestOptionVariable = L["optionsToggleNameDailyQuest"]
+	local dailyQuestOptionDisplayName = L["optionsToggleDescriptionDailyQuest"]
+	local defaultDailyQuestVisibilityValue = database_defaults.global.options.shownQuests[dailyQuestOptionVariable]
+	local dailyquestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, dailyQuestOptionDisplayName, dailyQuestOptionVariable, type(defaultDailyQuestVisibilityValue), defaultDailyQuestVisibilityValue)
+	Settings.CreateCheckBox(self.optionsCategory, dailyquestOptionVisibilitySetting)
+	Settings.SetOnValueChangedCallback(dailyQuestOptionVariable, OnQuestOptionSettingChanged)
+	dailyquestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[dailyQuestOptionVariable], true) -- true means force
+
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
+
 	for _, currency in ipairs(RT.Currencies) do
 		local variable = tostring(currency.id)
 		local name = currency:GetName()
 		 -- Look at our database_defaults for a default value.
 		local defaultValue = database_defaults.global.options.shownCurrencies[variable]
 		local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, type(defaultValue), defaultValue)
-		Settings.CreateCheckBox(self.optionsCategory, setting, showHideCurrencyTooltip)
-		Settings.SetOnValueChangedCallback(variable, OnCurrencySettingChanged)
+		Settings.CreateCheckBox(self.optionsCategory, setting, L["optionsToggleCurrencyTooltip"])
+		Settings.SetOnValueChangedCallback(variable, OnCurrencyOptionSettingChanged)
 
 		-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
 		-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
@@ -946,7 +968,7 @@ local function createAvailableQuestLogItemEntry(name, questTag, isWeekly)
 	questLabel:SetFullWidth(true)
 
 	local icon = getAvailableQuestIcon(isWeekly)
-	local status = "Available"
+	local status = L["questStatusAvailable"]
 
 	local displayedQuestTag = ""
 	if (isWeekly) then
@@ -967,6 +989,7 @@ local function createTrackedQuestLogItemEntry(quest)
 	questLabel:SetFullWidth(true)
 
 	local icon = getQuestIcon(quest)
+	---@type string|true
 	local status = ""
 	local questTag = ""
 	if (quest.isWeekly) then
@@ -976,16 +999,16 @@ local function createTrackedQuestLogItemEntry(quest)
 	end
 
 	if (quest.isCompleted) then
-		status = "Completed"
+		status = L["questStatusCompleted"]
 		if (quest.isTurnedIn) then
-			status = "Turned in"
+			status = L["questStatusTurnedIn"]
 		end
 	else
-		status = "In progress"
+		status = L["questStatusInProgress"]
 	end
 
 	if (quest.hasExpired) then
-		status = status .. " (quest accepted from a previous reset)"
+		status = status .. " " .. L["questStatusExpired"]
 	end
 
 	local colorizedText = RT.Util:FormatColor(YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", quest.isWeekly and L["weeklyQuest"] or quest.name, questTag, status)
@@ -996,6 +1019,13 @@ local function createTrackedQuestLogItemEntry(quest)
 end
 
 function RackensTracker:DrawQuests(container, characterName)
+	if (not RT.Util:ContainsAnyValue(self.db.global.options.shownQuests)) then
+		return
+	end
+
+	local shouldDisplayWeeklyQuests = self.db.global.options.shownQuests[L["optionsToggleNameWeeklyQuest"]]
+	local shouldDisplayDailyQuests = self.db.global.options.shownQuests[L["optionsToggleNameDailyQuest"]]
+	
 	local characterQuests = self.db.realm.characters[characterName].quests
 
 	local sortedAvailableQuests = {}
@@ -1038,23 +1068,31 @@ function RackensTracker:DrawQuests(container, characterName)
 	for _, quest in ipairs(sortedAvailableQuests) do
 		if (characterQuests[quest.id]) then
 			if (characterWeeklyQuest and characterWeeklyQuest.id == quest.id) then
-				questEntry = createTrackedQuestLogItemEntry(characterWeeklyQuest)
-				container:AddChild(questEntry)
-				container:AddChild(CreateDummyFrame())
+				if (shouldDisplayWeeklyQuests) then
+					questEntry = createTrackedQuestLogItemEntry(characterWeeklyQuest)
+					container:AddChild(questEntry)
+					if (shouldDisplayDailyQuests) then container:AddChild(CreateDummyFrame()) end
+				end
 			end
 			if (not characterQuests[quest.id].isWeekly) then
-				questEntry = createTrackedQuestLogItemEntry(characterQuests[quest.id])
-				container:AddChild(questEntry)
+				if (shouldDisplayDailyQuests) then
+					questEntry = createTrackedQuestLogItemEntry(characterQuests[quest.id])
+					container:AddChild(questEntry)
+				end
 			end
 		else
 			if (not characterWeeklyQuest and availableWeeklyQuest and availableWeeklyQuest.id == quest.id) then
-				questEntry = createAvailableQuestLogItemEntry(quest.getName(quest.id), quest.getQuestTag(quest.id), quest.isWeekly)
-				container:AddChild(questEntry)
-				container:AddChild(CreateDummyFrame())
+				if (shouldDisplayWeeklyQuests) then
+					questEntry = createAvailableQuestLogItemEntry(quest.getName(quest.id), quest.getQuestTag(quest.id), quest.isWeekly)
+					container:AddChild(questEntry)
+					if (shouldDisplayDailyQuests) then container:AddChild(CreateDummyFrame()) end
+				end
 			end
 			if (not quest.isWeekly) then
-				questEntry = createAvailableQuestLogItemEntry(quest.getName(quest.id), quest.getQuestTag(quest.id), quest.isWeekly)
-				container:AddChild(questEntry)
+				if (shouldDisplayDailyQuests) then
+					questEntry = createAvailableQuestLogItemEntry(quest.getName(quest.id), quest.getQuestTag(quest.id), quest.isWeekly)
+					container:AddChild(questEntry)
+				end
 			end
 		end
 	end
@@ -1063,6 +1101,10 @@ function RackensTracker:DrawQuests(container, characterName)
 end
 
 function RackensTracker:DrawCurrencies(container, characterName)
+	if (not RT.Util:ContainsAnyValue(self.db.global.options.shownCurrencies)) then
+		return
+	end
+
 	local labelHeight = 20
 	local relWidthPerCurrency = 0.25 -- Use a quarter of the container space per item, making new rows as fit.
 
@@ -1072,7 +1114,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 
 	-- Heading 
 	local currenciesHeading = AceGUI:Create("Heading")
-	currenciesHeading:SetText(L["currencies"]) -- TODO: Use AceLocale for things 
+	currenciesHeading:SetText(L["currencies"])
 	currenciesHeading:SetFullWidth(true)
 	container:AddChild(currenciesHeading)
 
@@ -1165,9 +1207,6 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	raidResetTimeIconLabel:SetText(weeklyLockoutWithIcon)
 	raidResetTimeIconLabel:SetFullWidth(true)
 	container:AddChild(raidResetTimeIconLabel)
-	
-	-- Empty Row
-	container:AddChild(CreateDummyFrame())
 
 	-- Display dungeon daily reset time
 	local dungeonResetTimeIconLabel = AceGUI:Create("Label")
@@ -1190,13 +1229,13 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 
 	local raidGroup = AceGUI:Create("InlineGroup")
 	raidGroup:SetLayout("List")
-	raidGroup:SetTitle(L["raids"]) -- TODO: AceLocale
+	raidGroup:SetTitle(L["raids"])
 	raidGroup:SetFullHeight(true)
 	raidGroup:SetRelativeWidth(0.50) -- Half of the parent
 
 	local dungeonGroup = AceGUI:Create("InlineGroup")
 	dungeonGroup:SetLayout("List")
-	dungeonGroup:SetTitle(L["dungeons"]) -- TODO: AceLocale
+	dungeonGroup:SetTitle(L["dungeons"])
 	dungeonGroup:SetFullHeight(true)
 	dungeonGroup:SetRelativeWidth(0.50) -- Half of the parent
 
