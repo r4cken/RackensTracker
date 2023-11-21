@@ -1,8 +1,14 @@
+-- Set to ignore a bunch of AceGUI / AceAddon related annotation problems.
+---@diagnostic disable: undefined-field
+
 local addOnName, RT = ...
 local addOnVersion = GetAddOnMetadata("RackensTracker", "Version") or 9999;
 
 local table, math, type, string, pairs, ipairs =
 	  table, math, type, string, pairs, ipairs
+
+local ContainsIf =
+	  ContainsIf
 
 local GetServerTime, SecondsToTime, C_DateAndTime =
 	  GetServerTime, SecondsToTime, C_DateAndTime
@@ -13,6 +19,11 @@ local RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstance
 local C_CurrencyInfo =
 	  C_CurrencyInfo
 
+local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
+
+local C_QuestLog, IsQuestComplete, GetQuestsCompleted =
+	  C_QuestLog, IsQuestComplete, GetQuestsCompleted
+
 local UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup =
 	  UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup
 
@@ -21,11 +32,6 @@ local NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, YELLOW_FONT_COLOR_CODE,
 
 local Settings, CreateSettingsListSectionHeaderInitializer =
 	  Settings, CreateSettingsListSectionHeaderInitializer
-
-local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
-
-local C_QuestLog, IsQuestComplete, GetQuestsCompleted =
-	  C_QuestLog, IsQuestComplete, GetQuestsCompleted
 
 local CreateFromMixins, SecondsFormatterMixin, SecondsFormatter =
 	  CreateFromMixins, SecondsFormatterMixin, SecondsFormatter
@@ -64,6 +70,25 @@ local database_defaults = {
 				["Weekly"] = true,
 				["Daily"] = true,
 			}
+		},
+		realms = {
+			['*'] = {
+				weeklyResetTime = nil,
+				secondsToWeeklyReset = nil,
+				dailyResetTime = nil,
+				secondsToDailyReset = nil,
+				characters = {
+					['*'] = {
+						name = nil,
+						class = nil,
+						level = nil,
+						realm = nil,
+						savedInstances = {},
+						currencies = {},
+						quests = {},
+					}
+				}
+			}
 		}
 	},
 	char = {
@@ -71,76 +96,6 @@ local database_defaults = {
 			hide = false
 		}
 	},
-	realm = {
-		weeklyResetTime = nil,
-		secondsToWeeklyReset = nil,
-		dailyResetTime = nil,
-		secondsToDailyReset = nil,
-		characters = {
-			--Indexed by characterName
-			--[[
-				["realmname.character"] = {
-					name = "Racken",
-					class = "ROGUE",
-					realm = Earthshaker
-					savedInstances = {
-						-- instanceID is made up by instanceName + difficultyName
-						[instanceID] = {
-							["instanceName"] = instanceName,
-							["instanceID"] = instanceID,
-							["lockoutID"] = lockoutID,
-							["resetTime"] = GetServerTime() + resetsAt,
-							["isLocked"] = isLocked,
-							["isRaid"] = isRaid,
-							["isHeroic"] = isHeroic,
-							["maxPlayers"] = maxPlayers,
-							["difficultyID"] = difficultyID,
-							["difficultyName"] = difficultyName,
-							["encountersTotal"] = numEncounters,
-							["encounterCompleted"] = encounterProgress,
-						}
-					},
-					currencies = {
-						[currencyID] = {
-							[currencyID] = currencyID,
-							[name] = currency.name,
-							[description] = currency.description or "",
-							[quantity] = currency.quantity,
-							[maxQuantity] = currency.maxQuantity,
-							[quality] = currency.quality,
-							[iconFileID] = currency.iconFileID,
-							[discovered] = currency.discovered
-						}
-					}
-				}
-			--]]
-			['*'] = {
-				name = nil,
-				class = nil,
-				level = nil,
-				realm = nil,
-				savedInstances = {},
-				currencies = {},
-				quests = {
-					--[[
-						[questID] = {
-							id = questID,
-							name = string,
-							questTag = string,
-							isWeekly = boolean
-							acceptedAt = number
-							secondsToReset = number
-							isCompleted = boolean
-							isTurnedIn = boolean
-							[hasExpired = boolean] -- Key only set when the player has an in progress quest that belongs to an older reset
-							[craftedFromExistingQuest = boolean] -- Key only set when the player is already on a trackable quest but the db doesnt have the information
-							[craftedFromHeuristicGuess = boolean] -- Key only set when the player has completed and turned in a trackable quest but the db doesnt have that information
-						}
-					--]]
-				},
-			}
-		}
-	}
 }
 
 local function SlashCmdLog(message, ...)
@@ -151,11 +106,6 @@ local function Log(message, ...)
 	if (LOGGING_ENABLED) then
     	RackensTracker:Printf(message, ...)
 	end
-end
-
-local function GetCharacterDatabaseID()
-	local name = UnitName("player")
-	return name
 end
 
 
@@ -172,8 +122,8 @@ end
 
 local function GetCharacterLockouts()
 	local savedInstances = {}
-
 	local nSavedInstances = GetNumSavedInstances()
+
 	if (nSavedInstances > 0) then
 		for i = 1, MAX_RAID_INFOS do -- blizz ui stores max 20 entries per character so why not follow suit
 			if ( i <= nSavedInstances) then
@@ -256,7 +206,7 @@ function RackensTracker:RetrieveSavedInstanceInformation(characterName)
 	local raidInstances = RT.Container:New()
 	local dungeonInstances = RT.Container:New()
 
-	local character = self.db.realm.characters[characterName]
+	local character = self.db.global.realms[self.currentRealm].characters[characterName]
 	local characterHasLockouts = false
 
 	for _, savedInstance in pairs(character.savedInstances) do
@@ -303,7 +253,7 @@ function RackensTracker:RetrieveSavedInstanceInformation(characterName)
 end
 
 function RackensTracker:TryToFindCurrentWeeklyQuest()
-	for characterName, character in pairs(self.db.realm.characters) do
+	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
 		if (characterName ~= self.currentCharacter.name) then
 			for _, quest in pairs(character.quests) do
 				-- todo: Maybe we dont need to check against this flag
@@ -330,7 +280,7 @@ function RackensTracker:GetCurrentFinishedWeeklyQuest()
 end
 
 function RackensTracker:ResetTrackedQuestsIfNecessary()
-	for characterName, character in pairs(self.db.realm.characters) do
+	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
 		for questID, quest in pairs(character.quests) do
 			if (quest.acceptedAt + quest.secondsToReset < GetServerTime()) then
 				Log("Found tracked quest that expired in a previous reset for: " .. characterName)
@@ -346,14 +296,14 @@ function RackensTracker:ResetTrackedQuestsIfNecessary()
 				-- If they turn it in past the "deadline" it counts as completed for that lockout period anyway.
 				if (quest.isCompleted and quest.isTurnedIn) then
 					Log("Expired quest is completed and turned in, now removing quest with questID: " .. quest.id .. " name: " .. quest.name .. " from the tracker database")
-					self.db.realm.characters[characterName].quests[questID] = nil
+					self.db.global.realms[self.currentRealm][characterName].quests[questID] = nil
 				end
 
 				-- If the player has an in progress quest that belongs to an older daily or weekly reset then just flag it
 				-- This will show up in the UI with a warning triangle and a message so they know they are on a quest belonging to an older reset.
 				if (not quest.isCompleted and not quest.isTurnedIn) then
 					Log("Expired quest is NOT completed and NOT turned in, flagging quest with a user warning for questID: " .. quest.id .. " name: " .. quest.name .. " in the tracker database")
-					self.db.realm.characters[characterName].quests[questID].hasExpired = true
+					self.db.global.realms[self.currentRealm][characterName].quests[questID].hasExpired = true
 				end
 			end
 		end
@@ -361,7 +311,7 @@ function RackensTracker:ResetTrackedQuestsIfNecessary()
 end
 
 function RackensTracker:ResetTrackedInstancesIfNecessary()
-	for characterName, character in pairs(self.db.realm.characters) do
+	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
 		for id, savedInstance in pairs(character.savedInstances) do
 			-- TODO: Look into if this savedInstance.resetTime is completely accurate as we update our information about it very frequently on events
 			if (savedInstance.resetTime and savedInstance.resetTime < GetServerTime()) then
@@ -373,7 +323,7 @@ function RackensTracker:ResetTrackedInstancesIfNecessary()
 				Log("Tracked instance expired: " .. timeFormatter:Format(timeNow - (savedInstance.resetTime)) .. " ago")
 				Log("At the time of getting saved to the instance there was: " .. timeFormatter:Format(timeNow - savedInstance.resetTime) .. " left until reset")
 
-				self.db.realm.characters[characterName].savedInstances[id] = nil
+				self.db.global.realms[self.currentRealm].characters[characterName].savedInstances[id] = nil
 			end
 		end
 	end
@@ -536,14 +486,16 @@ end
 
 function RackensTracker:UpdateWeeklyDailyResetTime()
 	-- Update to get the absolute latest timers
-	self.db.realm.secondsToWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset()
-	self.db.realm.secondsToDailyReset  = C_DateAndTime.GetSecondsUntilDailyReset()
-	self.db.realm.weeklyResetTime = GetServerTime() + self.db.realm.secondsToWeeklyReset
-	self.db.realm.dailyResetTime = GetServerTime() + self.db.realm.secondsToDailyReset
+	self.db.global.realms[self.currentRealm].secondsToWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset()
+	self.db.global.realms[self.currentRealm].secondsToDailyReset  = C_DateAndTime.GetSecondsUntilDailyReset()
+	self.db.global.realms[self.currentRealm].weeklyResetTime = GetServerTime() + self.db.global.realms[self.currentRealm].secondsToWeeklyReset
+	self.db.global.realms[self.currentRealm].dailyResetTime = GetServerTime() + self.db.global.realms[self.currentRealm].secondsToDailyReset
 end
 
 function RackensTracker:OnInitialize()
 	-- Called when the addon is Initialized
+	self.currentRealm = GetRealmName()
+
 	self.tracker_frame = nil
 	self.optionsCategory = nil
 	self.optionsLayout = nil
@@ -636,6 +588,7 @@ function RackensTracker:OnInitialize()
 	})
 
 	if self.libDBIcon then
+		---@diagnostic disable-next-line: param-type-mismatch
 		self.libDBIcon:Register(addOnName, minimapBtn, self.db.char.minimap)
 	end
 
@@ -645,9 +598,8 @@ end
 
 function RackensTracker:OnEnable()
 	-- Called when the addon is enabled
-	local characterName = GetCharacterDatabaseID()
-
-	self.currentCharacter = self.db.realm.characters[characterName]
+	local characterName = UnitName("player")
+	self.currentCharacter = self.db.global.realms[self.currentRealm].characters[characterName]
 	self.currentCharacter.name = characterName
 	self.currentCharacter.class = GetCharacterClass()
 	self.currentCharacter.level = UnitLevel("player")
@@ -1019,14 +971,14 @@ local function createTrackedQuestLogItemEntry(quest)
 end
 
 function RackensTracker:DrawQuests(container, characterName)
-	if (not RT.Util:ContainsAnyValue(self.db.global.options.shownQuests)) then
+	if (not ContainsIf(self.db.global.options.shownQuests, function(questTypeEnabled) return questTypeEnabled end)) then
 		return
 	end
 
 	local shouldDisplayWeeklyQuests = self.db.global.options.shownQuests[L["optionsToggleNameWeeklyQuest"]]
 	local shouldDisplayDailyQuests = self.db.global.options.shownQuests[L["optionsToggleNameDailyQuest"]]
 	
-	local characterQuests = self.db.realm.characters[characterName].quests
+	local characterQuests = self.db.global.realms[self.currentRealm].characters[characterName].quests
 
 	local sortedAvailableQuests = {}
 	local availableWeeklyQuest = nil
@@ -1101,14 +1053,14 @@ function RackensTracker:DrawQuests(container, characterName)
 end
 
 function RackensTracker:DrawCurrencies(container, characterName)
-	if (not RT.Util:ContainsAnyValue(self.db.global.options.shownCurrencies)) then
+	if (not ContainsIf(self.db.global.options.shownCurrencies, function(currencyTypeEnabled) return currencyTypeEnabled end)) then
 		return
 	end
 
 	local labelHeight = 20
 	local relWidthPerCurrency = 0.25 -- Use a quarter of the container space per item, making new rows as fit.
 
-	local characterCurrencies = self.db.realm.characters[characterName].currencies
+	local characterCurrencies = self.db.global.realms[self.currentRealm].characters[characterName].currencies
 
 	container:AddChild(CreateDummyFrame())
 
@@ -1126,7 +1078,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	currenciesGroup:SetFullWidth(true)
 
 	local currencyDisplayLabel
-	local colorizedName, icon, quantity = ""
+	local colorizedName, icon, quantity = "", "", 0
 
 	for _, currency in ipairs(RT.Currencies) do
 		if (self.db.global.options.shownCurrencies[tostring(currency.id)]) then
@@ -1168,13 +1120,13 @@ function RackensTracker:GetLockoutTimeWithIcon(isRaid)
 	local dungeonAtlas = "Dungeon"
 	local atlasSize = 16
 	local iconMarkup = ""
-	if (isRaid and self.db.realm.secondsToWeeklyReset) then
+	if (isRaid and self.db.global.realms[self.currentRealm].secondsToWeeklyReset) then
 		iconMarkup = CreateAtlasMarkup(raidAtlas, atlasSize, atlasSize)
-		return string.format("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], SecondsToTime(self.db.realm.secondsToWeeklyReset, true, nil, 3))
+		return string.format("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], SecondsToTime(self.db.global.realms[self.currentRealm].secondsToWeeklyReset, true, nil, 3))
 	end
-	if (isRaid == false and self.db.realm.secondsToDailyReset) then
+	if (isRaid == false and self.db.global.realms[self.currentRealm].secondsToDailyReset) then
 		iconMarkup = CreateAtlasMarkup(dungeonAtlas, atlasSize, atlasSize)
-		return string.format("%s %s: %s", iconMarkup, L["dungeonLockExpiresIn"], SecondsToTime(self.db.realm.secondsToDailyReset, true, nil, 3))
+		return string.format("%s %s: %s", iconMarkup, L["dungeonLockExpiresIn"], SecondsToTime(self.db.global.realms[self.currentRealm].secondsToDailyReset, true, nil, 3))
 	end
 end
 
@@ -1320,6 +1272,9 @@ function RackensTracker:CloseTrackerFrame()
 end
 
 function RackensTracker:OpenOptionsFrame()
+	if (self.tracker_frame) then
+		self:CloseTrackerFrame()
+	end
 	Settings.OpenToCategory(self.optionsCategory:GetID())
 end
 
@@ -1381,7 +1336,7 @@ function RackensTracker:OpenTrackerFrame()
 	local isInitialCharacterMaxLevel = false
 
 	-- Create one tab per level 80 character 
-	for characterName, character in pairs(self.db.realm.characters) do
+	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
 		if (character.level == GetMaxPlayerLevel()) then
 			if (character.name == initialCharacterTab and character.level == GetMaxPlayerLevel()) then
 				isInitialCharacterMaxLevel = true
