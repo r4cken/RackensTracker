@@ -378,14 +378,14 @@ function RackensTracker:ResetTrackedQuestsIfNecessary()
 				-- If they turn it in past the "deadline" it counts as completed for that lockout period anyway.
 				if (quest.isCompleted and quest.isTurnedIn) then
 					Log("Expired quest is completed and turned in, now removing quest with questID: " .. quest.id .. " name: " .. quest.name .. " from the tracker database")
-					self.db.global.realms[self.currentRealm][characterName].quests[questID] = nil
+					self.db.global.realms[self.currentRealm].characters[characterName].quests[questID] = nil
 				end
 
 				-- If the player has an in progress quest that belongs to an older daily or weekly reset then just flag it
 				-- This will show up in the UI with a warning triangle and a message so they know they are on a quest belonging to an older reset.
 				if (not quest.isCompleted and not quest.isTurnedIn) then
 					Log("Expired quest is NOT completed and NOT turned in, flagging quest with a user warning for questID: " .. quest.id .. " name: " .. quest.name .. " in the tracker database")
-					self.db.global.realms[self.currentRealm][characterName].quests[questID].hasExpired = true
+					self.db.global.realms[self.currentRealm].characters[characterName].quests[questID].hasExpired = true
 				end
 			end
 		end
