@@ -1,5 +1,54 @@
 -- Set to ignore a bunch of AceGUI / AceAddon related annotation problems.
 ---@diagnostic disable: undefined-field
+---@alias questID number
+---@alias currencyID number
+
+---@class DbQuest
+---@field id questID
+---@field name string
+---@field questTag string
+---@field faction string|nil
+---@field isWeekly boolean
+---@field acceptedAt number
+---@field secondsToReset number
+---@field isCompleted boolean
+---@field isTurnedIn boolean
+---@field hasExpired boolean?
+---@field craftedFromExistingQuest boolean?
+---@field craftedFromCompletedTurnedInQuest boolean?
+
+---@class DbCurrency
+---@field currencyID currencyID
+---@field name string
+---@field description string
+---@field quantity number
+---@field maxQuantity number
+---@field quality number
+---@field iconFileID string	
+---@field discovered boolean
+
+---@class DbSavedInstance
+---@field instanceName string
+---@field instanceID number
+---@field lockoutID number
+---@field resetTime number
+---@field isLocked boolean
+---@field isRaid boolean
+---@field isHeroic boolean
+---@field maxPlayers number
+---@field difficultyID number
+---@field difficultyName string
+---@field encountersTotal number
+---@field encounterCompleted number
+
+---@class DbCharacter
+---@field name string|nil
+---@field class string|nil
+---@field level string|nil
+---@field realm string|nil
+---@field savedInstances table<string, DbSavedInstance>
+---@field currencies table<currencyID, DbCurrency>
+---@field quests table<questID, DbQuest>
 
 local addOnName, RT = ...
 local addOnVersion = GetAddOnMetadata("RackensTracker", "Version") or 9999;
@@ -10,8 +59,8 @@ local table, math, type, string, pairs, ipairs =
 local ContainsIf =
 	  ContainsIf
 
-local GetServerTime, SecondsToTime, C_DateAndTime =
-	  GetServerTime, SecondsToTime, C_DateAndTime
+local GetServerTime, C_DateAndTime =
+	  GetServerTime, C_DateAndTime
 
 local RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstanceInfo =
 	  RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstanceInfo
@@ -77,6 +126,7 @@ local database_defaults = {
 				secondsToWeeklyReset = nil,
 				dailyResetTime = nil,
 				secondsToDailyReset = nil,
+				---@type table<string, DbCharacter>
 				characters = {
 					['*'] = {
 						name = nil,
@@ -108,18 +158,35 @@ local function Log(message, ...)
 	end
 end
 
-
+---@alias ClassBaseName
+---| '"DEATHKNIGHT"'
+---| '"DRUID"'
+---| '"HUNTER"'
+---| '"MAGE"'
+---| '"PALADIN"'
+---| '"PRIEST"'
+---| '"ROGUE"'
+---| '"SHAMAN"'
+---| '"WARLOCK"'
+---| '"WARRIOR"'
+---@return ClassBaseName class Gets the players locale-independent name
 local function GetCharacterClass()
     local classFilename, _ = UnitClassBase("player")
     return classFilename
 end
 
+
+---@param class ClassBaseName
+---@param iconSize number
+---@return string AtlasMarkup A class icon with given size for the class provided.
 local function GetCharacterIcon(class, iconSize)
 	local textureAtlas = GetClassAtlas(class)
 	local icon = CreateAtlasMarkup(textureAtlas, iconSize, iconSize)
 	return icon
 end
 
+--- Retrieves all of the current characters locked raids and dungeons
+---@return { [string]: DbSavedInstance } instances A table of raids and dungeons keyed by the string 'instanceName SPACE difficultyName'
 local function GetCharacterLockouts()
 	local savedInstances = {}
 	local nSavedInstances = GetNumSavedInstances()
@@ -156,7 +223,8 @@ local function GetCharacterLockouts()
 	return savedInstances
 end
 
-
+--- Retrieves all the current players currencies
+---@return { [string]: DbCurrency } currencies A table of currencies keyed by currencyID
 local function GetCharacterCurrencies()
 	local currencies = {}
 	-- Iterate over all known currency ID's
@@ -183,24 +251,31 @@ local function GetCharacterCurrencies()
 	return currencies
 end
 
-
+--- Updates the database with the latest saved instance information current character
 function RackensTracker:UpdateCharacterLockouts()
 	local savedInstances = GetCharacterLockouts()
 
 	self.currentCharacter.savedInstances = savedInstances
 end
 
-
+--- Updates the database with the latest currency information for the current character
 function RackensTracker:UpdateCharacterCurrencies()
 	local currencies = GetCharacterCurrencies()
 
 	self.currentCharacter.currencies = currencies
 end
 
+--- Updates the database with the new level for the current character
 function RackensTracker:UpdateCharacterLevel(newLevel)
 	self.currentCharacter.level = newLevel
 end
 
+
+---@param characterName string
+---@return boolean characterHasLockouts
+---@return table raidInstances
+---@return table dungeonInstances
+---@return table lockoutInformation
 function RackensTracker:RetrieveSavedInstanceInformation(characterName)
 	local lockoutInformation = {}
 	local raidInstances = RT.Container:New()
@@ -252,6 +327,8 @@ function RackensTracker:RetrieveSavedInstanceInformation(characterName)
 
 end
 
+--- Attempts to find the current weekly quest for the active reset by looking at all other characters the database.
+---@return DbQuest|nil
 function RackensTracker:TryToFindCurrentWeeklyQuest()
 	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
 		if (characterName ~= self.currentCharacter.name) then
@@ -268,7 +345,9 @@ function RackensTracker:TryToFindCurrentWeeklyQuest()
 	return nil
 end
 
-function RackensTracker:GetCurrentFinishedWeeklyQuest()
+--- Attempts to find a completed and turned in weekly quest for the current character.
+---@return DbQuest|nil
+function RackensTracker:TryGetCurrentFinishedWeeklyQuest()
 	for _, quest in pairs(self.currentCharacter.quests) do
 		if (quest.isWeekly and quest.isCompleted and quest.isTurnedIn) then
 			if (quest.acceptedAt + quest.secondsToReset > GetServerTime()) then
@@ -279,6 +358,8 @@ function RackensTracker:GetCurrentFinishedWeeklyQuest()
 	return nil
 end
 
+--- Iterates over all known characters for the current realm and checks each of the character's quests to see if
+--- they have reset. If they have, they are removed from the tracker, also flags quests picked up from a previous reset with an hasExpired flag.
 function RackensTracker:ResetTrackedQuestsIfNecessary()
 	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
 		for questID, quest in pairs(character.quests) do
@@ -310,6 +391,8 @@ function RackensTracker:ResetTrackedQuestsIfNecessary()
 	end
 end
 
+--- Iterates over all known characters for the current realm and checks each of the character's saved instances to see if
+--- they have reset. If they have, they are removed from the tracker.
 function RackensTracker:ResetTrackedInstancesIfNecessary()
 	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
 		for id, savedInstance in pairs(character.savedInstances) do
@@ -329,6 +412,7 @@ function RackensTracker:ResetTrackedInstancesIfNecessary()
 	end
 end
 
+--- Adds quests to the database if they are found in the current character's quest log and they do not exist in the database
 function RackensTracker:CreateActiveMissingQuests()
 	for questID, trackableQuest in pairs(RT.Quests) do
 		-- If the current player is already on a trackable quest but they dont have it tracked that means they 
@@ -366,17 +450,22 @@ function RackensTracker:CreateActiveMissingQuests()
 	end
 end
 
+--- Adds completed and turned in quests for the current character if they do not exist the database.
+--- For weekly quests this will use a heuristic process as completing one weekly raid quest means you "completed" all the others in that pool of quests.
 function RackensTracker:CreateFinishedMissingQuests()
 	-- This is a collection of all quests the current character has completed in its lifetime.
 	-- Daily quests appear completed only if they have been completed that day.
 	-- Weekly quests appear completed only if they have been completed that week.
 	local allQuestsCompletedTurnedIn = GetQuestsCompleted()
 	local currentWeeklyQuest = self:TryToFindCurrentWeeklyQuest()
-	local currentCharacterFinishedWeeklyQuest = self:GetCurrentFinishedWeeklyQuest()
+	local currentCharacterFinishedWeeklyQuest = self:TryGetCurrentFinishedWeeklyQuest()
+
+	---@type DbQuest
 	local newTrackedQuest = {
 		id = 0,
 		name = "",
 		questTag = "",
+		faction = nil,
 		isWeekly = true,
 		acceptedAt = 0,
 		secondsToReset = 0,
@@ -394,6 +483,7 @@ function RackensTracker:CreateFinishedMissingQuests()
 						id = questID,
 						name = trackableQuest.getName(questID),
 						questTag = trackableQuest.getQuestTag(questID),
+						faction = trackableQuest.faction,
 						isWeekly = false,
 						-- Assume it was just turned in, we cant know anyway
 						acceptedAt = GetServerTime(),
@@ -431,6 +521,7 @@ function RackensTracker:CreateFinishedMissingQuests()
 									id = currentWeeklyQuest.id,
 									name = currentWeeklyQuest.name,
 									questTag = currentWeeklyQuest.questTag,
+									faction = currentWeeklyQuest.faction,
 									isWeekly = true,
 									-- Assume it was just turned in, we cant know anyway
 									acceptedAt = GetServerTime(),
@@ -449,7 +540,7 @@ function RackensTracker:CreateFinishedMissingQuests()
 								Log("Heuristics found current active weekly quest with questID: " .. questID .. " name: " .. newTrackedQuest.name)
 								-- TODO: Maybe optimize this to set a field in the currentCharacter such as hasCompletedRaidWeekly
 								-- this must be unflagged though when the weekly reset happens which could be a source for more bugs, so the tradeoff is more computing, less flags
-								currentCharacterFinishedWeeklyQuest = self:GetCurrentFinishedWeeklyQuest()
+								currentCharacterFinishedWeeklyQuest = self:TryGetCurrentFinishedWeeklyQuest()
 							end
 						end
 					else
@@ -459,6 +550,7 @@ function RackensTracker:CreateFinishedMissingQuests()
 									id = questID,
 									name = trackableQuest.getName(questID),
 									questTag = trackableQuest.getQuestTag(questID),
+									faction = trackableQuest.faction,
 									isWeekly = true,
 									-- Assume it was just turned in, we cant know anyway
 									acceptedAt = GetServerTime(),
@@ -472,7 +564,7 @@ function RackensTracker:CreateFinishedMissingQuests()
 								self.currentCharacter.quests[questID] = newTrackedQuest
 								-- TODO: Maybe optimize this to set a field in the currentCharacter such as hasCompletedRaidWeekly
 								-- this must be unflagged though when the weekly reset happens which could be a source for more bugs, so the tradeoff is more computing, less flags
-								currentCharacterFinishedWeeklyQuest = self:GetCurrentFinishedWeeklyQuest()
+								currentCharacterFinishedWeeklyQuest = self:TryGetCurrentFinishedWeeklyQuest()
 								Log("Trackable completed and turned in weekly quest found but not found in the database, adding it to the tracker..")
 								Log("Heuristics could not find the current active weekly quest, guessing its questID: " .. questID .. " name: " .. newTrackedQuest.name)
 							end
@@ -484,6 +576,7 @@ function RackensTracker:CreateFinishedMissingQuests()
 	end
 end
 
+--- Asks the server for the latest weekly and daily reset times and saves them to the database
 function RackensTracker:UpdateWeeklyDailyResetTime()
 	-- Update to get the absolute latest timers
 	self.db.global.realms[self.currentRealm].secondsToWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset()
@@ -492,8 +585,9 @@ function RackensTracker:UpdateWeeklyDailyResetTime()
 	self.db.global.realms[self.currentRealm].dailyResetTime = GetServerTime() + self.db.global.realms[self.currentRealm].secondsToDailyReset
 end
 
+--- Called when the addon is initialized
 function RackensTracker:OnInitialize()
-	-- Called when the addon is Initialized
+
 	self.currentRealm = GetRealmName()
 
 	self.tracker_frame = nil
@@ -508,7 +602,7 @@ function RackensTracker:OnInitialize()
 
 	-- Reset any character's weekly raid or daily dungeon lockouts if it meets the criteria to do so
 	self:ResetTrackedInstancesIfNecessary()
-	
+
 	-- Update weekly and daily reset timers
 	self:UpdateWeeklyDailyResetTime()
 
@@ -517,49 +611,13 @@ function RackensTracker:OnInitialize()
 		self.db.global.options.shownQuests[variable] = value
 	end
 
-	-- Check for
 	local function OnCurrencyOptionSettingChanged(_, setting, value)
 		local variable = setting:GetVariable()
 		self.db.global.options.shownCurrencies[variable] = value
 	end
 
-	-- Register the Options menu
-	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory("RackensTracker")
-	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsQuestsHeader"]))
-
-	local weeklyQuestOptionVariable = L["optionsToggleNameWeeklyQuest"]
-	local weeklyQuestOptionDisplayName = L["optionsToggleDescriptionWeeklyQuest"]
-	local defaultWeeklyQuestVisibilityValue = database_defaults.global.options.shownQuests[weeklyQuestOptionVariable]
-	local weeklyQuestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, weeklyQuestOptionDisplayName, weeklyQuestOptionVariable, type(defaultWeeklyQuestVisibilityValue), defaultWeeklyQuestVisibilityValue)
-	Settings.CreateCheckBox(self.optionsCategory, weeklyQuestOptionVisibilitySetting)
-	Settings.SetOnValueChangedCallback(weeklyQuestOptionVariable, OnQuestOptionSettingChanged)
-	weeklyQuestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[weeklyQuestOptionVariable], true) -- true means force
-
-	local dailyQuestOptionVariable = L["optionsToggleNameDailyQuest"]
-	local dailyQuestOptionDisplayName = L["optionsToggleDescriptionDailyQuest"]
-	local defaultDailyQuestVisibilityValue = database_defaults.global.options.shownQuests[dailyQuestOptionVariable]
-	local dailyquestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, dailyQuestOptionDisplayName, dailyQuestOptionVariable, type(defaultDailyQuestVisibilityValue), defaultDailyQuestVisibilityValue)
-	Settings.CreateCheckBox(self.optionsCategory, dailyquestOptionVisibilitySetting)
-	Settings.SetOnValueChangedCallback(dailyQuestOptionVariable, OnQuestOptionSettingChanged)
-	dailyquestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[dailyQuestOptionVariable], true) -- true means force
-
-	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
-
-	for _, currency in ipairs(RT.Currencies) do
-		local variable = tostring(currency.id)
-		local name = currency:GetName()
-		 -- Look at our database_defaults for a default value.
-		local defaultValue = database_defaults.global.options.shownCurrencies[variable]
-		local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, type(defaultValue), defaultValue)
-		Settings.CreateCheckBox(self.optionsCategory, setting, L["optionsToggleCurrencyTooltip"])
-		Settings.SetOnValueChangedCallback(variable, OnCurrencyOptionSettingChanged)
-
-		-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
-		-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
-		setting:SetValue(self.db.global.options.shownCurrencies[variable], true) -- true means force
-	end
-
-	Settings.RegisterAddOnCategory(self.optionsCategory)
+	-- Sets up the layout and options see under the AddOn options
+	self:RegisterAddOnSettings(OnQuestOptionSettingChanged, OnCurrencyOptionSettingChanged)
 
 	-- Setup the data broken and the minimap icon
 	self.libDataBroker = LibStub("LibDataBroker-1.1", true)
@@ -596,8 +654,8 @@ function RackensTracker:OnInitialize()
 end
 
 
+--- Called when the addon is enabled
 function RackensTracker:OnEnable()
-	-- Called when the addon is enabled
 	local characterName = UnitName("player")
 	self.currentCharacter = self.db.global.realms[self.currentRealm].characters[characterName]
 	self.currentCharacter.name = characterName
@@ -643,11 +701,56 @@ function RackensTracker:OnEnable()
 	self:UpdateCharacterCurrencies()
 end
 
+--- Called when the addon is disabled
 function RackensTracker:OnDisable()
 	-- Called when the addon is disabled
 	self:UnregisterChatCommand("RackensTracker")
 end
 
+--- Registers this AddOns configurable settings and specifies the layout and graphical elements for the settings panel.
+---@param OnQuestOptionChanged function
+---@param OnCurrencyOptionChanged function
+function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOptionChanged)
+	-- Register the Options menu
+	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory("RackensTracker")
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsQuestsHeader"]))
+
+	local weeklyQuestOptionVariable = L["optionsToggleNameWeeklyQuest"]
+	local weeklyQuestOptionDisplayName = L["optionsToggleDescriptionWeeklyQuest"]
+	local defaultWeeklyQuestVisibilityValue = database_defaults.global.options.shownQuests[weeklyQuestOptionVariable]
+	local weeklyQuestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, weeklyQuestOptionDisplayName, weeklyQuestOptionVariable, type(defaultWeeklyQuestVisibilityValue), defaultWeeklyQuestVisibilityValue)
+	Settings.CreateCheckBox(self.optionsCategory, weeklyQuestOptionVisibilitySetting)
+	Settings.SetOnValueChangedCallback(weeklyQuestOptionVariable, OnQuestOptionChanged)
+	weeklyQuestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[weeklyQuestOptionVariable], true) -- true means force
+
+	local dailyQuestOptionVariable = L["optionsToggleNameDailyQuest"]
+	local dailyQuestOptionDisplayName = L["optionsToggleDescriptionDailyQuest"]
+	local defaultDailyQuestVisibilityValue = database_defaults.global.options.shownQuests[dailyQuestOptionVariable]
+	local dailyquestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, dailyQuestOptionDisplayName, dailyQuestOptionVariable, type(defaultDailyQuestVisibilityValue), defaultDailyQuestVisibilityValue)
+	Settings.CreateCheckBox(self.optionsCategory, dailyquestOptionVisibilitySetting)
+	Settings.SetOnValueChangedCallback(dailyQuestOptionVariable, OnQuestOptionChanged)
+	dailyquestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[dailyQuestOptionVariable], true) -- true means force
+
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
+
+	for _, currency in ipairs(RT.Currencies) do
+		local variable = tostring(currency.id)
+		local name = currency:GetName()
+		-- Look at our database_defaults for a default value.
+		local defaultValue = database_defaults.global.options.shownCurrencies[variable]
+		local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, type(defaultValue), defaultValue)
+		Settings.CreateCheckBox(self.optionsCategory, setting, L["optionsToggleCurrencyTooltip"])
+		Settings.SetOnValueChangedCallback(variable, OnCurrencyOptionChanged)
+
+		-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
+		-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
+		setting:SetValue(self.db.global.options.shownCurrencies[variable], true) -- true means force
+	end
+
+	Settings.RegisterAddOnCategory(self.optionsCategory)
+end
+
+--- Prints the available slash commands used for this AddOn to the chat window
 local function slashCommandUsage()
 	SlashCmdLog("\"/rackenstracker toggle\" toggles visibility of the the tracking window")
 	SlashCmdLog("\"/rackenstracker options\" opens the options window")
@@ -655,6 +758,8 @@ local function slashCommandUsage()
 	SlashCmdLog("\"/rackenstracker minimap hide\" hides the minimap button")
 end
 
+--- Handler for all slash commands available for this AddOn
+---@param msg string
 function RackensTracker:SlashCommand(msg)
 	local command, value, _ = self:GetArgs(msg, 2)
 
@@ -685,11 +790,12 @@ function RackensTracker:SlashCommand(msg)
 	end
 end
 
-
+--- Requests saved instance information from the game server.
 function RackensTracker:TriggerUpdateInstanceInfo()
 	RequestRaidInfo()
 end
 
+--- Called when a boss is killed in an instance
 function RackensTracker:OnEventBossKill()
     --Log("OnEventBossKill")
     self:TriggerUpdateInstanceInfo()
@@ -700,26 +806,31 @@ function RackensTracker:OnEventInstanceLockStart()
     self:TriggerUpdateInstanceInfo()
 end
 
+--- Called when quitting the game
 function RackensTracker:OnEventInstanceLockStop()
     --Log("OnEventInstanceLockStop")
     self:TriggerUpdateInstanceInfo()
 end
 
+--- Called when recieving a warning that the player will be saved if they accept
 function RackensTracker:OnEventInstanceLockWarning()
     --Log("OnEventInstanceLockWarning")
     self:TriggerUpdateInstanceInfo()
 end
 
+--- Called when data from RequestRaidInfo is available from the server, runs self:UpdateCharacterLockouts()
 function RackensTracker:OnEventUpdateInstanceInfo()
     --Log("OnEventUpdateInstanceInfo")
 	self:UpdateCharacterLockouts()
 end
 
+--- Called when currency information is updated from the server, runs self:UpdateCharacterCurrencies()
 function RackensTracker:OnEventCurrencyDisplayUpdate()
 	--Log("OnEventCurrencyDisplayUpdate")
 	self:UpdateCharacterCurrencies()
 end
 
+--- Called when the player gains currency other than money, such as emblems
 function RackensTracker:OnEventChatMsgCurrency(event, text, playerName)
 	--Log("OnEventChatMsgCurrency")
 	--Log("Recieved text: " .. text)
@@ -736,19 +847,28 @@ function RackensTracker:OnEventChatMsgCurrency(event, text, playerName)
 	end
 end
 
+--- Called when the player levels up
+---@param event string PLAYER_LEVEL_UP
+---@param newLevel number
 function RackensTracker:OnEventPlayerLevelUp(event, newLevel)
 	self:UpdateCharacterLevel(newLevel)
 end
 
-
+--- Called when a quest is accepted.
+--- Inserts the newly accepted quest into the database for the current character
+---@param event string QUEST_ACCEPTED
+---@param questLogIndex number
+---@param questID number
 function RackensTracker:OnEventQuestAccepted(event, questLogIndex, questID)
 	Log("OnEventQuestAccepted")
 	--Log("questID: " .. questID)
 
+	---@type DbQuest
 	local newTrackedQuest = {
 		id = questID,
 		name = "",
 		questTag = "",
+		faction = nil,
 		isWeekly = true,
 		acceptedAt = 0,
 		secondsToReset = 0,
@@ -763,6 +883,7 @@ function RackensTracker:OnEventQuestAccepted(event, questLogIndex, questID)
 		if (trackableQuest.faction == nil or (trackableQuest.faction and trackableQuest.faction == self.currentCharacter.faction) and trackableQuest.prerequesite(self.currentCharacter.level)) then
 			newTrackedQuest.name = trackableQuest.getName(questID)
 			newTrackedQuest.questTag = trackableQuest.getQuestTag(questID)
+			newTrackedQuest.faction = trackableQuest.faction
 			newTrackedQuest.isWeekly = trackableQuest.isWeekly
 			newTrackedQuest.acceptedAt = GetServerTime()
 			if (trackableQuest.isWeekly) then
@@ -777,6 +898,9 @@ function RackensTracker:OnEventQuestAccepted(event, questLogIndex, questID)
 	end
 end
 
+--- Called when a player has turned in a quest or when they removed it manually from their quest log. Removes the quest from the database for the current character
+---@param event string QUEST_REMOVED
+---@param questID number
 function RackensTracker:OnEventQuestRemoved(event, questID)
 	Log("OnEventQuestRemoved")
 	--Log("questID: " .. tostring(questID))
@@ -793,21 +917,22 @@ function RackensTracker:OnEventQuestRemoved(event, questID)
 	end
 end
 
--- Update the current character's completed weekly or daily quest
--- This event fires when the user turns in a quest, whether automatically or
--- by pressing the complete button in a quest dialog.
--- NOTE: This event handler is supposed to trigger BEFORE QUEST_REMOVED but it can happen AFTER 
--- And in that case the object for self.currentCharacter.quests[questID] is deleted :/ so create a new quest object with the correct state.
+--- Called when the player has turned in a quest from their quest log. Marks the quest as turned in, in the database
+---@param event string QUEST_TURNED_IN
+---@param questID number
 function RackensTracker:OnEventQuestTurnedIn(event, questID)
 	Log("OnEventQuestTurnedIn")
 	--Log("questID: " .. tostring(questID))
 	local trackableQuest = RT.Quests[questID]
 	if (trackableQuest) then
 		Log("Turned in tracked quest, isWeekly: " .. tostring(trackableQuest.isWeekly) .. " questID: " .. trackableQuest.id .. " and name: " .. trackableQuest.getName(trackableQuest.id))
+
+		---@type DbQuest
 		local trackedQuest = {
 			id = questID,
 			name = trackableQuest.getName(questID),
 			questTag = trackableQuest.getQuestTag(questID),
+			faction = trackableQuest.faction,
 			isWeekly = trackableQuest.isWeekly,
 			acceptedAt = GetServerTime(),
 			secondsToReset = trackableQuest.isWeekly and C_DateAndTime.GetSecondsUntilWeeklyReset() or C_DateAndTime.GetSecondsUntilDailyReset(),
@@ -821,6 +946,13 @@ function RackensTracker:OnEventQuestTurnedIn(event, questID)
 	end
 end
 
+--- Called when a quest objective is updated for the player. Will mark quests as completed when the player completes the quest's objectives
+---@param event string QUEST_LOG_CRITERIA_UPDATE
+---@param questID number
+---@param specificTreeID number
+---@param description string
+---@param numFulfilled number
+---@param numRequired number
 function RackensTracker:OnEventQuestLogCriteriaUpdate(event, questID, specificTreeID, description, numFulfilled, numRequired)
 	Log("OnEventQuestLogCriteriaUpdate")
 	--Log("specificTreeID: " .. tostring(specificTreeID) .. " description: " .. description .. " numFulfilled: " .. tostring(numFulfilled) .. " numRequired: " .. tostring(numRequired))
@@ -836,7 +968,9 @@ function RackensTracker:OnEventQuestLogCriteriaUpdate(event, questID, specificTr
 	end
 end
 
--- Hopefully this will trigger if QUEST_LOG_CRITERIA_UPDATE hasnt been fired.
+--- Called when the player's quest log changed, this happens frequently when interacting with quests. Will mark quests as completed when the player completes the quest's objectives
+---@param event string UNIT_QUEST_LOG_CHANGED
+---@param unitTarget string
 function RackensTracker:OnEventUnitQuestLogChanged(event, unitTarget)
 	if (unitTarget == "player") then
 		Log("OnEventUnitQuestLogChanged")
@@ -859,7 +993,8 @@ end
 -- The "List" Layout will simply stack all widgets on top of each other on the left side of the container.
 -- The "Fill" Layout will use the first widget in the list, and fill the whole container with it. Its only useful for containers 
 
-
+--- Creates an empty dummy label widget to take up UI space but is rendered as invisible
+---@return AceGUIWidget
 local function CreateDummyFrame()
 	local dummyFiller = AceGUI:Create("Label")
 	dummyFiller:SetText(" ")
@@ -868,6 +1003,9 @@ local function CreateDummyFrame()
 	return dummyFiller
 end
 
+--- Given a DbQuest object returns an appropriate icon depending on the quests progressed state
+---@param quest any
+---@return string textureString
 local function getQuestIcon(quest)
 	local atlasSize = 14
 	local textureAtlas = ""
@@ -900,6 +1038,9 @@ local function getQuestIcon(quest)
 	return icon
 end
 
+--- Returns the quest available icon, blue for daily yellow for anything else
+---@param isWeekly boolean
+---@return string textureString
 local function getAvailableQuestIcon(isWeekly)
 	local atlasSize = 14
 	local textureAtlas = ""
@@ -915,6 +1056,11 @@ local function getAvailableQuestIcon(isWeekly)
 	return icon
 end
 
+--- Creates an AceGUI label widget for an available quest, with an icon and text to be displayed in the tracker
+---@param name string quest name
+---@param questTag string (Heroic|Raid)
+---@param isWeekly boolean if the quest is a weekly or daily quest
+---@return AceGUIWidget
 local function createAvailableQuestLogItemEntry(name, questTag, isWeekly)
 	local questLabel = AceGUI:Create("Label")
 	questLabel:SetFullWidth(true)
@@ -936,6 +1082,9 @@ local function createAvailableQuestLogItemEntry(name, questTag, isWeekly)
 	return questLabel
 end
 
+--- Creates an AceGUI label widget with an icon and text to be displayed, reflecting the current state of the quest's progress
+---@param quest table
+---@return AceGUIWidget
 local function createTrackedQuestLogItemEntry(quest)
 	local questLabel = AceGUI:Create("Label")
 	questLabel:SetFullWidth(true)
@@ -970,6 +1119,9 @@ local function createTrackedQuestLogItemEntry(quest)
 	return questLabel
 end
 
+--- Draws the graphical elements to display the tracked quests, given a known character name
+---@param container AceGUIWidget
+---@param characterName string name of the character to render quests for
 function RackensTracker:DrawQuests(container, characterName)
 	if (not ContainsIf(self.db.global.options.shownQuests, function(questTypeEnabled) return questTypeEnabled end)) then
 		return
@@ -977,7 +1129,6 @@ function RackensTracker:DrawQuests(container, characterName)
 
 	local shouldDisplayWeeklyQuests = self.db.global.options.shownQuests[L["optionsToggleNameWeeklyQuest"]]
 	local shouldDisplayDailyQuests = self.db.global.options.shownQuests[L["optionsToggleNameDailyQuest"]]
-	
 	local characterQuests = self.db.global.realms[self.currentRealm].characters[characterName].quests
 
 	local sortedAvailableQuests = {}
@@ -1052,6 +1203,9 @@ function RackensTracker:DrawQuests(container, characterName)
 	container:AddChild(CreateDummyFrame())
 end
 
+--- Draws the graphical elements to display the currencies, given a known character name
+---@param container AceGUIWidget
+---@param characterName string name of the character to render quests for
 function RackensTracker:DrawCurrencies(container, characterName)
 	if (not ContainsIf(self.db.global.options.shownCurrencies, function(currencyTypeEnabled) return currencyTypeEnabled end)) then
 		return
@@ -1112,6 +1266,9 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	container:AddChild(currenciesGroup)
 end
 
+--- Returns the texture used to display the weekly or daily dungeon reset, together with the time remaining.
+---@param isRaid boolean
+---@return string atlasMarkup
 function RackensTracker:GetLockoutTimeWithIcon(isRaid)
 
 	-- https://www.wowhead.com/wotlk/icon=134238/inv-misc-key-04
@@ -1122,14 +1279,19 @@ function RackensTracker:GetLockoutTimeWithIcon(isRaid)
 	local iconMarkup = ""
 	if (isRaid and self.db.global.realms[self.currentRealm].secondsToWeeklyReset) then
 		iconMarkup = CreateAtlasMarkup(raidAtlas, atlasSize, atlasSize)
-		return string.format("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], SecondsToTime(self.db.global.realms[self.currentRealm].secondsToWeeklyReset, true, nil, 3))
+		--return string.format("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], SecondsToTime(self.db.global.realms[self.currentRealm].secondsToWeeklyReset, true, nil, 3))
+		return string.format("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], timeFormatter:Format(self.db.global.realms[self.currentRealm].secondsToWeeklyReset))
 	end
 	if (isRaid == false and self.db.global.realms[self.currentRealm].secondsToDailyReset) then
 		iconMarkup = CreateAtlasMarkup(dungeonAtlas, atlasSize, atlasSize)
-		return string.format("%s %s: %s", iconMarkup, L["dungeonLockExpiresIn"], SecondsToTime(self.db.global.realms[self.currentRealm].secondsToDailyReset, true, nil, 3))
+		return string.format("%s %s: %s", iconMarkup, L["dungeonLockExpiresIn"], timeFormatter:Format(self.db.global.realms[self.currentRealm].secondsToDailyReset))
 	end
+	return ""
 end
 
+--- Draws the graphical elements to display the saved instances, given a known character name
+---@param container AceGUIWidget
+---@param characterName string name of the character to render quests for
 function RackensTracker:DrawSavedInstances(container, characterName)
 
 	-- Refresh the currently known daily and weekly reset timers
@@ -1257,7 +1419,10 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	container:AddChild(lockoutsGroup)
 end
 
-
+--- Callback that runs when the user selects a character tab in the main tracker frame
+---@param container AceGUIWidget
+---@param event string
+---@param characterName string
 local function SelectCharacterTab(container, event, characterName)
 	container:ReleaseChildren()
 	RackensTracker:DrawQuests(container, characterName)
@@ -1265,12 +1430,14 @@ local function SelectCharacterTab(container, event, characterName)
 	RackensTracker:DrawCurrencies(container, characterName)
 end
 
+--- Closes the tracker frame
 function RackensTracker:CloseTrackerFrame()
 	AceGUI:Release(self.tracker_frame)
 	self.tracker_frame = nil
 	self.tracker_tabs = nil
 end
 
+--- Opens the setting panel for the AddOn
 function RackensTracker:OpenOptionsFrame()
 	if (self.tracker_frame) then
 		self:CloseTrackerFrame()
@@ -1278,6 +1445,7 @@ function RackensTracker:OpenOptionsFrame()
 	Settings.OpenToCategory(self.optionsCategory:GetID())
 end
 
+--- Toggles visibility of the tracker frame
 function RackensTracker:ToggleTrackerFrame()
 	if (self.tracker_frame) then
 		if (self.tracker_frame:IsVisible()) then
@@ -1288,6 +1456,7 @@ function RackensTracker:ToggleTrackerFrame()
 	end
 end
 
+--- Creates and renders the tracker frame
 function RackensTracker:OpenTrackerFrame()
 	-- No need to render and create the user interface again if its already created.
 	if (self.tracker_frame and self.tracker_frame:IsVisible()) then
@@ -1356,7 +1525,7 @@ function RackensTracker:OpenTrackerFrame()
 		self.tracker_tabs:SetTabs(tabsData)
 		-- Register callbacks on tab selected
 		self.tracker_tabs:SetCallback("OnGroupSelected", SelectCharacterTab)
-		
+
 		if (isInitialCharacterMaxLevel) then
 			-- Set initial tab to the current character
 			self.tracker_tabs:SelectTab(initialCharacterTab)
@@ -1380,7 +1549,7 @@ function RackensTracker:OpenTrackerFrame()
 		noTrackingInformationGroup:AddChild(noTrackingInformationAvailable)
 
 		noTrackingInformationGroup:AddChild(CreateDummyFrame())
-		
+
 		-- Add a more descriptive label explaining why
 		local noTrackingDetailedInformation = AceGUI:Create("Label")
 		noTrackingDetailedInformation:SetFullWidth(true)
