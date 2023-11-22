@@ -98,6 +98,7 @@ local LOGGING_ENABLED = true
 local database_defaults = {
 	global = {
 		options = {
+			showCurrencies = true,
 			shownCurrencies = {
 				["341"] = true,  -- Emblem of Frost
 				["301"] = true,  -- Emblem of Triumph
@@ -613,7 +614,11 @@ function RackensTracker:OnInitialize()
 
 	local function OnCurrencyOptionSettingChanged(_, setting, value)
 		local variable = setting:GetVariable()
-		self.db.global.options.shownCurrencies[variable] = value
+		if (variable == L["optionsToggleNameShowCurrencies"]) then
+			self.db.global.options.showCurrencies = value
+		else
+			self.db.global.options.shownCurrencies[variable] = value
+		end
 	end
 
 	-- Sets up the layout and options see under the AddOn options
@@ -733,18 +738,27 @@ function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOp
 
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
 
+	local allCurrencyOptionVariable = L["optionsToggleNameShowCurrencies"]
+	local allCurrencyOptionDisplayName = L["optionsToggleDescriptionShowCurrencies"]
+	local defaultAllCurrencyVisibilityValue = database_defaults.global.options.showCurrencies
+	local allCurrencyOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCurrencyOptionDisplayName, allCurrencyOptionVariable, type(defaultAllCurrencyVisibilityValue), defaultAllCurrencyVisibilityValue)
+	local allCurrencyOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, allCurrencyOptionVisibilitySetting)
+	Settings.SetOnValueChangedCallback(allCurrencyOptionVariable, OnCurrencyOptionChanged)
+	dailyquestOptionVisibilitySetting:SetValue(self.db.global.options.showCurrencies, true) -- true means force
+
 	for _, currency in ipairs(RT.Currencies) do
 		local variable = tostring(currency.id)
 		local name = currency:GetName()
 		-- Look at our database_defaults for a default value.
 		local defaultValue = database_defaults.global.options.shownCurrencies[variable]
 		local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, type(defaultValue), defaultValue)
-		Settings.CreateCheckBox(self.optionsCategory, setting, L["optionsToggleCurrencyTooltip"])
+		local initializer = Settings.CreateCheckBox(self.optionsCategory, setting, L["optionsToggleCurrencyTooltip"])
 		Settings.SetOnValueChangedCallback(variable, OnCurrencyOptionChanged)
 
 		-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
 		-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
 		setting:SetValue(self.db.global.options.shownCurrencies[variable], true) -- true means force
+		initializer:SetParentInitializer(allCurrencyOptionInitializer, function() return allCurrencyOptionVisibilitySetting:GetValue() end)
 	end
 
 	Settings.RegisterAddOnCategory(self.optionsCategory)
@@ -1207,7 +1221,7 @@ end
 ---@param container AceGUIWidget
 ---@param characterName string name of the character to render quests for
 function RackensTracker:DrawCurrencies(container, characterName)
-	if (not ContainsIf(self.db.global.options.shownCurrencies, function(currencyTypeEnabled) return currencyTypeEnabled end)) then
+	if (not ContainsIf(self.db.global.options.shownCurrencies, function(currencyTypeEnabled) return currencyTypeEnabled end) or not self.db.global.options.showCurrencies) then
 		return
 	end
 

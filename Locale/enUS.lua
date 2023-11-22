@@ -26,6 +26,8 @@ if L then
     L["version"] = "Version"
     L["optionsQuestsHeader"] = "Displayed Quests"
     L["optionsCurrenciesHeader"] = "Displayed Currencies"
+    L["optionsToggleNameShowCurrencies"] = "showCurrencies"
+    L["optionsToggleDescriptionShowCurrencies"] = "Display currencies"
     L["optionsToggleDescriptionWeeklyQuest"] = "Weekly"
     L["optionsToggleDescriptionDailyQuest"] = "Daily"
     L["optionsToggleDescriptionWeeklyAndDailyQuest"] = "Show weekly and daily quests"
