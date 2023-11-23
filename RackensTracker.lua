@@ -502,21 +502,22 @@ function RackensTracker:CreateFinishedMissingQuests()
 					Log("Found new trackable daily quest with questID: " .. questID .. " name: " .. newTrackedQuest.name)
 				end
 			else
-				-- NOTE: If one of the raid weekly quests have been completed and turned in, they are ALL marked as completed and turned in
+				-- NOTE: If one of the raid weekly quests have been completed and turned in this reset, they are ALL marked as completed and turned in
 				-- We will try to select this week's active quest by using a heuristic process, this process is applied for both of the following conditions:
 				-- 1. If the current character has no tracked weekly raid quest but has finished one
-				-- 2. If the current character has a tracked weekly raid quest but another character can guarantee they know the quest that is active for this active reset (see note above)
+				-- 2. If the current character has a tracked weekly raid quest but it might have previously been created by this function with craftedFromHeuristicGuess.
+				-- 	  So we look if another character possibly knows which quest was actually available for this active reset
 				-- Heuristic process:
-				-- * Do we have a weekly quest stored in the database for a character that is not the current character?
-				-- * If so, does the quest lack the flag craftedFromHeuristicGuess set?
-				-- * If so, is the quest acceptedAt + secondsToReset > GetServerTime()? (meaning its for this active reset)
-				-- If all the above is true, we will take a known weekly quest for the active reset we are in, possibly throwing out a previous heuristic guess.
-				-- if all the above is not true we will just grab the first possible we find using a heuristic guess.
-				-- This process is executed frequently and will try to adjust to the correct weekly quest with new information found.
+				-- 1. Do we have a weekly quest stored in the database for a character that is not the current character? YES/NO
+				-- 2. Is the quest crafted without craftedFromHeuristicGuess YES/NO
+				-- 3. Is the quest still valid for this reset YES/NO
+				-- If all of the above is answered by YES, we will take this known weekly quest to create the missing finished weekly quest
+				-- if all of the above is not answered by YES, we will grab the first possible weekly quest returned from GetQuestsCompleted()
 				if (not currentCharacterFinishedWeeklyQuest or (currentCharacterFinishedWeeklyQuest and currentWeeklyQuest and currentCharacterFinishedWeeklyQuest.id ~= currentWeeklyQuest.id)) then
-					if currentCharacterFinishedWeeklyQuest then self.currentCharacter.quests[currentCharacterFinishedWeeklyQuest.id] = nil end
 					if (currentWeeklyQuest) then
 						if (currentWeeklyQuest.faction == nil or (currentWeeklyQuest.faction and currentWeeklyQuest.faction == self.currentCharacter.faction)) then
+							-- Possibly found a better match for the current weekly quest, so we must delete the current one in the database
+							if currentCharacterFinishedWeeklyQuest then self.currentCharacter.quests[currentCharacterFinishedWeeklyQuest.id] = nil end
 							if (not self.currentCharacter.quests[currentWeeklyQuest.id]) then
 
 								newTrackedQuest = {
