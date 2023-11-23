@@ -393,6 +393,18 @@ function RackensTracker:ResetTrackedQuestsIfNecessary()
 	end
 end
 
+--- Iterate over all tracked quests for the current character and if there is a mismatch between the database and the quest's completion state, update the database.
+function RackensTracker:UpdateQuestCompletionIfNecessary()
+	for questID, trackedQuest in pairs(self.currentCharacter.quests) do
+		if (C_QuestLog.IsOnQuest(trackedQuest.id) and IsQuestComplete(trackedQuest.id)) then
+			if (trackedQuest.isCompleted == false) then
+				Log("Found a tracked quest that was completed but lacked that information in the database, questID: " .. trackedQuest.id .. " and name: " .. trackedQuest.name)
+				self.currentCharacter.quests[questID].isCompleted = true
+			end
+		end
+	end
+end
+
 --- Iterates over all known characters for the current realm and checks each of the character's saved instances to see if
 --- they have reset. If they have, they are removed from the tracker.
 function RackensTracker:ResetTrackedInstancesIfNecessary()
@@ -671,7 +683,8 @@ function RackensTracker:OnEnable()
 	self.currentCharacter.realm = GetRealmName()
 	self.currentCharacter.faction = UnitFactionGroup("player")
 
-	-- Look for any trackable quests in the players quest log that are NOT in the tracked collection
+	self:UpdateQuestCompletionIfNecessary()
+
 	self:CreateActiveMissingQuests()
 
 	self:CreateFinishedMissingQuests()
