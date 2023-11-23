@@ -1260,6 +1260,8 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	currenciesGroup:SetFullHeight(true)
 	currenciesGroup:SetFullWidth(true)
 
+	container:AddChild(currenciesGroup)
+
 	local currencyDisplayLabel
 	local colorizedName, icon, quantity = "", "", 0
 
@@ -1291,8 +1293,6 @@ function RackensTracker:DrawCurrencies(container, characterName)
 			currenciesGroup:AddChild(currencyDisplayLabel)
 		end
 	end
-
-	container:AddChild(currenciesGroup)
 end
 
 --- Returns the texture used to display the weekly or daily dungeon reset, together with the time remaining.
@@ -1369,6 +1369,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	lockoutsGroup:SetLayout("Flow")
 	lockoutsGroup:SetFullWidth(true)
 
+	container:AddChild(lockoutsGroup)
 
 	local raidGroup = AceGUI:Create("InlineGroup")
 	raidGroup:SetLayout("List")
@@ -1376,11 +1377,15 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	raidGroup:SetFullHeight(true)
 	raidGroup:SetRelativeWidth(0.50) -- Half of the parent
 
+	lockoutsGroup:AddChild(raidGroup)
+
 	local dungeonGroup = AceGUI:Create("InlineGroup")
 	dungeonGroup:SetLayout("List")
 	dungeonGroup:SetTitle(L["dungeons"])
 	dungeonGroup:SetFullHeight(true)
 	dungeonGroup:SetRelativeWidth(0.50) -- Half of the parent
+
+	lockoutsGroup:AddChild(dungeonGroup)
 
 	-- Fill in the raids inside raidGroup.
 	-- There is a wierd problem where the containers raidGroup and dungeonGroup are not anchored to the top of the parent container.
@@ -1441,11 +1446,6 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 			end
 		end
 	end
-
-	-- If these arent added AFTER all the child objects have been added, the anchor points and positioning gets all screwed up : (
-	lockoutsGroup:AddChild(raidGroup)
-	lockoutsGroup:AddChild(dungeonGroup)
-	container:AddChild(lockoutsGroup)
 end
 
 --- Callback that runs when the user selects a character tab in the main tracker frame
@@ -1454,9 +1454,17 @@ end
 ---@param characterName string
 local function SelectCharacterTab(container, event, characterName)
 	container:ReleaseChildren()
+
+	container:PauseLayout()
+	-- NOTE: Layout pausing is necessary in order for everything to calculate correctly during rendering
+	-- this fixes all my current sizing and anchoring problems, without this all hell breaks loose.
+	-- Figured out that every AddChild call runs PerformLayout EVERY TIME and this causes major layout shift and visual glitches
+	-- Just pause all layout calculations until after we placed all the widgets on screen.
 	RackensTracker:DrawQuests(container, characterName)
 	RackensTracker:DrawSavedInstances(container, characterName)
 	RackensTracker:DrawCurrencies(container, characterName)
+	container:ResumeLayout()
+	container:PerformLayout()
 end
 
 --- Closes the tracker frame
