@@ -89,12 +89,16 @@ local CreateFromMixins, SecondsFormatterMixin, SecondsFormatter =
 local timeFormatter = CreateFromMixins(SecondsFormatterMixin)
 timeFormatter:Init(nil, SecondsFormatter.Abbreviation.Truncate, false, true)
 
+local LOGGING_ENABLED = true
+
 ---@class RackensTracker : AceAddon, AceConsole-3.0, AceEvent-3.0
 local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceConsole-3.0", "AceEvent-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("RackensTracker", true)
 local AceGUI = LibStub("AceGUI-3.0")
 
-local LOGGING_ENABLED = true
+-- Set bindings translations (used in game options keybinds section)
+_G.BINDING_NAME_RACKENSTRACKER_TOGGLE = L["toggleTrackerPanel"]
+_G.BINDING_NAME_RACKENSTRACKER_OPTIONS_OPEN = L["openOptionsPanel"]
 
 local database_defaults = {
 	global = {
@@ -581,7 +585,7 @@ function RackensTracker:CreateFinishedMissingQuests()
 								-- this must be unflagged though when the weekly reset happens which could be a source for more bugs, so the tradeoff is more computing, less flags
 								currentCharacterFinishedWeeklyQuest = self:TryGetCurrentFinishedWeeklyQuest()
 								Log("Trackable completed and turned in weekly quest found but not found in the database, adding it to the tracker..")
-								Log("Heuristics could not find the current active weekly quest, guessing its questID: " .. questID .. " name: " .. newTrackedQuest.name)
+								Log("Heuristics could not find the current active weekly quest, guessing its questID: " .. questID .. " name: " .. newTrackedQuest.name .. " questTag: " .. newTrackedQuest.questTag)
 							end
 						end
 					end
@@ -687,6 +691,8 @@ function RackensTracker:OnEnable()
 
 	self:CreateActiveMissingQuests()
 
+	-- TODO: Delay this by 5 seconds or so because the queried information from the functions C_QuestLog.GetQuestInfo and GetQuestTagInfo can return empty values
+	-- whilst logging in : /
 	self:CreateFinishedMissingQuests()
 
 	-- Raid and dungeon related events

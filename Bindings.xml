@@ -1,0 +1,10 @@
+<Bindings>
+	<!-- Toggle panel -->
+	<!-- See https://us.forums.blizzard.com/en/wow/t/bindingsxml-taint-and-other-issues/1394681/8 for why there is an empty space at the end of the category name-->
+	<Binding name="RACKENSTRACKER_TOGGLE" category="RackensTracker ">
+		SlashCmdList["ACECONSOLE_RACKENSTRACKER"]("toggle")
+	</Binding>
+	<Binding name="RACKENSTRACKER_OPTIONS_OPEN" category="RackensTracker ">
+		SlashCmdList["ACECONSOLE_RACKENSTRACKER"]("options")
+	</Binding>
+</Bindings>

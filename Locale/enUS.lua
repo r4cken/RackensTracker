@@ -24,6 +24,8 @@ if L then
     L["minimapLeftClickDescription"] = "open the tracker window"
     L["minimapRightClickDescription"] = "open the options window"
     L["version"] = "Version"
+    L["toggleTrackerPanel"] = "Toggle tracker panel"
+    L["openOptionsPanel"] = "Open options panel"
     L["optionsQuestsHeader"] = "Displayed Quests"
     L["optionsCurrenciesHeader"] = "Displayed Currencies"
     L["optionsToggleNameShowCurrencies"] = "showCurrencies"
