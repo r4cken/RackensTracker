@@ -14,6 +14,7 @@
 ---@field isCompleted boolean
 ---@field isTurnedIn boolean
 ---@field hasExpired boolean?
+-- !!!This field is only used for debugging purposes and should not actually be used for anything!!!
 ---@field craftedFromExistingQuest boolean?
 ---@field craftedFromCompletedTurnedInQuest boolean?
 
@@ -328,7 +329,7 @@ function RackensTracker:RetrieveSavedInstanceInformation(characterName)
 
 end
 
---- Attempts to find the current weekly quest for the active reset by looking at all other characters the database.
+--- Attempts to find the current weekly quest for the active reset by looking at all other characters except the current one in the database.
 ---@return DbQuest|nil
 function RackensTracker:TryToFindCurrentWeeklyQuest()
 	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
@@ -530,8 +531,8 @@ function RackensTracker:CreateFinishedMissingQuests()
 									secondsToReset = C_DateAndTime.GetSecondsUntilWeeklyReset(),
 									isCompleted = true,
 									isTurnedIn = true,
-									-- This quest is guaranteed to belong to another character's tracked quests which must be for this active reset
-									-- therefore its crafted from an existing quest from another character.
+									-- This quest is guaranteed to belong to another character's tracked quests but it could either be for the active reset or come from 
+									-- another reset therefore its crafted from an existing quest from another character.
 									craftedFromExistingQuest = true
 								}
 
