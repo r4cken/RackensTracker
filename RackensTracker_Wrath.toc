@@ -7,11 +7,10 @@
 
 embeds.xml
 Locale\Locales.xml
-util.lua
-currency.lua
-currencies.lua
-container.lua
-instance.lua
-character.lua
-quests.lua
+core\util.lua
+core\currency.lua
+core\currencies.lua
+core\container.lua
+core\instance.lua
+core\quests.lua
 RackensTracker.lua
