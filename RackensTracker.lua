@@ -1,55 +1,5 @@
 -- Set to ignore a bunch of AceGUI / AceAddon related annotation problems.
 ---@diagnostic disable: undefined-field
----@alias questID number
----@alias currencyID number
-
----@class DbQuest
----@field id questID
----@field name string
----@field questTag string
----@field faction string|nil
----@field isWeekly boolean
----@field acceptedAt number
----@field secondsToReset number
----@field isCompleted boolean
----@field isTurnedIn boolean
----@field hasExpired boolean?
--- !!!This field is only used for debugging purposes and should not actually be used for anything!!!
----@field craftedFromExistingQuest boolean?
----@field craftedFromCompletedTurnedInQuest boolean?
-
----@class DbCurrency
----@field currencyID currencyID
----@field name string
----@field description string
----@field quantity number
----@field maxQuantity number
----@field quality number
----@field iconFileID string	
----@field discovered boolean
-
----@class DbSavedInstance
----@field instanceName string
----@field instanceID number
----@field lockoutID number
----@field resetTime number
----@field isLocked boolean
----@field isRaid boolean
----@field isHeroic boolean
----@field maxPlayers number
----@field difficultyID number
----@field difficultyName string
----@field encountersTotal number
----@field encounterCompleted number
-
----@class DbCharacter
----@field name string|nil
----@field class string|nil
----@field level string|nil
----@field realm string|nil
----@field savedInstances table<string, DbSavedInstance>
----@field currencies table<currencyID, DbCurrency>
----@field quests table<questID, DbQuest>
 
 local addOnName, RT = ...
 local addOnVersion = GetAddOnMetadata("RackensTracker", "Version") or 9999;
@@ -66,19 +16,15 @@ local GetServerTime, C_DateAndTime =
 local RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstanceInfo =
 	  RequestRaidInfo, GetDifficultyInfo, GetNumSavedInstances, GetSavedInstanceInfo
 
-local C_CurrencyInfo =
-	  C_CurrencyInfo
+local GetCurrencyInfo = C_CurrencyInfo.GetCurrencyInfo
 
 local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
 
-local C_QuestLog, IsQuestComplete, GetQuestsCompleted =
-	  C_QuestLog, IsQuestComplete, GetQuestsCompleted
+local IsOnQuest, IsQuestComplete, GetQuestsCompleted =
+	  C_QuestLog.IsOnQuest, IsQuestComplete, GetQuestsCompleted
 
 local UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup =
 	  UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup
-
-local NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, YELLOW_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE =
-	  NORMAL_FONT_COLOR_CODE, HIGHLIGHT_FONT_COLOR_CODE, YELLOW_FONT_COLOR_CODE, GRAY_FONT_COLOR_CODE, FONT_COLOR_CODE_CLOSE
 
 local Settings, CreateSettingsListSectionHeaderInitializer =
 	  Settings, CreateSettingsListSectionHeaderInitializer
@@ -100,59 +46,8 @@ local AceGUI = LibStub("AceGUI-3.0")
 _G.BINDING_NAME_RACKENSTRACKER_TOGGLE = L["toggleTrackerPanel"]
 _G.BINDING_NAME_RACKENSTRACKER_OPTIONS_OPEN = L["openOptionsPanel"]
 
-local database_defaults = {
-	global = {
-		options = {
-			showCurrencies = true,
-			shownCurrencies = {
-				["341"] = true,  -- Emblem of Frost
-				["301"] = true,  -- Emblem of Triumph
-				["221"] = true,  -- Emblem of Conquest
-				["102"] = true,	 -- Emblem of Valor
-				["101"] = true,  -- Emblem of Heroism
-				["2711"] = true, -- Defiler's Scourgestone
-				["2589"] = true, -- Sidreal Essence
-				["241"] = false, -- Champion's Seal
-				["1901"] = true, -- Honor Points
-				["1900"] = true, -- Arena Points
-				["161"] = true,  -- Stone Keeper's Shard
-				["81"] = true,	 -- Epicurean's Award
-				["61"] = true,	 -- Dalaran Jewelcrafter's Token
-				["126"] = false, -- Wintergrasp Mark of Honor
-			},
-			shownCharacters = {},
-			shownQuests = {
-				["Weekly"] = true,
-				["Daily"] = true,
-			}
-		},
-		realms = {
-			['*'] = {
-				weeklyResetTime = nil,
-				secondsToWeeklyReset = nil,
-				dailyResetTime = nil,
-				secondsToDailyReset = nil,
-				---@type table<string, DbCharacter>
-				characters = {
-					['*'] = {
-						name = nil,
-						class = nil,
-						level = nil,
-						realm = nil,
-						savedInstances = {},
-						currencies = {},
-						quests = {},
-					}
-				}
-			}
-		}
-	},
-	char = {
-		minimap = {
-			hide = false
-		}
-	},
-}
+---@type DatabaseDefaults
+local database_defaults = RT.DatabaseSettings:GetDefaults()
 
 local function SlashCmdLog(message, ...)
 	RackensTracker:Printf(message, ...)
@@ -237,7 +132,7 @@ local function GetCharacterCurrencies()
 	for currencyID = 61, 3000, 1 do
 		-- Exclude some currencies which arent useful or those that are deprecated
 		if (not RT.ExcludedCurrencyIds[currencyID]) then
-		   local currency = C_CurrencyInfo.GetCurrencyInfo(currencyID)
+		   local currency = GetCurrencyInfo(currencyID)
 		   if currency and currency.name ~= nil and currency.name:trim() ~= "" then
 			currencies[currencyID] =
 				{
@@ -400,7 +295,7 @@ end
 --- Iterate over all tracked quests for the current character and if there is a mismatch between the database and the quest's completion state, update the database.
 function RackensTracker:UpdateQuestCompletionIfNecessary()
 	for questID, trackedQuest in pairs(self.currentCharacter.quests) do
-		if (C_QuestLog.IsOnQuest(trackedQuest.id) and IsQuestComplete(trackedQuest.id)) then
+		if (IsOnQuest(trackedQuest.id) and IsQuestComplete(trackedQuest.id)) then
 			if (trackedQuest.isCompleted == false) then
 				Log("Found a tracked quest that was completed but lacked that information in the database, questID: " .. trackedQuest.id .. " and name: " .. trackedQuest.name)
 				self.currentCharacter.quests[questID].isCompleted = true
@@ -442,7 +337,7 @@ function RackensTracker:CreateActiveMissingQuests()
 		-- This does mean however that the quest might be removed from the tracker after completion and turn in
 		-- as the code that checks if we are past the weekly or daily reset assumes these timestamps exist.
 		-- It is a small price to pay to be more inclusive.
-		if (C_QuestLog.IsOnQuest(questID) and not self.currentCharacter.quests[questID]) then
+		if (IsOnQuest(questID) and not self.currentCharacter.quests[questID]) then
 			local newTrackedQuest = {
 				id = questID,
 				name = trackableQuest.getName(questID),
@@ -661,10 +556,10 @@ function RackensTracker:OnInitialize()
 		label = addOnName,
 		---@type function|GameTooltip
 		OnTooltipShow = function(tooltip)
-			tooltip:AddLine(RT.Util:FormatColor(HIGHLIGHT_FONT_COLOR_CODE, "%s - %s %s", addOnName, L["version"], addOnVersion))
-			tooltip:AddLine(RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, "%s", "/rackenstracker for available commands"))
-			tooltip:AddLine(RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, "%s: ", L["minimapLeftClickAction"]) .. RT.Util:FormatColor(NORMAL_FONT_COLOR_CODE, "%s", L["minimapLeftClickDescription"]))
-			tooltip:AddLine(RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, "%s: ", L["minimapRightClickAction"]) .. RT.Util:FormatColor(NORMAL_FONT_COLOR_CODE, "%s", L["minimapRightClickDescription"]))
+			tooltip:AddLine(RT.Util:FormatColor(RT.Util.Color.HIGHLIGHT_FONT_COLOR_CODE, "%s - %s %s", addOnName, L["version"], addOnVersion))
+			tooltip:AddLine(RT.Util:FormatColor(RT.Util.Color.GRAY_FONT_COLOR_CODE, "%s", "/rackenstracker for available commands"))
+			tooltip:AddLine(RT.Util:FormatColor(RT.Util.Color.GRAY_FONT_COLOR_CODE, "%s: ", L["minimapLeftClickAction"]) .. RT.Util:FormatColor(RT.Util.Color.NORMAL_FONT_COLOR_CODE, "%s", L["minimapLeftClickDescription"]))
+			tooltip:AddLine(RT.Util:FormatColor(RT.Util.Color.GRAY_FONT_COLOR_CODE, "%s: ", L["minimapRightClickAction"]) .. RT.Util:FormatColor(RT.Util.Color.NORMAL_FONT_COLOR_CODE, "%s", L["minimapRightClickDescription"]))
 		end,
 	})
 
@@ -994,7 +889,7 @@ function RackensTracker:OnEventQuestLogCriteriaUpdate(event, questID, specificTr
 
 	local trackedQuest = self.currentCharacter.quests[questID]
 	if (trackedQuest) then
-		if (C_QuestLog.IsOnQuest(trackedQuest.id) and IsQuestComplete(trackedQuest.id)) then
+		if (IsOnQuest(trackedQuest.id) and IsQuestComplete(trackedQuest.id)) then
 			if (trackedQuest.isCompleted == false) then
 				Log("Completed tracked quest, isWeekly: " .. tostring(trackedQuest.isWeekly) .. " questID: " .. trackedQuest.id .. " and name: " .. trackedQuest.name)
 				self.currentCharacter.quests[questID].isCompleted = true
@@ -1011,7 +906,7 @@ function RackensTracker:OnEventUnitQuestLogChanged(event, unitTarget)
 		Log("OnEventUnitQuestLogChanged")
 
 		for questID, trackedQuest in pairs(self.currentCharacter.quests) do
-			if (C_QuestLog.IsOnQuest(trackedQuest.id) and IsQuestComplete(trackedQuest.id)) then
+			if (IsOnQuest(trackedQuest.id) and IsQuestComplete(trackedQuest.id)) then
 				if (trackedQuest.isCompleted == false) then
 					Log("Completed tracked quest, isWeekly: " .. tostring(trackedQuest.isWeekly) .. " questID: " .. trackedQuest.id .. " and name: " .. trackedQuest.name)
 					self.currentCharacter.quests[questID].isCompleted = true
@@ -1110,7 +1005,7 @@ local function createAvailableQuestLogItemEntry(name, questTag, isWeekly)
 		displayedQuestTag = string.format(DAILY_QUEST_TAG_TEMPLATE, questTag)
 	end
 
-	local colorizedText = RT.Util:FormatColor(YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", isWeekly and L["weeklyQuest"] or name, displayedQuestTag, status)
+	local colorizedText = RT.Util:FormatColor(RT.Util.Color.YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", isWeekly and L["weeklyQuest"] or name, displayedQuestTag, status)
 	local labelText = string.format("%s %s", icon, colorizedText)
 
 	questLabel:SetText(labelText)
@@ -1147,7 +1042,7 @@ local function createTrackedQuestLogItemEntry(quest)
 		status = status .. " " .. L["questStatusExpired"]
 	end
 
-	local colorizedText = RT.Util:FormatColor(YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", quest.isWeekly and L["weeklyQuest"] or quest.name, questTag, status)
+	local colorizedText = RT.Util:FormatColor(RT.Util.Color.YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", quest.isWeekly and L["weeklyQuest"] or quest.name, questTag, status)
 	local labelText = string.format("%s %s", icon, colorizedText)
 
 	questLabel:SetText(labelText)
@@ -1290,7 +1185,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 			end
 
 			if (quantity == 0) then
-				local disabledAmount = RT.Util:FormatColor(GRAY_FONT_COLOR_CODE, quantity)
+				local disabledAmount = RT.Util:FormatColor(RT.Util.Color.GRAY_FONT_COLOR_CODE, quantity)
 				currencyDisplayLabel:SetText(string.format("%s\n%s %s", colorizedName, icon, disabledAmount))
 			else
 				currencyDisplayLabel:SetText(string.format("%s\n%s %s", colorizedName, icon, quantity))
@@ -1407,7 +1302,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	for _, instance in ipairs(raidInstances.sorted) do
 		lockoutInfo = lockoutInformation[instance.id]
 		instanceNameLabel = AceGUI:Create("Label")
-		instanceColorizedName = RT.Util:FormatColor(NORMAL_FONT_COLOR_CODE, "%s", instance.id)
+		instanceColorizedName = RT.Util:FormatColor(RT.Util.Color.NORMAL_FONT_COLOR_CODE, "%s", instance.id)
 		instanceNameLabel:SetText(instanceColorizedName)
 		instanceNameLabel:SetFullWidth(true)
 		instanceNameLabel:SetHeight(labelHeight)
@@ -1432,7 +1327,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	for _, instance in ipairs(dungeonInstances.sorted) do
 		lockoutInfo = lockoutInformation[instance.id]
 		instanceNameLabel = AceGUI:Create("Label")
-		instanceColorizedName = RT.Util:FormatColor(NORMAL_FONT_COLOR_CODE, "%s", instance.id)
+		instanceColorizedName = RT.Util:FormatColor(RT.Util.Color.NORMAL_FONT_COLOR_CODE, "%s", instance.id)
 		instanceNameLabel:SetText(instanceColorizedName)
 		instanceNameLabel:SetFullWidth(true)
 		instanceNameLabel:SetHeight(labelHeight)
