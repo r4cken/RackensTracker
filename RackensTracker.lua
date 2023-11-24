@@ -511,6 +511,15 @@ function RackensTracker:OnInitialize()
 	-- Load saved variables
 	self.db = LibStub("AceDB-3.0"):New(addOnName .. "DB", database_defaults, true)
 
+	-- TODO: Investigate later if this needs to go back down to OnEnable or not
+	local characterName = UnitName("player")
+	self.currentCharacter = self.db.global.realms[self.currentRealm].characters[characterName]
+	self.currentCharacter.name = characterName
+	self.currentCharacter.class = GetCharacterClass()
+	self.currentCharacter.level = UnitLevel("player")
+	self.currentCharacter.realm = GetRealmName()
+	self.currentCharacter.faction = UnitFactionGroup("player")
+
 	-- Reset any character's weekly or daily quests if it meets the criteria to do so
 	self:ResetTrackedQuestsIfNecessary()
 
@@ -534,8 +543,13 @@ function RackensTracker:OnInitialize()
 		end
 	end
 
+	local function OnCharacterOptionChanged(_, setting, value)
+		local variable = setting:GetVariable()
+		self.db.global.options.shownCharacters[variable] = value
+	end
+
 	-- Sets up the layout and options see under the AddOn options
-	self:RegisterAddOnSettings(OnQuestOptionSettingChanged, OnCurrencyOptionSettingChanged)
+	self:RegisterAddOnSettings(OnQuestOptionSettingChanged, OnCurrencyOptionSettingChanged, OnCharacterOptionChanged)
 
 	-- Setup the data broken and the minimap icon
 	self.libDataBroker = LibStub("LibDataBroker-1.1", true)
@@ -574,13 +588,6 @@ end
 
 --- Called when the addon is enabled
 function RackensTracker:OnEnable()
-	local characterName = UnitName("player")
-	self.currentCharacter = self.db.global.realms[self.currentRealm].characters[characterName]
-	self.currentCharacter.name = characterName
-	self.currentCharacter.class = GetCharacterClass()
-	self.currentCharacter.level = UnitLevel("player")
-	self.currentCharacter.realm = GetRealmName()
-	self.currentCharacter.faction = UnitFactionGroup("player")
 
 	self:UpdateQuestCompletionIfNecessary()
 
@@ -631,11 +638,29 @@ end
 --- Registers this AddOns configurable settings and specifies the layout and graphical elements for the settings panel.
 ---@param OnQuestOptionChanged function
 ---@param OnCurrencyOptionChanged function
-function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOptionChanged)
+function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOptionChanged, OnCharacterOptionChanged)
 	-- Register the Options menu
 	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory(addOnName)
-	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsQuestsHeader"]))
 
+	-- Character options
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCharactersHeader"]))
+	-- TODO: If a player dings 80 they wont have an entry in the options table until they do /reload or relog, i think??
+	-- TODO: Display characters from multiple realms? Each realm has their own tracker window, and their own options for now.
+	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
+		if (RT.Util:IsCharacterAtEffectiveMaxLevel(character.level)) then
+			local variable = string.format("%s.%s", character.realm, characterName)
+			local name = characterName
+			local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, Settings.VarType.Boolean, Settings.Default.True)
+			Settings.CreateCheckBox(self.optionsCategory, setting, L["optionsToggleCharacterTooltip"])
+			Settings.SetOnValueChangedCallback(variable, OnCharacterOptionChanged)
+			-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
+			-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
+			setting:SetValue(self.db.global.options.shownCharacters[variable], true) -- true means force
+		end
+	end
+
+	-- Weekly / Daily options
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsQuestsHeader"]))
 	local weeklyQuestOptionVariable = L["optionsToggleNameWeeklyQuest"]
 	local weeklyQuestOptionDisplayName = L["optionsToggleDescriptionWeeklyQuest"]
 	local defaultWeeklyQuestVisibilityValue = database_defaults.global.options.shownQuests[weeklyQuestOptionVariable]
@@ -652,8 +677,8 @@ function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOp
 	Settings.SetOnValueChangedCallback(dailyQuestOptionVariable, OnQuestOptionChanged)
 	dailyquestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[dailyQuestOptionVariable], true) -- true means force
 
+	-- Currency options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
-
 	local allCurrencyOptionVariable = L["optionsToggleNameShowCurrencies"]
 	local allCurrencyOptionDisplayName = L["optionsToggleDescriptionShowCurrencies"]
 	local defaultAllCurrencyVisibilityValue = database_defaults.global.options.showCurrencies
@@ -1444,13 +1469,16 @@ function RackensTracker:OpenTrackerFrame()
 
 	-- Create one tab per level 80 character 
 	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
-		if (character.level == GetMaxPlayerLevel()) then
-			if (character.name == initialCharacterTab and character.level == GetMaxPlayerLevel()) then
-				isInitialCharacterMaxLevel = true
+		local optionsKey = string.format("%s.%s", character.realm, characterName)
+		if (self.db.global.options.shownCharacters[optionsKey]) then
+			if (RT.Util:IsCharacterAtEffectiveMaxLevel(character.level)) then
+				if (character.name == initialCharacterTab and RT.Util:IsCharacterAtEffectiveMaxLevel(character.level)) then
+					isInitialCharacterMaxLevel = true
+				end
+				tabIcon = GetCharacterIcon(character.class, tabIconSize)
+				tabName = RT.Util:FormatColorClass(character.class, character.name)
+				table.insert(tabsData, { text=string.format("%s %s", tabIcon, tabName), value=characterName})
 			end
-			tabIcon = GetCharacterIcon(character.class, tabIconSize)
-			tabName = RT.Util:FormatColorClass(character.class, character.name)
-			table.insert(tabsData, { text=string.format("%s %s", tabIcon, tabName), value=characterName})
 		end
 	end
 

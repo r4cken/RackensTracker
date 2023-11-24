@@ -74,7 +74,9 @@ local database_defaults = {
 				["61"] = true,	 -- Dalaran Jewelcrafter's Token
 				["126"] = false, -- Wintergrasp Mark of Honor
 			},
-			shownCharacters = {},
+			shownCharacters = {
+				['*'] = true
+			},
 			shownQuests = {
 				["Weekly"] = true,
 				["Daily"] = true,

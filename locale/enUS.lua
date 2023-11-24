@@ -14,8 +14,8 @@ if L then
     L["lockouts"] = "Lockouts"
     L["noLockouts"] = "No lockouts"
     L["noTrackingAvailable"] = "No tracking information available"
-    L["noTrackingAvailableDescription1"] = "RackensTracker has not seen any max level characters log in to the game so it has no quest, instance lockout or currency information available for display."
-    L["noTrackingAvailableDescription2"] = "You must log in to a max level character (level 80) to display tracking information. Only max level characters are currently tracked. This will change in the future through AddOn options."
+    L["noTrackingAvailableDescription1"] = "RackensTracker can't display tracking information gathered about quest, instance lockout or currency information because"
+    L["noTrackingAvailableDescription2"] = "1. You've hidden all max level characters (level 80) using the options menu (enable at least one character to display tracking information)\n\n2. You haven't logged into any max level character (level 80) yet."
     L["raids"] = "Raids"
     L["dungeons"] = "Dungeons"
     L["progress"] = "Progress"
@@ -26,6 +26,7 @@ if L then
     L["version"] = "Version"
     L["toggleTrackerPanel"] = "Toggle tracker panel"
     L["openOptionsPanel"] = "Open options panel"
+    L["optionsCharactersHeader"] = "Displayed Characters"
     L["optionsQuestsHeader"] = "Displayed Quests"
     L["optionsCurrenciesHeader"] = "Displayed Currencies"
     L["optionsToggleNameShowCurrencies"] = "showCurrencies"
@@ -35,6 +36,7 @@ if L then
     L["optionsToggleDescriptionWeeklyAndDailyQuest"] = "Show weekly and daily quests"
     L["optionsToggleNameWeeklyQuest"] = "Weekly"
     L["optionsToggleNameDailyQuest"] = "Daily"
-    L["optionsToggleCurrencyTooltip"] = "If checked this currency will be displayed in the tracker window."
+    L["optionsToggleCurrencyTooltip"] = "If checked this currency will be displayed in the tracker window"
+    L["optionsToggleCharacterTooltip"] = "If checked this character will be displayed in the tracker window"
 end
 

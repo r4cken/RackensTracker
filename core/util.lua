@@ -48,3 +48,7 @@ function Util:FormatEncounterProgress(progress, numEncounters)
 	return progressColorized .. "/" .. numEncountersColorized
 end
 
+---@param level number
+function Util:IsCharacterAtEffectiveMaxLevel(level)
+	return level >= GetMaxPlayerLevel();
+end
