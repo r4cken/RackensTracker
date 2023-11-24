@@ -2,13 +2,12 @@
 ---@diagnostic disable: undefined-field
 
 local addOnName, RT = ...
-local addOnVersion = GetAddOnMetadata("RackensTracker", "Version") or 9999;
+local addOnVersion = C_AddOns.GetAddOnMetadata(addOnName, "Version");
 
 local table, math, type, string, pairs, ipairs =
 	  table, math, type, string, pairs, ipairs
 
-local ContainsIf =
-	  ContainsIf
+local ContainsIf = ContainsIf
 
 local GetServerTime, C_DateAndTime =
 	  GetServerTime, C_DateAndTime
@@ -38,8 +37,8 @@ timeFormatter:Init(nil, SecondsFormatter.Abbreviation.Truncate, false, true)
 local LOGGING_ENABLED = true
 
 ---@class RackensTracker : AceAddon, AceConsole-3.0, AceEvent-3.0
-local RackensTracker = LibStub("AceAddon-3.0"):NewAddon("RackensTracker", "AceConsole-3.0", "AceEvent-3.0")
-local L = LibStub("AceLocale-3.0"):GetLocale("RackensTracker", true)
+local RackensTracker = LibStub("AceAddon-3.0"):NewAddon(addOnName, "AceConsole-3.0", "AceEvent-3.0")
+local L = LibStub("AceLocale-3.0"):GetLocale(addOnName, true)
 local AceGUI = LibStub("AceGUI-3.0")
 
 -- Set bindings translations (used in game options keybinds section)
@@ -613,7 +612,7 @@ function RackensTracker:OnEnable()
 	self:RegisterEvent("PLAYER_LEVEL_UP", "OnEventPlayerLevelUp")
 
 	-- Register Slash Commands
-	self:RegisterChatCommand("RackensTracker", "SlashCommand")
+	self:RegisterChatCommand(addOnName, "SlashCommand")
 
 	-- Request raid lockout information from the server
 	self:TriggerUpdateInstanceInfo()
@@ -625,7 +624,7 @@ end
 --- Called when the addon is disabled
 function RackensTracker:OnDisable()
 	-- Called when the addon is disabled
-	self:UnregisterChatCommand("RackensTracker")
+	self:UnregisterChatCommand(addOnName)
 end
 
 --- Registers this AddOns configurable settings and specifies the layout and graphical elements for the settings panel.
@@ -633,7 +632,7 @@ end
 ---@param OnCurrencyOptionChanged function
 function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOptionChanged)
 	-- Register the Options menu
-	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory("RackensTracker")
+	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory(addOnName)
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsQuestsHeader"]))
 
 	local weeklyQuestOptionVariable = L["optionsToggleNameWeeklyQuest"]
