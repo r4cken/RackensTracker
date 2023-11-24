@@ -765,7 +765,7 @@ function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOp
 	local allCurrencyOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCurrencyOptionDisplayName, allCurrencyOptionVariable, type(defaultAllCurrencyVisibilityValue), defaultAllCurrencyVisibilityValue)
 	local allCurrencyOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, allCurrencyOptionVisibilitySetting)
 	Settings.SetOnValueChangedCallback(allCurrencyOptionVariable, OnCurrencyOptionChanged)
-	dailyquestOptionVisibilitySetting:SetValue(self.db.global.options.showCurrencies, true) -- true means force
+	allCurrencyOptionVisibilitySetting:SetValue(self.db.global.options.showCurrencies, true) -- true means force
 
 	for _, currency in ipairs(RT.Currencies) do
 		local variable = tostring(currency.id)
