@@ -508,7 +508,7 @@ function RackensTracker:OnInitialize()
 	self.optionsLayout = nil
 
 	-- Load saved variables
-	self.db = LibStub("AceDB-3.0"):New("RackensTrackerDB", database_defaults, true)
+	self.db = LibStub("AceDB-3.0"):New(addOnName .. "DB", database_defaults, true)
 
 	-- Reset any character's weekly or daily quests if it meets the criteria to do so
 	self:ResetTrackedQuestsIfNecessary()
@@ -612,7 +612,7 @@ function RackensTracker:OnEnable()
 	self:RegisterEvent("PLAYER_LEVEL_UP", "OnEventPlayerLevelUp")
 
 	-- Register Slash Commands
-	self:RegisterChatCommand(addOnName, "SlashCommand")
+	self:RegisterChatCommand(addOnName, "HandleSlashCommands")
 
 	-- Request raid lockout information from the server
 	self:TriggerUpdateInstanceInfo()
@@ -689,7 +689,7 @@ end
 
 --- Handler for all slash commands available for this AddOn
 ---@param msg string
-function RackensTracker:SlashCommand(msg)
+function RackensTracker:HandleSlashCommands(msg)
 	local command, value, _ = self:GetArgs(msg, 2)
 
 	if (command == nil or command:trim() == "") then
