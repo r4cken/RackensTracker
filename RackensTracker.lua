@@ -1,11 +1,11 @@
 -- Set to ignore a bunch of AceGUI / AceAddon related annotation problems.
----@diagnostic disable: undefined-field
+-----@diagnostic disable: undefined-field
 
 local addOnName, RT = ...
 local addOnVersion = C_AddOns.GetAddOnMetadata(addOnName, "Version");
 
-local table, math, type, string, pairs, ipairs =
-	  table, math, type, string, pairs, ipairs
+local table, math, type, string, strtrim, pairs, ipairs =
+	  table, math, type, string, strtrim, pairs, ipairs
 
 local ContainsIf = ContainsIf
 
@@ -20,6 +20,7 @@ local GetCurrencyInfo = C_CurrencyInfo.GetCurrencyInfo
 local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
 
 local IsOnQuest, IsQuestComplete, GetQuestsCompleted =
+	---@diagnostic disable-next-line: undefined-global
 	  C_QuestLog.IsOnQuest, IsQuestComplete, GetQuestsCompleted
 
 local UnitName, UnitClassBase, UnitLevel, GetClassAtlas, CreateAtlasMarkup =
@@ -132,7 +133,7 @@ local function GetCharacterCurrencies()
 		-- Exclude some currencies which arent useful or those that are deprecated
 		if (not RT.ExcludedCurrencyIds[currencyID]) then
 		   local currency = GetCurrencyInfo(currencyID)
-		   if currency and currency.name ~= nil and currency.name:trim() ~= "" then
+		   if currency and currency.name ~= nil and strtrim(currency.name) ~= "" then
 			currencies[currencyID] =
 				{
 					currencyID = currencyID,
@@ -692,7 +693,7 @@ end
 function RackensTracker:HandleSlashCommands(msg)
 	local command, value, _ = self:GetArgs(msg, 2)
 
-	if (command == nil or command:trim() == "") then
+	if (command == nil or strtrim(command) == "") then
 		return slashCommandUsage()
 	end
 
