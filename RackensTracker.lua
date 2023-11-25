@@ -91,6 +91,10 @@ function RackensTracker:OnInitialize()
 		self.db.global.options.shownCharacters[variable] = value
 	end
 
+	self.OnQuestOptionSettingChanged = OnQuestOptionSettingChanged
+	self.OnCurrencyOptionSettingChanged = OnCurrencyOptionSettingChanged
+	self.OnCharacterOptionChanged = OnCharacterOptionChanged
+
 	-- Sets up the layout and options see under the AddOn options
 	self:RegisterAddOnSettings(OnQuestOptionSettingChanged, OnCurrencyOptionSettingChanged, OnCharacterOptionChanged)
 
@@ -224,10 +228,11 @@ end
 ---@param newLevel number
 function RackensTracker:OnEventPlayerLevelUp(event, newLevel)
 	self:UpdateCharacterLevel(newLevel)
-	-- TODO: Update the options panel if a character dinged 80, they should now be able to see their character.
-	-- if (RT.Util:IsCharacterAtEffectiveMaxLevel(newLevel)) then
-	-- 	--- TODO: Redraw the options panel with updated entries?
-	-- end
+	--- TODO: This should be done in a better way, we are just force creating a new options menu just to add one checkbox :/
+	if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(newLevel)) then
+		Log("Adding character to settings menu")
+		self:RegisterAddOnSettings(self.OnQuestOptionSettingChanged, self.OnCurrencyOptionSettingChanged, self.OnCharacterOptionChanged)
+	end
 end
 
 --- Prints the available slash commands used for this AddOn to the chat window
