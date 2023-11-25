@@ -1,17 +1,24 @@
 ## Interface: 30403
-## Title: Rackens Tracker
-## Notes: Tracks your raid and dungeon lockouts across all your characters
-## Author: Racken
-## Version: 0.0.17
+## Title: |TInterface/Addons/RackensTracker/Art/RackensTracker-Small:16:16|t|cff8142a8RackensTracker|r
+## Notes: Tracks your weekly/daily quests, instance lockouts and currencies per realm, across all your characters
+## Author: r4cken
+## Version: 0.0.18
 ## SavedVariables: RackensTrackerDB
+## OptionalDeps: LibStub, CallbackHandler-1.0, Ace3
 
 embeds.xml
 locale\locales.xml
+core\modules\core.lua
+core\util\characterutil.lua
+core\util\colorutil.lua
+core\util\timeutil.lua
 core\database_settings.lua
-core\util.lua
+core\container.lua
 core\currency.lua
 core\currencies.lua
-core\container.lua
 core\instance.lua
 core\quests.lua
+core\modules\questmodule.lua
+core\modules\instancemodule.lua
+core\modules\currencymodule.lua
 RackensTracker.lua

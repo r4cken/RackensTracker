@@ -27,16 +27,15 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-local addOnName, RT = ...
+local _, RT = ...
 
-local setmetatable, string =
-      setmetatable, string
+local setmetatable, strformat =
+      setmetatable, string.format
 
-local CreateTextureMarkup, C_CurrencyInfo =
-      CreateTextureMarkup, C_CurrencyInfo
+local CreateTextureMarkup, GetCurrencyInfo =
+      CreateTextureMarkup, C_CurrencyInfo.GetCurrencyInfo
 
 local DEFAULT_ICON_SIZE = 16
-
 local ITEM_QUALITY_COLORS = ITEM_QUALITY_COLORS
 local Constants = Constants
 
@@ -52,14 +51,14 @@ end
 
 -- Returns the localized name of the currency provided.
 function Currency:GetName()
-    self.name = self.name or C_CurrencyInfo.GetCurrencyInfo(self.id)["name"]
+    self.name = self.name or GetCurrencyInfo(self.id)["name"]
     return self.name
 end
 
 function Currency:GetColorizedName()
-    local currency = C_CurrencyInfo.GetCurrencyInfo(self.id)
+    local currency = GetCurrencyInfo(self.id)
     local name, quality = currency["name"], currency["quality"]
-    local colorizedName = string.format("%s%s|r", ITEM_QUALITY_COLORS[quality].hex, name)
+    local colorizedName = strformat("%s%s|r", ITEM_QUALITY_COLORS[quality].hex, name)
     self.colorizedName = self.colorizedName or colorizedName
     return self.colorizedName
 end
@@ -67,7 +66,7 @@ end
 function Currency:GetIcon(iconSize)
     iconSize = iconSize or DEFAULT_ICON_SIZE
 
-    local fileID = C_CurrencyInfo.GetCurrencyInfo(self.id)["iconFileID"]
+    local fileID = GetCurrencyInfo(self.id)["iconFileID"]
     local iconTexture = ""
 
     -- The honor icon needs adjustment for its texture coordinates
@@ -86,7 +85,8 @@ function Currency:GetAmount(overrideAmount)
     if (overrideAmount) then
         return overrideAmount
     else
-        self.quantity = self.quantity or C_CurrencyInfo.GetCurrencyInfo(self.id)["quantity"]
+        self.quantity = GetCurrencyInfo(self.id)["quantity"]
+        return self.quantity
     end
 end
 

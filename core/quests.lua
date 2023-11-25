@@ -1,20 +1,23 @@
-local addOnName, RT = ...
+local _, RT = ...
 
-local IsLevelAtEffectiveMaxLevel, select, C_QuestLog, GetQuestTagInfo =
-      IsLevelAtEffectiveMaxLevel, select, C_QuestLog, GetQuestTagInfo
+local select = select
+local GetQuestInfo = C_QuestLog.GetQuestInfo
+local GetQuestTagInfo = GetQuestTagInfo
+local GetMaxPlayerLevel = GetMaxPlayerLevel
 
 local isMaxLevel = function(playerLevel)
-    return IsLevelAtEffectiveMaxLevel(playerLevel)
+    return playerLevel >= GetMaxPlayerLevel()
 end
 
 local getQuestName = function(questID)
-    return select(1, C_QuestLog.GetQuestInfo(questID)) or "Unknown"
+    return select(1, GetQuestInfo(questID)) or "Unknown"
 end
 
 local getQuestTag = function(questID)
     return select(2, GetQuestTagInfo(questID)) or ""
 end
 
+-- Raid weekly questID's are
 --[[
     24579, Sartharion Must Die!
     24580 (Only Alliance), Anub'Rekhan Must Die!

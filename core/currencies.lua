@@ -26,60 +26,58 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-local addOnName, RT = ...
+local _, RT = ...
 
 local Currency = RT.Currency
 
-RT.EmblemOfFrost = Currency:New(341)
-RT.EmblemOfTriumph = Currency:New(301)
-RT.EmblemOfConquest = Currency:New(221)
-RT.EmblemOfValor = Currency:New(102)
-RT.EmblemOfHeroism = Currency:New(101)
-RT.DefilersScourgeStone = Currency:New(2711)
-RT.SiderealEssence = Currency:New(2589)
-RT.ChampionsSeal = Currency:New(241)
-RT.HonorPoints = Currency:New(1901)
-RT.ArenaPoints = Currency:New(1900)
-RT.StoneKeepersShards = Currency:New(161)
-RT.EpicureansAward = Currency:New(81)
-RT.JewelcraftersToken = Currency:New(61)
-
-
--- RT.AlteracValleyMarks = Currency:New(121)
--- RT.ArathiBasinMarks = Currency:New(122)
--- RT.EyeOfTheStormMarks = Currency:New(123)
--- RT.StrandOfTheAncientsMarks = Currency:New(124)
--- RT.WarsongGulchMarks = Currency:New(125)
-RT.WintergraspMarks = Currency:New(126)
--- RT.IsleOfConquestMarks = Currency:New(321)
+local EmblemOfFrost = Currency:New(341)
+local EmblemOfTriumph = Currency:New(301)
+local EmblemOfConquest = Currency:New(221)
+local EmblemOfValor = Currency:New(102)
+local EmblemOfHeroism = Currency:New(101)
+local DefilersScourgeStone = Currency:New(2711)
+local SiderealEssence = Currency:New(2589)
+local ChampionsSeal = Currency:New(241)
+local HonorPoints = Currency:New(1901)
+local ArenaPoints = Currency:New(1900)
+local StoneKeepersShards = Currency:New(161)
+local EpicureansAward = Currency:New(81)
+local JewelcraftersToken = Currency:New(61)
+local WintergraspMarks = Currency:New(126)
+-- local AlteracValleyMarks = Currency:New(121)
+-- local ArathiBasinMarks = Currency:New(122)
+-- local EyeOfTheStormMarks = Currency:New(123)
+-- local StrandOfTheAncientsMarks = Currency:New(124)
+-- local WarsongGulchMarks = Currency:New(125)
+-- local IsleOfConquestMarks = Currency:New(321)
 
 
 RT.Currencies = {
-    RT.EmblemOfFrost,
-    RT.EmblemOfTriumph,
-    RT.EmblemOfConquest,
-    RT.EmblemOfValor,
-    RT.EmblemOfHeroism,
-    RT.DefilersScourgeStone,
-    RT.SiderealEssence,
-    RT.ChampionsSeal,
-    RT.HonorPoints,
-    RT.ArenaPoints,
-    RT.StoneKeepersShards,
-    RT.EpicureansAward,
-    RT.JewelcraftersToken,
-    RT.WintergraspMarks,
+    EmblemOfFrost,
+    EmblemOfTriumph,
+    EmblemOfConquest,
+    EmblemOfValor,
+    EmblemOfHeroism,
+    DefilersScourgeStone,
+    SiderealEssence,
+    ChampionsSeal,
+    HonorPoints,
+    ArenaPoints,
+    StoneKeepersShards,
+    EpicureansAward,
+    JewelcraftersToken,
+    WintergraspMarks,
 }
 
-RT.ExcludedCurrencyIds = {  
-    [121] = true, -- Alterac Valley Mark of Honor
-    [122] = true, -- Arathi Basin Mark of Honor
-    [123] = true, -- Eye of the Storm Mark of Honor
-    [124] = true, -- Strand of the Ancients Mark of Honor
-    [125] = true, -- Warsong Gulch Mark of Honor
+RT.ExcludedCurrencyIds = {
+    [121] = true,  -- Alterac Valley Mark of Honor
+    [122] = true,  -- Arathi Basin Mark of Honor
+    [123] = true,  -- Eye of the Storm Mark of Honor
+    [124] = true,  -- Strand of the Ancients Mark of Honor
+    [125] = true,  -- Warsong Gulch Mark of Honor
     [126] = false, -- Wintergrasp Mark of Honor
-    [181] = true, -- Honor Points DEPRECATED2,
-    [321] = true  -- Isle of Conquest Mark of Honor
+    [181] = true,  -- Honor Points DEPRECATED2,
+    [321] = true   -- Isle of Conquest Mark of Honor
 }
 
 for k, v in ipairs(RT.Currencies) do

@@ -18,7 +18,7 @@ RT.DatabaseSettings = DatabaseSettings
 ---@field hasExpired boolean?
 -- !!!This field is only used for debugging purposes and should not actually be used for anything!!!
 ---@field craftedFromExistingQuest boolean?
----@field craftedFromCompletedTurnedInQuest boolean?
+---@field craftedFromHeuristicGuess boolean?
 
 ---@class DbCurrency
 ---@field currencyID currencyID
@@ -42,7 +42,7 @@ RT.DatabaseSettings = DatabaseSettings
 ---@field difficultyID number
 ---@field difficultyName string
 ---@field encountersTotal number
----@field encounterCompleted number
+---@field encountersCompleted number
 
 ---@class DbCharacter
 ---@field name string|nil
