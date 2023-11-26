@@ -5,7 +5,9 @@ local strformat = string.format
 local table, math, type, strtrim, pairs, ipairs =
 	  table, math, type, strtrim, pairs, ipairs
 
-local ContainsIf = ContainsIf
+local ContainsIf, GetKeysArray =
+	  ContainsIf, GetKeysArray
+
 local GetServerTime = GetServerTime
 local GetSecondsUntilWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset
 local GetSecondsUntilDailyReset  = C_DateAndTime.GetSecondsUntilDailyReset
@@ -52,13 +54,15 @@ end
 
 --- Called when the addon is initialized
 function RackensTracker:OnInitialize()
+	-- Load saved variables
+	self.db = LibStub("AceDB-3.0"):New(addOnName .. "DB", database_defaults, true)
 	self.currentRealm = GetRealmName()
+	-- setup realm to show data for in the tracker window
+	self.currentDisplayedRealm = self.db.global.options.shownRealm and self.db.global.options.shownRealm or GetRealmName()
 	self.tracker_frame = nil
 	self.optionsCategory = nil
 	self.optionsLayout = nil
-
-	-- Load saved variables
-	self.db = LibStub("AceDB-3.0"):New(addOnName .. "DB", database_defaults, true)
+	self.realmSubCategoriesAndLayouts = nil
 
 	-- TODO: Investigate later if this needs to go back down to OnEnable or not
 	local characterName = UnitName("player")
@@ -72,6 +76,13 @@ function RackensTracker:OnInitialize()
 	-- Update weekly and daily reset timers
 	self:UpdateWeeklyDailyResetTime()
 
+	local function OnRealmOptionChanged(_, _, value)
+		if (self.db.global.realms[value]) then
+			self.db.global.options.shownRealm = value
+			self.currentDisplayedRealm = value
+		end
+	end
+
 	local function OnQuestOptionSettingChanged(_, setting, value)
 		local variable = setting:GetVariable()
 		self.db.global.options.shownQuests[variable] = value
@@ -79,7 +90,7 @@ function RackensTracker:OnInitialize()
 
 	local function OnCurrencyOptionSettingChanged(_, setting, value)
 		local variable = setting:GetVariable()
-		if (variable == L["optionsToggleNameShowCurrencies"]) then
+		if (variable == "showCurrencies") then
 			self.db.global.options.showCurrencies = value
 		else
 			self.db.global.options.shownCurrencies[variable] = value
@@ -94,9 +105,10 @@ function RackensTracker:OnInitialize()
 	self.OnQuestOptionSettingChanged = OnQuestOptionSettingChanged
 	self.OnCurrencyOptionSettingChanged = OnCurrencyOptionSettingChanged
 	self.OnCharacterOptionChanged = OnCharacterOptionChanged
+	self.OnRealmOptionChanged = OnRealmOptionChanged
 
 	-- Sets up the layout and options see under the AddOn options
-	self:RegisterAddOnSettings(OnQuestOptionSettingChanged, OnCurrencyOptionSettingChanged, OnCharacterOptionChanged)
+	self:RegisterAddOnSettings(OnQuestOptionSettingChanged, OnCurrencyOptionSettingChanged, OnCharacterOptionChanged, OnRealmOptionChanged)
 
 	-- Setup the data broken and the minimap icon
 	self.libDataBroker = LibStub("LibDataBroker-1.1", true)
@@ -136,30 +148,66 @@ end
 ---@param OnQuestOptionChanged function
 ---@param OnCurrencyOptionChanged function
 ---@param OnCharacterOptionChanged function
-function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOptionChanged, OnCharacterOptionChanged)
+---@param OnRealmOptionChanged function
+function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOptionChanged, OnCharacterOptionChanged, OnRealmOptionChanged)
 	-- Register the Options menu
 	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory(addOnName)
+	self.realmSubCategoriesAndLayouts = {}
+	local realmsAvailable = GetKeysArray(self.db.global.realms)
+	table.sort(realmsAvailable, function(a,b) return a < b end)
 
-	-- Character options
-	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCharactersHeader"]))
-	-- TODO: If a player dings 80 they wont have an entry in the options table until they do /reload or relog, i think??
-	-- TODO: Display characters from multiple realms? Each realm has their own tracker window, and their own options for now.
-	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
-		if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
-			local variable = strformat("%s.%s", character.realm, characterName)
-			local name = characterName
-			local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, Settings.VarType.Boolean, Settings.Default.True)
-			Settings.CreateCheckBox(self.optionsCategory, setting, L["optionsToggleCharacterTooltip"])
-			Settings.SetOnValueChangedCallback(variable, OnCharacterOptionChanged)
-			-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
-			-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
-			setting:SetValue(self.db.global.options.shownCharacters[variable], true) -- true means force
+	-- Realm data 
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsTrackedRealmsHeader"]))
+	local realmsDropDownOptionVariable = "shownRealm"
+	local realmsDropDownOptionDisplayName = L["optionsDropDownDescriptionRealms"]
+	local defaultRealmsDropDownOptionValue = self.currentRealm
+	local realmsDropDownOptionTooltip = L["optionsDropDownTooltipRealms"]
+	local function GetRealmOptions()
+		local container = Settings.CreateControlTextContainer();
+		for _, realmName in ipairs(realmsAvailable) do
+			container:Add(realmName, realmName)
+		end
+		return container:GetData();
+	end
+	local shownRealmSetting = Settings.RegisterAddOnSetting(self.optionsCategory, realmsDropDownOptionDisplayName, realmsDropDownOptionVariable, Settings.VarType.string, defaultRealmsDropDownOptionValue)
+	Settings.CreateDropDown(self.optionsCategory, shownRealmSetting, GetRealmOptions, realmsDropDownOptionTooltip)
+	Settings.SetOnValueChangedCallback(realmsDropDownOptionVariable, OnRealmOptionChanged)
+	if (self.db.global.options.shownRealm == nil) then
+		shownRealmSetting:SetValue(self.currentRealm, true)
+	else
+		shownRealmSetting:SetValue(self.db.global.options[realmsDropDownOptionVariable], true)
+	end
+
+	-- Create one subcategory with characters to display per realm
+	for _, realmName in ipairs(realmsAvailable) do
+		self.realmSubCategoriesAndLayouts[realmName] = {}
+		self.realmSubCategoriesAndLayouts[realmName].optionsCategory, self.realmSubCategoriesAndLayouts[realmName].optionsLayout = Settings.RegisterVerticalLayoutSubcategory(self.optionsCategory, realmName)
+
+		-- Display an options header depending if we have eligible characters to track or not, on this realm
+		if (not ContainsIf(self.db.global.realms[realmName].characters, function(character) return RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level) end)) then
+			self.realmSubCategoriesAndLayouts[realmName].optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsNoCharactersHeader"]))
+		else
+			self.realmSubCategoriesAndLayouts[realmName].optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCharactersHeader"]))
+		end
+
+		-- Character options
+		for characterName, character in pairs(self.db.global.realms[realmName].characters) do
+			if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
+				local variable = strformat("%s.%s", character.realm, characterName)
+				local name = characterName
+				local setting = Settings.RegisterAddOnSetting(self.realmSubCategoriesAndLayouts[realmName].optionsCategory, name, variable, Settings.VarType.Boolean, Settings.Default.True)
+				Settings.CreateCheckBox(self.realmSubCategoriesAndLayouts[realmName].optionsCategory, setting, L["optionsToggleCharacterTooltip"])
+				Settings.SetOnValueChangedCallback(variable, OnCharacterOptionChanged)
+				-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
+				-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
+				setting:SetValue(self.db.global.options.shownCharacters[variable], true) -- true means force
+			end
 		end
 	end
 
 	-- Weekly / Daily options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsQuestsHeader"]))
-	local weeklyQuestOptionVariable = L["optionsToggleNameWeeklyQuest"]
+	local weeklyQuestOptionVariable = "Weekly"
 	local weeklyQuestOptionDisplayName = L["optionsToggleDescriptionWeeklyQuest"]
 	local defaultWeeklyQuestVisibilityValue = database_defaults.global.options.shownQuests[weeklyQuestOptionVariable]
 	local weeklyQuestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, weeklyQuestOptionDisplayName, weeklyQuestOptionVariable, type(defaultWeeklyQuestVisibilityValue), defaultWeeklyQuestVisibilityValue)
@@ -167,7 +215,7 @@ function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOp
 	Settings.SetOnValueChangedCallback(weeklyQuestOptionVariable, OnQuestOptionChanged)
 	weeklyQuestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[weeklyQuestOptionVariable], true) -- true means force
 
-	local dailyQuestOptionVariable = L["optionsToggleNameDailyQuest"]
+	local dailyQuestOptionVariable = "Daily"
 	local dailyQuestOptionDisplayName = L["optionsToggleDescriptionDailyQuest"]
 	local defaultDailyQuestVisibilityValue = database_defaults.global.options.shownQuests[dailyQuestOptionVariable]
 	local dailyquestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, dailyQuestOptionDisplayName, dailyQuestOptionVariable, type(defaultDailyQuestVisibilityValue), defaultDailyQuestVisibilityValue)
@@ -177,7 +225,7 @@ function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOp
 
 	-- Currency options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
-	local allCurrencyOptionVariable = L["optionsToggleNameShowCurrencies"]
+	local allCurrencyOptionVariable = "showCurrencies"
 	local allCurrencyOptionDisplayName = L["optionsToggleDescriptionShowCurrencies"]
 	local defaultAllCurrencyVisibilityValue = database_defaults.global.options.showCurrencies
 	local allCurrencyOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCurrencyOptionDisplayName, allCurrencyOptionVariable, type(defaultAllCurrencyVisibilityValue), defaultAllCurrencyVisibilityValue)
@@ -230,8 +278,7 @@ function RackensTracker:OnEventPlayerLevelUp(event, newLevel)
 	self:UpdateCharacterLevel(newLevel)
 	--- TODO: This should be done in a better way, we are just force creating a new options menu just to add one checkbox :/
 	if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(newLevel)) then
-		Log("Adding character to settings menu")
-		self:RegisterAddOnSettings(self.OnQuestOptionSettingChanged, self.OnCurrencyOptionSettingChanged, self.OnCharacterOptionChanged)
+		self:RegisterAddOnSettings(self.OnQuestOptionSettingChanged, self.OnCurrencyOptionSettingChanged, self.OnCharacterOptionChanged, self.OnRealmOptionChanged)
 	end
 end
 
@@ -399,6 +446,16 @@ local function createTrackedQuestLogItemEntry(quest)
 	return questLabel
 end
 
+--- Draws the graphical elements to display which realm is currently being viewed
+---@param container AceGUIWidget
+function RackensTracker:DrawCurrentRealmInfo(container)
+	--container:AddChild(CreateDummyFrame())
+	local realmHeading = AceGUI:Create("Heading")
+	realmHeading:SetFullWidth(true)
+	realmHeading:SetText(self.currentDisplayedRealm)
+	container:AddChild(realmHeading)
+end
+
 --- Draws the graphical elements to display the tracked quests, given a known character name
 ---@param container AceGUIWidget
 ---@param characterName string name of the character to render quests for
@@ -407,9 +464,9 @@ function RackensTracker:DrawQuests(container, characterName)
 		return
 	end
 
-	local shouldDisplayWeeklyQuests = self.db.global.options.shownQuests[L["optionsToggleNameWeeklyQuest"]]
-	local shouldDisplayDailyQuests = self.db.global.options.shownQuests[L["optionsToggleNameDailyQuest"]]
-	local characterQuests = self.db.global.realms[self.currentRealm].characters[characterName].quests
+	local shouldDisplayWeeklyQuests = self.db.global.options.shownQuests["Weekly"]
+	local shouldDisplayDailyQuests = self.db.global.options.shownQuests["Daily"]
+	local characterQuests = self.db.global.realms[self.currentDisplayedRealm].characters[characterName].quests
 
 	local sortedAvailableQuests = {}
 	local availableWeeklyQuest = nil
@@ -494,7 +551,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	local labelHeight = 20
 	local relWidthPerCurrency = 0.25 -- Use a quarter of the container space per item, making new rows as fit.
 
-	local characterCurrencies = self.db.global.realms[self.currentRealm].characters[characterName].currencies
+	local characterCurrencies = self.db.global.realms[self.currentDisplayedRealm].characters[characterName].currencies
 
 	container:AddChild(CreateDummyFrame())
 
@@ -557,14 +614,13 @@ function RackensTracker:GetLockoutTimeWithIcon(isRaid)
 	local dungeonAtlas = "Dungeon"
 	local atlasSize = 16
 	local iconMarkup = ""
-	if (isRaid and self.db.global.realms[self.currentRealm].secondsToWeeklyReset) then
+	if (isRaid and self.db.global.realms[self.currentDisplayedRealm].secondsToWeeklyReset) then
 		iconMarkup = CreateAtlasMarkup(raidAtlas, atlasSize, atlasSize)
-		--return strformat("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], SecondsToTime(self.db.global.realms[self.currentRealm].secondsToWeeklyReset, true, nil, 3))
-		return strformat("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], RT.TimeUtil.TimeFormatter:Format(self.db.global.realms[self.currentRealm].secondsToWeeklyReset))
+		return strformat("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], RT.TimeUtil.TimeFormatter:Format(self.db.global.realms[self.currentDisplayedRealm].secondsToWeeklyReset))
 	end
-	if (isRaid == false and self.db.global.realms[self.currentRealm].secondsToDailyReset) then
+	if (isRaid == false and self.db.global.realms[self.currentDisplayedRealm].secondsToDailyReset) then
 		iconMarkup = CreateAtlasMarkup(dungeonAtlas, atlasSize, atlasSize)
-		return strformat("%s %s: %s", iconMarkup, L["dungeonLockExpiresIn"], RT.TimeUtil.TimeFormatter:Format(self.db.global.realms[self.currentRealm].secondsToDailyReset))
+		return strformat("%s %s: %s", iconMarkup, L["dungeonLockExpiresIn"], RT.TimeUtil.TimeFormatter:Format(self.db.global.realms[self.currentDisplayedRealm].secondsToDailyReset))
 	end
 	return ""
 end
@@ -579,7 +635,7 @@ function RackensTracker:GetSavedInstanceInformationFor(characterName)
 	local raidInstances = RT.Container:New()
 	local dungeonInstances = RT.Container:New()
 
-	local character = self.db.global.realms[self.currentRealm].characters[characterName]
+	local character = self.db.global.realms[self.currentDisplayedRealm].characters[characterName]
 	local characterHasLockouts = false
 
 	for _, savedInstance in pairs(character.savedInstances) do
@@ -767,6 +823,7 @@ local function SelectCharacterTab(container, event, characterName)
 	-- this fixes all my current sizing and anchoring problems, without this all hell breaks loose.
 	-- Figured out that every AddChild call runs PerformLayout EVERY TIME and this causes major layout shift and visual glitches
 	-- Just pause all layout calculations until after we placed all the widgets on screen.
+	RackensTracker:DrawCurrentRealmInfo(container)
 	RackensTracker:DrawQuests(container, characterName)
 	RackensTracker:DrawSavedInstances(container, characterName)
 	RackensTracker:DrawCurrencies(container, characterName)
@@ -849,7 +906,7 @@ function RackensTracker:OpenTrackerFrame()
 	local isInitialCharacterMaxLevel = false
 
 	-- Create one tab per level 80 character
-	for characterName, character in pairs(self.db.global.realms[self.currentRealm].characters) do
+	for characterName, character in pairs(self.db.global.realms[self.currentDisplayedRealm].characters) do
 		local optionsKey = strformat("%s.%s", character.realm, characterName)
 		if (self.db.global.options.shownCharacters[optionsKey]) then
 			if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
@@ -886,9 +943,9 @@ function RackensTracker:OpenTrackerFrame()
 		noTrackingInformationGroup:SetLayout("List")
 		noTrackingInformationGroup:SetFullWidth(true)
 		noTrackingInformationGroup:SetFullHeight(true)
-
 		noTrackingInformationGroup:AddChild(CreateDummyFrame())
-
+		self:DrawCurrentRealmInfo(noTrackingInformationGroup)
+		noTrackingInformationGroup:AddChild(CreateDummyFrame())
 		-- Add a Heading to the main frame with information stating that no tracking information is available, must have logged in to a level 80 character once to enable tracking.
 		local noTrackingInformationAvailable = AceGUI:Create("Heading")
 		noTrackingInformationAvailable:SetText(L["noTrackingAvailable"])

@@ -80,7 +80,8 @@ local database_defaults = {
 			shownQuests = {
 				["Weekly"] = true,
 				["Daily"] = true,
-			}
+			},
+			shownRealm = nil,
 		},
 		realms = {
 			['*'] = {

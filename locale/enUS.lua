@@ -1,6 +1,7 @@
 local L = LibStub("AceLocale-3.0"):NewLocale("RackensTracker", "enUS", true);
 
 if L then
+    L["currentRealmLabel"] = "Viewing Tracking Data For:"
     L["raidLockExpiresIn"] = "Raid Locks Expire In"
     L["dungeonLockExpiresIn"] = "Dungeon Locks Expire In"
     L["currencies"] = "Currencies"
@@ -15,7 +16,7 @@ if L then
     L["noLockouts"] = "No lockouts"
     L["noTrackingAvailable"] = "No tracking information available"
     L["noTrackingAvailableDescription1"] = "RackensTracker can't display tracking information gathered about quest, instance lockout or currency information because"
-    L["noTrackingAvailableDescription2"] = "1. You've hidden all max level characters (level 80) using the options menu (enable at least one character to display tracking information)\n\n2. You haven't logged into any max level character (level 80) yet."
+    L["noTrackingAvailableDescription2"] = "1. You've hidden all max level characters (level 80) for this realm using the options menu (enable at least one character to display tracking information)\n\n2. You haven't logged into any max level character (level 80) on this realm yet."
     L["raids"] = "Raids"
     L["dungeons"] = "Dungeons"
     L["progress"] = "Progress"
@@ -26,16 +27,16 @@ if L then
     L["version"] = "Version"
     L["toggleTrackerPanel"] = "Toggle tracker panel"
     L["openOptionsPanel"] = "Open options panel"
+    L["optionsTrackedRealmsHeader"] = "Tracked Realms"
     L["optionsCharactersHeader"] = "Displayed Characters"
+    L["optionsNoCharactersHeader"] = "No Eligible Characters To Display"
     L["optionsQuestsHeader"] = "Displayed Quests"
     L["optionsCurrenciesHeader"] = "Displayed Currencies"
-    L["optionsToggleNameShowCurrencies"] = "showCurrencies"
-    L["optionsToggleDescriptionShowCurrencies"] = "Display currencies"
+    L["optionsDropDownDescriptionRealms"] = "Tracking window using"
+    L["optionsDropDownTooltipRealms"] = "Selected realm will be used when displaying tracking information"
     L["optionsToggleDescriptionWeeklyQuest"] = "Weekly"
     L["optionsToggleDescriptionDailyQuest"] = "Daily"
-    L["optionsToggleDescriptionWeeklyAndDailyQuest"] = "Show weekly and daily quests"
-    L["optionsToggleNameWeeklyQuest"] = "Weekly"
-    L["optionsToggleNameDailyQuest"] = "Daily"
+    L["optionsToggleDescriptionShowCurrencies"] = "Display currencies"
     L["optionsToggleCurrencyTooltip"] = "If checked this currency will be displayed in the tracker window"
     L["optionsToggleCharacterTooltip"] = "If checked this character will be displayed in the tracker window"
 end
