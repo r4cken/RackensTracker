@@ -98,9 +98,6 @@ function RackensTracker:DeleteCharacterDataIfNecessary()
 	end
 end
 
-function RackensTracker:DeleteQuestsOnFactionChangeIfNecessary()
-end
-
 --- Called when the addon is initialized
 function RackensTracker:OnInitialize()
 	-- Load saved variables
