@@ -22,7 +22,7 @@ end
 --- Iterates over all known characters for the current realm and checks each of the character's quests to see if
 --- they have reset. If they have, they are removed from the tracker, also flags quests picked up from a previous reset with an hasExpired flag.
 function QuestModule:ResetTrackedQuestsIfNecessary()
-    Log("Running ResetExpiredQuests!")
+    --Log("Running ResetExpiredQuests!")
     for characterName, character in pairs(addon.db.global.realms[addon.currentRealm].characters) do
 		for questID, quest in pairs(character.quests) do
 			if (quest.acceptedAt + quest.secondsToReset < GetServerTime()) then
@@ -55,7 +55,7 @@ end
 
 --- Iterate over all tracked quests for the current character and if there is a mismatch between the database and the quest's completion state, update the database.
 function QuestModule:UpdateQuestCompletionIfNecessary()
-    Log("Running UpdateQuestCompletionIfNecessary!")
+    --Log("Running UpdateQuestCompletionIfNecessary!")
 	for questID, trackedQuest in pairs(addon.currentCharacter.quests) do
 		if (IsOnQuest(trackedQuest.id) and IsQuestComplete(trackedQuest.id)) then
 			if (trackedQuest.isCompleted == false) then
@@ -68,7 +68,7 @@ end
 
 --- Adds quests to the database if they are found in the current character's quest log and they do not exist in the database
 function QuestModule:CreateActiveMissingQuests()
-    Log("Running CreateActiveMissingQuests!")
+    --Log("Running CreateActiveMissingQuests!")
 	for questID, trackableQuest in pairs(RT.Quests) do
 		-- If the current player is already on a trackable quest but they dont have it tracked that means they 
 		-- accepted it before they used this addon or had it disabled during a time in which they
@@ -80,10 +80,12 @@ function QuestModule:CreateActiveMissingQuests()
 		-- as the code that checks if we are past the weekly or daily reset assumes these timestamps exist.
 		-- It is a small price to pay to be more inclusive.
 		if (IsOnQuest(questID) and not addon.currentCharacter.quests[questID]) then
+			---@type DbQuest
 			local newTrackedQuest = {
 				id = questID,
 				name = trackableQuest.getName(questID),
 				questTag = trackableQuest.getQuestTag(questID),
+				faction = trackableQuest.faction,
 				isWeekly = trackableQuest.isWeekly,
 				 -- Assume it was just picked up, we cant know anyway
 				acceptedAt = GetServerTime(),
@@ -108,7 +110,7 @@ end
 --- Attempts to find the current weekly quest for the active reset by looking at all other characters except the current one in the database.
 ---@return DbQuest|nil
 function QuestModule:TryToFindCurrentWeeklyQuest()
-    Log("Running TryToFindCurrentWeeklyQuest!")
+    --Log("Running TryToFindCurrentWeeklyQuest!")
 	for characterName, character in pairs(addon.db.global.realms[addon.currentRealm].characters) do
 		if (characterName ~= addon.currentCharacter.name) then
 			for _, quest in pairs(character.quests) do
@@ -143,7 +145,7 @@ function QuestModule:CreateFinishedMissingQuests()
     -- This is a collection of all quests the current character has completed in its lifetime.
     -- Daily quests appear completed only if they have been completed that day.
     -- Weekly quests appear completed only if they have been completed that week.
-    Log("Running CreateFinishedMissingQuests!")
+    --Log("Running CreateFinishedMissingQuests!")
     local allQuestsCompletedTurnedIn = GetQuestsCompleted()
     local currentWeeklyQuest = self:TryToFindCurrentWeeklyQuest()
     local currentCharacterFinishedWeeklyQuest = self:TryGetCurrentFinishedWeeklyQuest()

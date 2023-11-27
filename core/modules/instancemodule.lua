@@ -57,7 +57,7 @@ end
 --- Iterates over all known characters for the current realm and checks each of the character's saved instances to see if
 --- they have reset. If they have, they are removed from the tracker.
 function InstanceModule:ResetTrackedInstancesIfNecessary()
-    Log("Running ResetTrackedInstancesIfNecessary!")
+    --Log("Running ResetTrackedInstancesIfNecessary!")
 	for characterName, character in pairs(addon.db.global.realms[addon.currentRealm].characters) do
 		for id, savedInstance in pairs(character.savedInstances) do
 			-- TODO: Look into if this savedInstance.resetTime is completely accurate as we update our information about it very frequently on events

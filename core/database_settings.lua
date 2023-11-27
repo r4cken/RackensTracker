@@ -5,7 +5,7 @@ RT.DatabaseSettings = DatabaseSettings
 ---@alias questID number
 ---@alias currencyID number
 
----@class DbQuest
+---@class (exact) DbQuest
 ---@field id questID
 ---@field name string
 ---@field questTag string
@@ -20,7 +20,7 @@ RT.DatabaseSettings = DatabaseSettings
 ---@field craftedFromExistingQuest boolean?
 ---@field craftedFromHeuristicGuess boolean?
 
----@class DbCurrency
+---@class (exact) DbCurrency
 ---@field currencyID currencyID
 ---@field name string
 ---@field description string
@@ -30,7 +30,7 @@ RT.DatabaseSettings = DatabaseSettings
 ---@field iconFileID string	
 ---@field discovered boolean
 
----@class DbSavedInstance
+---@class (exact) DbSavedInstance
 ---@field instanceName string
 ---@field instanceID number
 ---@field lockoutID number
@@ -44,11 +44,13 @@ RT.DatabaseSettings = DatabaseSettings
 ---@field encountersTotal number
 ---@field encountersCompleted number
 
----@class DbCharacter
+---@class (exact) DbCharacter
 ---@field name string|nil
 ---@field class string|nil
 ---@field level string|nil
 ---@field realm string|nil
+---@field faction string|nil
+---@field guid string|nil
 ---@field savedInstances table<string, DbSavedInstance>
 ---@field currencies table<currencyID, DbCurrency>
 ---@field quests table<questID, DbQuest>
@@ -96,6 +98,8 @@ local database_defaults = {
 						class = nil,
 						level = nil,
 						realm = nil,
+						faction = nil,
+						guid = nil,
 						savedInstances = {},
 						currencies = {},
 						quests = {},

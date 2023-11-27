@@ -52,13 +52,65 @@ function RackensTracker:UpdateWeeklyDailyResetTime()
 	self.db.global.realms[self.currentRealm].dailyResetTime = GetServerTime() + self.db.global.realms[self.currentRealm].secondsToDailyReset
 end
 
+
+--- Checks if a character has transfered realm or changed name.
+--- Checks if a character has faction changed.
+--- Deletes old database records if required.
+function RackensTracker:DeleteCharacterDataIfNecessary()
+	local currentCharacterGUID = UnitGUID("player")
+	local currentCharacterRealm = GetRealmName()
+	local currentCharacterName = UnitName("player")
+	local currentCharacterFaction = UnitFactionGroup("player")
+
+	for _, realm in pairs(self.db.global.realms) do
+		for _, character in pairs(realm.characters) do
+			-- Found the character
+			if (character.guid and character.guid == currentCharacterGUID) then
+				Log("GUID checking.")
+				local optionsKey = strformat("%s.%s", character.realm, character.name)
+				-- If a faction change occured, we need to delete a tracked quest from the other faction if they have one
+				if (character.faction and character.faction ~= currentCharacterFaction) then
+					Log("Character on: " .. character.realm .. " changed faction to: " .. currentCharacterFaction)
+					for questID, quest in pairs(character.quests) do
+						if (quest.faction and quest.faction ~= currentCharacterFaction) then
+							Log("Tracked quest found for another faction, deleting old record for questID: " .. questID .. " name: " .. quest.name)
+							self.db.global.realms[character.realm].characters[character.name].quests[questID] = nil
+						end
+					end
+				end
+				-- If they realm swapped, clear the database for that character on the old realm.
+				if (character.realm ~= currentCharacterRealm) then
+					Log("Character on: " .. character.realm .. " changed realm to: " .. currentCharacterRealm)
+					Log("Character realm transfer found, deleting old record from: " .. character.realm .. " for character with stored name: " .. character.name)
+					self.db.global.realms[character.realm].characters[character.name] = nil
+					self.db.global.options.shownCharacters[optionsKey] = nil
+				else
+					-- Same realm but if they name changed, clear the database for that character
+					if (character.name ~= currentCharacterName) then
+						Log("Character on: " .. character.realm .. " changed name to: " .. currentCharacterName)
+						Log("Character name change found, deleting old record from: " .. character.realm .. " for character with stored former name: " .. character.name)
+						self.db.global.realms[currentCharacterRealm].characters[character.name] = nil
+						self.db.global.options.shownCharacters[optionsKey] = nil
+					end
+				end
+			end
+		end
+	end
+end
+
+function RackensTracker:DeleteQuestsOnFactionChangeIfNecessary()
+end
+
 --- Called when the addon is initialized
 function RackensTracker:OnInitialize()
 	-- Load saved variables
 	self.db = LibStub("AceDB-3.0"):New(addOnName .. "DB", database_defaults, true)
+	self:DeleteCharacterDataIfNecessary()
+
 	self.currentRealm = GetRealmName()
 	-- setup realm to show data for in the tracker window
 	self.currentDisplayedRealm = self.db.global.options.shownRealm and self.db.global.options.shownRealm or GetRealmName()
+	-- GUI related handles
 	self.tracker_frame = nil
 	self.optionsCategory = nil
 	self.optionsLayout = nil
@@ -72,6 +124,7 @@ function RackensTracker:OnInitialize()
 	self.currentCharacter.level = UnitLevel("player")
 	self.currentCharacter.realm = GetRealmName()
 	self.currentCharacter.faction = UnitFactionGroup("player")
+	self.currentCharacter.guid = UnitGUID("player")
 
 	-- Update weekly and daily reset timers
 	self:UpdateWeeklyDailyResetTime()
