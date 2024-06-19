@@ -39,5 +39,6 @@ if L then
     L["optionsToggleDescriptionShowCurrencies"] = "Display currencies"
     L["optionsToggleCurrencyTooltip"] = "If checked this currency will be displayed in the tracker window"
     L["optionsToggleCharacterTooltip"] = "If checked this character will be displayed in the tracker window"
+    L["optionsButtonDeleteCharacter"] = "Delete"
 end
 

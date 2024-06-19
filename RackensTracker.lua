@@ -253,6 +253,25 @@ function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOp
 				setting:SetValue(self.db.global.options.shownCharacters[variable], true) -- true means force
 			end
 		end
+		-- TODO: Figure out a better way to show these buttons.
+		-- self.realmSubCategoriesAndLayouts[realmName].optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Delete Characters"))
+		-- for characterName, character in pairs(self.db.global.realms[realmName].characters) do
+		-- 	if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
+		-- 		local variable = strformat("%s.%s", character.realm, characterName)
+		-- 		-- Add a delete button underneath
+		-- 		local deleteButtonName = string.format("%s %s", L["optionsButtonDeleteCharacter"], characterName)
+		-- 		local deleteButtonText = L["optionsButtonDeleteCharacter"]
+		-- 		local addSearchTags = true
+		-- 		local function OnCharacterDelete()
+		-- 			print("Deleting character: " .. realmName.. "-" .. characterName)
+		-- 			-- Todo: Use the StaticPopup system here to warn?
+		-- 			self.db.global.realms[realmName].characters[characterName] = nil
+		-- 			self.db.global.options.shownCharacters[variable] = nil
+		-- 		end
+		-- 		local deleteButtonInitializer = CreateSettingsButtonInitializer(deleteButtonName, deleteButtonText, OnCharacterDelete, "Deletes a character from the tracking database", addSearchTags)
+		-- 		self.realmSubCategoriesAndLayouts[realmName].optionsLayout:AddInitializer(deleteButtonInitializer)
+		-- 	end
+		-- end
 	end
 
 	-- Weekly / Daily options
