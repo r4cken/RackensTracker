@@ -7,7 +7,7 @@ local Instance = {}
 RT.Instance = Instance
 
 -- TODO: change the signature of the method to accept a table instead
-function Instance:New(instanceName, instanceID, lockoutID, resetsIn, isRaid, isHeroic, maxPlayers, difficultyID, difficultyName, encountersTotal, encountersCompleted)
+function Instance:New(instanceName, instanceID, lockoutID, resetsIn, isRaid, isHeroic, maxPlayers, difficultyID, difficultyName, toggleDifficultyID, encountersTotal, encountersCompleted)
 	local instance = {
         instanceName = instanceName,
         instanceID = instanceID,
@@ -18,6 +18,7 @@ function Instance:New(instanceName, instanceID, lockoutID, resetsIn, isRaid, isH
         maxPlayers = maxPlayers,
         difficultyID = difficultyID,
         difficultyName = difficultyName,
+		toggleDifficultyID = toggleDifficultyID,
         encountersTotal = encountersTotal,
         encountersCompleted = encountersCompleted
     }

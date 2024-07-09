@@ -70,11 +70,11 @@ function Currency:GetIcon(iconSize)
     local iconTexture = ""
 
     -- The honor icon needs adjustment for its texture coordinates
-    if self.id == Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID then
-        iconTexture = CreateTextureMarkup(fileID, 64, 64, iconSize, iconSize, 0.03125, 0.59375, 0.03125, 0.59375)
-    else
+    --if self.id == Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID then
+    --    iconTexture = CreateTextureMarkup(fileID, 64, 64, iconSize, iconSize, 0.03125, 0.59375, 0.03125, 0.59375)
+    --else
         iconTexture = CreateTextureMarkup(fileID, 64, 64, iconSize, iconSize, 0, 1, 0, 1)
-    end
+    --end
 
     self.icon = self.icon or iconTexture
     return self.icon

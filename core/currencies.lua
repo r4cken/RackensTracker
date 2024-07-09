@@ -30,6 +30,8 @@ local _, RT = ...
 
 local Currency = RT.Currency
 
+local JusticePoints = Currency:New(395)
+local ValorPoints = Currency:New(396)
 local EmblemOfFrost = Currency:New(341)
 local EmblemOfTriumph = Currency:New(301)
 local EmblemOfConquest = Currency:New(221)
@@ -40,9 +42,14 @@ local SiderealEssence = Currency:New(2589)
 local ChampionsSeal = Currency:New(241)
 local HonorPoints = Currency:New(1901)
 local ArenaPoints = Currency:New(1900)
+local ConquestPoints = Currency:New(390)
 local StoneKeepersShards = Currency:New(161)
+local TolBaradCommendation = Currency:New(391)
+local ChefsAward = Currency:New(402)
 local EpicureansAward = Currency:New(81)
+local IllustriousJewelcraftersToken = Currency:New(361)
 local JewelcraftersToken = Currency:New(61)
+local DarkmoonPrizeTicket = Currency:New(515)
 local WintergraspMarks = Currency:New(126)
 -- local AlteracValleyMarks = Currency:New(121)
 -- local ArathiBasinMarks = Currency:New(122)
@@ -53,6 +60,8 @@ local WintergraspMarks = Currency:New(126)
 
 
 RT.Currencies = {
+    JusticePoints,
+    ValorPoints,
     EmblemOfFrost,
     EmblemOfTriumph,
     EmblemOfConquest,
@@ -63,13 +72,19 @@ RT.Currencies = {
     ChampionsSeal,
     HonorPoints,
     ArenaPoints,
+    ConquestPoints,
     StoneKeepersShards,
+    TolBaradCommendation,
+    ChefsAward,
     EpicureansAward,
+    IllustriousJewelcraftersToken,
     JewelcraftersToken,
+    DarkmoonPrizeTicket,
     WintergraspMarks,
 }
 
 RT.ExcludedCurrencyIds = {
+    [104] = true,  -- Honor Points DEPRECATED
     [121] = true,  -- Alterac Valley Mark of Honor
     [122] = true,  -- Arathi Basin Mark of Honor
     [123] = true,  -- Eye of the Storm Mark of Honor
@@ -77,7 +92,13 @@ RT.ExcludedCurrencyIds = {
     [125] = true,  -- Warsong Gulch Mark of Honor
     [126] = false, -- Wintergrasp Mark of Honor
     [181] = true,  -- Honor Points DEPRECATED2,
-    [321] = true   -- Isle of Conquest Mark of Honor
+    -- [221] = true,   -- Emblem of Conquest
+    -- [341] = true,   -- Emblem of Frost
+    -- [101] = true,   -- Emblem of Heroism
+    -- [301] = true,   -- Emblem of Triumph
+    -- [102] = true,   -- Emblem of Valor
+    [321] = true,-- Isle of Conquest Mark of Honor
+    [392] = true -- Honor Deprecated 3
 }
 
 for k, v in ipairs(RT.Currencies) do

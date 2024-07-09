@@ -41,6 +41,7 @@ RT.DatabaseSettings = DatabaseSettings
 ---@field maxPlayers number
 ---@field difficultyID number
 ---@field difficultyName string
+---@field toggleDifficultyID number
 ---@field encountersTotal number
 ---@field encountersCompleted number
 
@@ -61,24 +62,32 @@ local database_defaults = {
 		options = {
 			showCurrencies = true,
 			shownCurrencies = {
-				["341"] = true,  -- Emblem of Frost
-				["301"] = true,  -- Emblem of Triumph
-				["221"] = true,  -- Emblem of Conquest
-				["102"] = true,	 -- Emblem of Valor
-				["101"] = true,  -- Emblem of Heroism
-				["2711"] = true, -- Defiler's Scourgestone
-				["2589"] = true, -- Sidreal Essence
+				["395"] = true,  -- Justice Points
+				["396"] = true,  -- Valor Points
+				["341"] = false, -- Emblem of Frost
+				["301"] = false, -- Emblem of Triumph
+				["221"] = false, -- Emblem of Conquest
+				["102"] = false, -- Emblem of Valor
+				["101"] = false, -- Emblem of Heroism
+				["2711"] = false,-- Defiler's Scourgestone
+				["2589"] = false,-- Sidreal Essence
 				["241"] = false, -- Champion's Seal
 				["1901"] = true, -- Honor Points
 				["1900"] = true, -- Arena Points
+				["390"] = true,  -- Conquest Points
 				["161"] = true,  -- Stone Keeper's Shard
-				["81"] = true,	 -- Epicurean's Award
-				["61"] = true,	 -- Dalaran Jewelcrafter's Token
+				["391"] = true,  -- Tol Barad Commendation
+				["402"] = true,  -- Chefs Award
+				["81"] = false,	 -- Epicurean's Award
+				["361"] = true,  -- Illustrious Jewelcrafter's Token
+				["61"] = false,	 -- Dalaran Jewelcrafter's Token
+				["515"] = true,  -- Darkmoon Prize Ticket
 				["126"] = false, -- Wintergrasp Mark of Honor
 			},
 			shownCharacters = {
 				['*'] = true
 			},
+			showQuests = false,
 			shownQuests = {
 				["Weekly"] = true,
 				["Daily"] = true,
@@ -91,6 +100,7 @@ local database_defaults = {
 				secondsToWeeklyReset = nil,
 				dailyResetTime = nil,
 				secondsToDailyReset = nil,
+				selectedCharacterForDeletion = nil,
 				---@type table<string, DbCharacter>
 				characters = {
 					['*'] = {

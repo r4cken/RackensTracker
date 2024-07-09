@@ -28,8 +28,8 @@ if L then
     L["toggleTrackerPanel"] = "Toggle tracker panel"
     L["openOptionsPanel"] = "Open options panel"
     L["optionsTrackedRealmsHeader"] = "Tracked Realms"
-    L["optionsCharactersHeader"] = "Displayed Characters"
-    L["optionsNoCharactersHeader"] = "No Eligible Characters To Display"
+    L["optionsCharactersHeader"] = "Tracked Characters"
+    L["optionsNoCharactersHeader"] = "No Eligible Characters Found"
     L["optionsQuestsHeader"] = "Displayed Quests"
     L["optionsCurrenciesHeader"] = "Displayed Currencies"
     L["optionsDropDownDescriptionRealms"] = "Tracking window using"
@@ -37,8 +37,14 @@ if L then
     L["optionsToggleDescriptionWeeklyQuest"] = "Weekly"
     L["optionsToggleDescriptionDailyQuest"] = "Daily"
     L["optionsToggleDescriptionShowCurrencies"] = "Display currencies"
+    L["optionsToggleDescriptionShowQuests"] = "Display Quests"
     L["optionsToggleCurrencyTooltip"] = "If checked this currency will be displayed in the tracker window"
     L["optionsToggleCharacterTooltip"] = "If checked this character will be displayed in the tracker window"
-    L["optionsButtonDeleteCharacter"] = "Delete"
+    L["optionsCharactersDeleteHeader"] = "Character Data"
+    L["optionsSelectDeleteCharacter"] = "Select Character"
+    L["optionsSelectDeleteCharacterTooltip"] = "Selected character will be deleted upon pressing the delete button"
+    L["optionsButtonDeleteCharacter"] = "Delete Character"
+    L["optionsButtonDeleteCharacterTooltip"] = "Click this button to delete the selected character and all its data from the tracking database"
+    L["optionsButtonDeleteCharacterConfirm"] = "Are you sure you want to remove %s from the tracker database?";
 end
 

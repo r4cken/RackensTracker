@@ -24,6 +24,8 @@ local Settings, CreateSettingsListSectionHeaderInitializer =
 local RackensTracker = LibStub("AceAddon-3.0"):GetAddon(addOnName)
 local L = LibStub("AceLocale-3.0"):GetLocale(addOnName, true)
 local AceGUI = LibStub("AceGUI-3.0")
+local AceConfigDialog = LibStub("AceConfigDialog-3.0")
+local AceConfigRegistry = LibStub("AceConfigRegistry-3.0")
 
 -- Set bindings translations (used in game options keybinds section)
 _G.BINDING_HEADER_RACKENSTRACKER = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.ADDON_FONT_COLOR_CODE, addOnName)
@@ -98,6 +100,120 @@ function RackensTracker:DeleteCharacterDataIfNecessary()
 	end
 end
 
+function RackensTracker:CreateRealmOptions()
+	local realmsAvailable = GetKeysArray(self.db.global.realms)
+	table.sort(realmsAvailable, function(a,b) return a < b end)
+
+	local options = {
+		type = "group",
+		args = {
+		}
+	}
+
+	-- Create one subcategory with characters to display per realm
+	for _, realmName in ipairs(realmsAvailable) do
+		local order = 0
+		--if not options.args[realmName] then
+			options.args[realmName] = {}
+			options.args[realmName].name = string.format("%s character options", realmName)
+			options.args[realmName].type = "group"
+			options.args[realmName].args = {}
+			options.args[realmName].args.displayedCharactersHeader = {
+				type = "header",
+				name = L["optionsCharactersHeader"],
+				order = order
+			}
+			-- Display an options header depending if we have eligible characters to track or not, on this realm
+			if (not ContainsIf(self.db.global.realms[realmName].characters, function(character) return RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level) end)) then
+				options.args[realmName].args.displayedCharactersHeader.name = L["optionsNoCharactersHeader"]
+			end
+
+			-- Character toggles for the tracker
+			for characterName, character in pairs(self.db.global.realms[realmName].characters) do
+				order = order + 1
+				if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
+					local key = strformat("%s.%s", character.realm, characterName)
+					options.args[realmName].args[characterName] = {
+						name = characterName,
+						desc = L["optionsToggleCharacterTooltip"],
+						type = "toggle",
+						order = order,
+						set = function(info, value) self.db.global.options.shownCharacters[key] = value end,
+						get = function(info) return self.db.global.options.shownCharacters[key] end,
+					}
+				end
+			end
+
+			order = order + 1
+			options.args[realmName].args.deleteCharacterHeader = {
+				type = "header",
+				name = L["optionsSelectDeleteCharacter"],
+				order = order,
+			}
+			order = order + 1
+
+			-- Dropdown select for which character to select for deletion
+			options.args[realmName].args.characterSelectDelete = {
+				type = "select",
+				name = L["optionsSelectDeleteCharacter"],
+				desc = L["optionsSelectDeleteCharacterTooltip"],
+				values = {},
+				sorting = {},
+				order = order,
+				width = "normal",
+				get = function(info)
+					--self.db.global.realms[realmName].selectedCharacterForDeletion = self.db.global.realms[realmName].selectedCharacterForDeletion or strformat("%s.%s", self.currentCharacter.realm, self.currentCharacter.name)
+					return self.db.global.realms[realmName].selectedCharacterForDeletion
+				end,
+				set = function(info, value) self.db.global.realms[realmName].selectedCharacterForDeletion = value end,
+			}
+
+			for characterName, character in pairs(self.db.global.realms[realmName].characters) do
+				if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
+					local key = strformat("%s.%s", realmName, characterName)
+					options.args[realmName].args.characterSelectDelete.values[key] = characterName
+					options.args[realmName].args.characterSelectDelete.sorting[#options.args[realmName].args.characterSelectDelete.sorting + 1] = key
+				end
+			end
+
+			-- Button to delete the selected character from the select dropdown
+			order = order + 1
+			options.args[realmName].args.deleteCharacterButton = {
+				type = "execute",
+				name = L["optionsButtonDeleteCharacter"],
+				desc = L["optionsButtonDeleteCharacterTooltip"],
+				func = function(info, value)
+					local realm, name = strsplit(".", self.db.global.realms[realmName].selectedCharacterForDeletion)
+					self.db.global.realms[realm].characters[name] = nil
+					self.db.global.options.shownCharacters[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
+					options.args[realmName].args[name] = nil
+					options.args[realmName].args.characterSelectDelete.values[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
+					local sortedIndex = tIndexOf(options.args[realmName].args.characterSelectDelete.sorting, self.db.global.realms[realmName].selectedCharacterForDeletion)
+					if sortedIndex then
+						options.args[realmName].args.characterSelectDelete.sorting[sortedIndex] = nil
+					end
+					-- Display an options header depending if we have eligible characters to track or not, on this realm
+					if (not ContainsIf(self.db.global.realms[realmName].characters, function(character) return RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level) end)) then
+						options.args[realmName].args.displayedCharactersHeader.name = L["optionsNoCharactersHeader"]
+					end
+					AceConfigRegistry:NotifyChange(addOnName)
+				end,
+				order = order,
+				confirm = function()
+					local _, name = strsplit(".", self.db.global.realms[realmName].selectedCharacterForDeletion)
+					return string.format(L["optionsButtonDeleteCharacterConfirm"], name);
+				end,
+				disabled = function()
+					if not self.db.global.realms[realmName].selectedCharacterForDeletion then
+						return true
+					end
+				end,
+			}
+		--end
+	end
+
+	return options
+end
 --- Called when the addon is initialized
 function RackensTracker:OnInitialize()
 	-- Load saved variables
@@ -111,7 +227,7 @@ function RackensTracker:OnInitialize()
 	self.tracker_frame = nil
 	self.optionsCategory = nil
 	self.optionsLayout = nil
-	self.realmSubCategoriesAndLayouts = nil
+	self.realmSubFramesAndCategoryIds = nil
 
 	-- TODO: Investigate later if this needs to go back down to OnEnable or not
 	local characterName = UnitName("player")
@@ -135,7 +251,11 @@ function RackensTracker:OnInitialize()
 
 	local function OnQuestOptionSettingChanged(_, setting, value)
 		local variable = setting:GetVariable()
-		self.db.global.options.shownQuests[variable] = value
+		if (variable == "showQuests") then
+			self.db.global.options.showQuests = value
+		else
+			self.db.global.options.shownQuests[variable] = value
+		end
 	end
 
 	local function OnCurrencyOptionSettingChanged(_, setting, value)
@@ -147,18 +267,16 @@ function RackensTracker:OnInitialize()
 		end
 	end
 
-	local function OnCharacterOptionChanged(_, setting, value)
-		local variable = setting:GetVariable()
-		self.db.global.options.shownCharacters[variable] = value
-	end
-
 	self.OnQuestOptionSettingChanged = OnQuestOptionSettingChanged
 	self.OnCurrencyOptionSettingChanged = OnCurrencyOptionSettingChanged
-	self.OnCharacterOptionChanged = OnCharacterOptionChanged
 	self.OnRealmOptionChanged = OnRealmOptionChanged
 
+	local options = self:CreateRealmOptions()
+	LibStub("AceConfig-3.0"):RegisterOptionsTable(addOnName, options)
 	-- Sets up the layout and options see under the AddOn options
-	self:RegisterAddOnSettings(OnQuestOptionSettingChanged, OnCurrencyOptionSettingChanged, OnCharacterOptionChanged, OnRealmOptionChanged)
+	AceConfigRegistry:NotifyChange(addOnName)
+	
+	self:RegisterAddOnSettings(OnQuestOptionSettingChanged, OnCurrencyOptionSettingChanged, OnRealmOptionChanged)
 
 	-- Setup the data broken and the minimap icon
 	self.libDataBroker = LibStub("LibDataBroker-1.1", true)
@@ -197,12 +315,13 @@ end
 --- Registers this AddOns configurable settings and specifies the layout and graphical elements for the settings panel.
 ---@param OnQuestOptionChanged function
 ---@param OnCurrencyOptionChanged function
----@param OnCharacterOptionChanged function
 ---@param OnRealmOptionChanged function
-function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOptionChanged, OnCharacterOptionChanged, OnRealmOptionChanged)
+function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOptionChanged, OnRealmOptionChanged)
 	-- Register the Options menu
 	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory(addOnName)
-	self.realmSubCategoriesAndLayouts = {}
+	self.optionsCategory.ID = addOnName
+
+	self.realmSubFramesAndCategoryIds = {}
 	local realmsAvailable = GetKeysArray(self.db.global.realms)
 	table.sort(realmsAvailable, function(a,b) return a < b end)
 
@@ -228,69 +347,33 @@ function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOp
 		shownRealmSetting:SetValue(self.db.global.options[realmsDropDownOptionVariable], true)
 	end
 
-	-- Create one subcategory with characters to display per realm
-	for _, realmName in ipairs(realmsAvailable) do
-		self.realmSubCategoriesAndLayouts[realmName] = {}
-		self.realmSubCategoriesAndLayouts[realmName].optionsCategory, self.realmSubCategoriesAndLayouts[realmName].optionsLayout = Settings.RegisterVerticalLayoutSubcategory(self.optionsCategory, realmName)
-
-		-- Display an options header depending if we have eligible characters to track or not, on this realm
-		if (not ContainsIf(self.db.global.realms[realmName].characters, function(character) return RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level) end)) then
-			self.realmSubCategoriesAndLayouts[realmName].optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsNoCharactersHeader"]))
-		else
-			self.realmSubCategoriesAndLayouts[realmName].optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCharactersHeader"]))
-		end
-
-		-- Character options
-		for characterName, character in pairs(self.db.global.realms[realmName].characters) do
-			if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
-				local variable = strformat("%s.%s", character.realm, characterName)
-				local name = characterName
-				local setting = Settings.RegisterAddOnSetting(self.realmSubCategoriesAndLayouts[realmName].optionsCategory, name, variable, Settings.VarType.Boolean, Settings.Default.True)
-				Settings.CreateCheckBox(self.realmSubCategoriesAndLayouts[realmName].optionsCategory, setting, L["optionsToggleCharacterTooltip"])
-				Settings.SetOnValueChangedCallback(variable, OnCharacterOptionChanged)
-				-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
-				-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
-				setting:SetValue(self.db.global.options.shownCharacters[variable], true) -- true means force
-			end
-		end
-		-- TODO: Figure out a better way to show these buttons.
-		-- self.realmSubCategoriesAndLayouts[realmName].optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Delete Characters"))
-		-- for characterName, character in pairs(self.db.global.realms[realmName].characters) do
-		-- 	if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
-		-- 		local variable = strformat("%s.%s", character.realm, characterName)
-		-- 		-- Add a delete button underneath
-		-- 		local deleteButtonName = string.format("%s %s", L["optionsButtonDeleteCharacter"], characterName)
-		-- 		local deleteButtonText = L["optionsButtonDeleteCharacter"]
-		-- 		local addSearchTags = true
-		-- 		local function OnCharacterDelete()
-		-- 			print("Deleting character: " .. realmName.. "-" .. characterName)
-		-- 			-- Todo: Use the StaticPopup system here to warn?
-		-- 			self.db.global.realms[realmName].characters[characterName] = nil
-		-- 			self.db.global.options.shownCharacters[variable] = nil
-		-- 		end
-		-- 		local deleteButtonInitializer = CreateSettingsButtonInitializer(deleteButtonName, deleteButtonText, OnCharacterDelete, "Deletes a character from the tracking database", addSearchTags)
-		-- 		self.realmSubCategoriesAndLayouts[realmName].optionsLayout:AddInitializer(deleteButtonInitializer)
-		-- 	end
-		-- end
-	end
-
 	-- Weekly / Daily options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsQuestsHeader"]))
+	local allQuestsOptionVariable = "showQuests"
+	local allQuestsOptionDisplayName = L["optionsToggleDescriptionShowQuests"]
+	local defaultAllQuestsVisibilityValue = database_defaults.global.options.showQuests
+	local allQuestsOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allQuestsOptionDisplayName, allQuestsOptionVariable, type(defaultAllQuestsVisibilityValue), defaultAllQuestsVisibilityValue)
+	local allQuestsOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, allQuestsOptionVisibilitySetting)
+	Settings.SetOnValueChangedCallback(allQuestsOptionVariable, OnQuestOptionChanged)
+	allQuestsOptionVisibilitySetting:SetValue(self.db.global.options.showQuests, true) -- true means force
+
 	local weeklyQuestOptionVariable = "Weekly"
 	local weeklyQuestOptionDisplayName = L["optionsToggleDescriptionWeeklyQuest"]
 	local defaultWeeklyQuestVisibilityValue = database_defaults.global.options.shownQuests[weeklyQuestOptionVariable]
 	local weeklyQuestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, weeklyQuestOptionDisplayName, weeklyQuestOptionVariable, type(defaultWeeklyQuestVisibilityValue), defaultWeeklyQuestVisibilityValue)
-	Settings.CreateCheckBox(self.optionsCategory, weeklyQuestOptionVisibilitySetting)
+	local weeklyQuestOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, weeklyQuestOptionVisibilitySetting)
 	Settings.SetOnValueChangedCallback(weeklyQuestOptionVariable, OnQuestOptionChanged)
 	weeklyQuestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[weeklyQuestOptionVariable], true) -- true means force
+	weeklyQuestOptionInitializer:SetParentInitializer(allQuestsOptionInitializer, function() return allQuestsOptionVisibilitySetting:GetValue() end)
 
 	local dailyQuestOptionVariable = "Daily"
 	local dailyQuestOptionDisplayName = L["optionsToggleDescriptionDailyQuest"]
 	local defaultDailyQuestVisibilityValue = database_defaults.global.options.shownQuests[dailyQuestOptionVariable]
 	local dailyquestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, dailyQuestOptionDisplayName, dailyQuestOptionVariable, type(defaultDailyQuestVisibilityValue), defaultDailyQuestVisibilityValue)
-	Settings.CreateCheckBox(self.optionsCategory, dailyquestOptionVisibilitySetting)
+	local dailyQuestOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, dailyquestOptionVisibilitySetting)
 	Settings.SetOnValueChangedCallback(dailyQuestOptionVariable, OnQuestOptionChanged)
 	dailyquestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[dailyQuestOptionVariable], true) -- true means force
+	dailyQuestOptionInitializer:SetParentInitializer(allQuestsOptionInitializer, function() return allQuestsOptionVisibilitySetting:GetValue() end)
 
 	-- Currency options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
@@ -305,7 +388,6 @@ function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOp
 	for _, currency in ipairs(RT.Currencies) do
 		local variable = tostring(currency.id)
 		local name = currency:GetName()
-		-- Look at our database_defaults for a default value.
 		local defaultValue = database_defaults.global.options.shownCurrencies[variable]
 		local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, type(defaultValue), defaultValue)
 		local initializer = Settings.CreateCheckBox(self.optionsCategory, setting, L["optionsToggleCurrencyTooltip"])
@@ -318,6 +400,12 @@ function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOp
 	end
 
 	Settings.RegisterAddOnCategory(self.optionsCategory)
+
+	-- Create one option subcategory with characters to display per realm
+	for _, realmName in ipairs(realmsAvailable) do
+		self.realmSubFramesAndCategoryIds[realmName] = {}
+		self.realmSubFramesAndCategoryIds[realmName].frame, self.realmSubFramesAndCategoryIds[realmName].categoryID = AceConfigDialog:AddToBlizOptions(addOnName, realmName, self.optionsCategory:GetID(), realmName)
+	end
 end
 
 --- Called when the addon is enabled
@@ -333,6 +421,7 @@ end
 function RackensTracker:OnDisable()
 	-- Called when the addon is disabled
 	self:UnregisterChatCommand(addOnName)
+	self:UnhookAll()
 end
 
 --- Updates the database with the new level for the current character
@@ -345,9 +434,9 @@ end
 ---@param newLevel number
 function RackensTracker:OnEventPlayerLevelUp(event, newLevel)
 	self:UpdateCharacterLevel(newLevel)
-	--- TODO: This should be done in a better way, we are just force creating a new options menu just to add one checkbox :/
 	if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(newLevel)) then
-		self:RegisterAddOnSettings(self.OnQuestOptionSettingChanged, self.OnCurrencyOptionSettingChanged, self.OnCharacterOptionChanged, self.OnRealmOptionChanged)
+		--self:RegisterAddOnSettings(self.OnQuestOptionSettingChanged, self.OnCurrencyOptionSettingChanged, self.OnRealmOptionChanged)
+		AceConfigRegistry:NotifyChange(addOnName)
 	end
 end
 
@@ -529,7 +618,7 @@ end
 ---@param container AceGUIWidget
 ---@param characterName string name of the character to render quests for
 function RackensTracker:DrawQuests(container, characterName)
-	if (not ContainsIf(self.db.global.options.shownQuests, function(questTypeEnabled) return questTypeEnabled end)) then
+	if (not ContainsIf(self.db.global.options.shownQuests, function(questTypeEnabled) return questTypeEnabled end) or not self.db.global.options.showQuests) then
 		return
 	end
 
@@ -640,7 +729,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	container:AddChild(currenciesGroup)
 
 	local currencyDisplayLabel
-	local colorizedName, icon, quantity = "", "", 0
+	local colorizedName, icon, quantity, maxQuantity = "", "", 0, 0
 
 	for _, currency in ipairs(RT.Currencies) do
 		if (self.db.global.options.shownCurrencies[tostring(currency.id)]) then
@@ -655,18 +744,33 @@ function RackensTracker:DrawCurrencies(container, characterName)
 			-- If this character has this currency, that means we have quantity information.
 			if (characterCurrencies[currency.id]) then
 				quantity = characterCurrencies[currency.id].quantity
+				maxQuantity = characterCurrencies[currency.id].maxQuantity
 			else
 				-- The selected character doesnt have any quantity for the currency.
 				quantity = 0
+				maxQuantity = 0
 			end
 
 			if (quantity == 0) then
 				local disabledAmount = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.GRAY_FONT_COLOR_CODE, quantity)
 				currencyDisplayLabel:SetText(strformat("%s\n%s %s", colorizedName, icon, disabledAmount))
 			else
-				currencyDisplayLabel:SetText(strformat("%s\n%s %s", colorizedName, icon, quantity))
+				if (maxQuantity ~= 0) then
+					currencyDisplayLabel:SetText(strformat("%s\n%s %s/%s", colorizedName, icon, quantity, maxQuantity))
+				else
+					currencyDisplayLabel:SetText(strformat("%s\n%s %s", colorizedName, icon, quantity))
+				end
 			end
 
+			if not self:IsHooked(currencyDisplayLabel.frame, "OnEnter") and not self:IsHooked(currencyDisplayLabel.frame, "OnLeave") then
+				self:SecureHookScript(currencyDisplayLabel.frame, "OnEnter", function()
+					GameTooltip:SetOwner(currencyDisplayLabel.frame, "ANCHOR_CURSOR")
+					GameTooltip:SetCurrencyTokenByID(currency.id)
+				end)
+				self:SecureHookScript(currencyDisplayLabel.frame, "OnLeave", function()
+					GameTooltip:Hide()
+				end)
+			end
 			currenciesGroup:AddChild(currencyDisplayLabel)
 		end
 	end
@@ -724,6 +828,7 @@ function RackensTracker:GetSavedInstanceInformationFor(characterName)
 				savedInstance.maxPlayers,
 				savedInstance.difficultyID,
 				savedInstance.difficultyName,
+				savedInstance.toggleDifficultyID,
 				savedInstance.encountersTotal,
 				savedInstance.encountersCompleted)
 				if (isRaid) then
@@ -905,6 +1010,7 @@ function RackensTracker:CloseTrackerFrame()
 	AceGUI:Release(self.tracker_frame)
 	self.tracker_frame = nil
 	self.tracker_tabs = nil
+	self:UnhookAll()
 end
 
 --- Opens the setting panel for the AddOn
@@ -912,7 +1018,7 @@ function RackensTracker:OpenOptionsFrame()
 	if (self.tracker_frame) then
 		self:CloseTrackerFrame()
 	end
-	Settings.OpenToCategory(self.optionsCategory:GetID())
+	Settings.OpenToCategory(addOnName)
 end
 
 --- Toggles visibility of the tracker frame
@@ -953,6 +1059,7 @@ function RackensTracker:OpenTrackerFrame()
 		AceGUI:Release(widget)
 		self.tracker_frame = nil
 		self.tracker_tabs = nil
+		self:UnhookAll()
 	end)
 
 	-- Create our TabGroup

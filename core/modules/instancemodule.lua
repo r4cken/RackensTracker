@@ -26,7 +26,7 @@ local function GetCharacterLockouts()
 		for i = 1, MAX_RAID_INFOS do -- blizz ui stores max 20 entries per character so why not follow suit
 			if ( i <= nSavedInstances) then
 				local instanceName, lockoutID, resetsIn, difficultyID, isLocked, _, _, isRaid, maxPlayers, difficultyName, encountersTotal, encountersCompleted, _, instanceID = GetSavedInstanceInfo(i)
-				local _, _, isHeroic, _, _, _, _ = GetDifficultyInfo(difficultyID);
+				local _, _, isHeroic, _, _, _, toggleDifficultyID = GetDifficultyInfo(difficultyID);
 
 				-- Only store active lockouts
 				if resetsIn > 0 and isLocked then
@@ -43,6 +43,7 @@ local function GetCharacterLockouts()
 						maxPlayers = maxPlayers,
 						difficultyID = difficultyID,
 						difficultyName = difficultyName,
+						toggleDifficultyID = toggleDifficultyID,
 						encountersTotal = encountersTotal,
 						encountersCompleted = encountersCompleted
 					}
