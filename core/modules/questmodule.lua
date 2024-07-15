@@ -12,6 +12,7 @@ local addon = LibStub("AceAddon-3.0"):GetAddon(addOnName) --[[@as RackensTracker
 
 ---@class QuestModule: AceModule, AceConsole-3.0, AceEvent-3.0, AddonModulePrototype
 local QuestModule = addon:NewModule("Quests", "AceEvent-3.0")
+addon:DisableModule("Quests")
 
 local function Log(message, ...)
 	if (addon.LOGGING_ENABLED) then
@@ -269,8 +270,9 @@ end
 
 
 function QuestModule:OnInitialize()
+	Log("Initializing")
     -- Reset any character's weekly or daily quests if it meets the criteria to do so
-    self:ResetTrackedQuestsIfNecessary()
+    --self:ResetTrackedQuestsIfNecessary()
 end
 
 function QuestModule:OnEnable()
