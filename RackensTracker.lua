@@ -947,7 +947,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		raidGroup:AddChild(raidInstanceNameLabels[raidInstanceIndex])
 		instanceProgress = RT.ColorUtil:FormatEncounterProgress(raidInstance.encountersCompleted, raidInstance.encountersTotal)
 		instanceProgressLabel = AceGUI:Create("Label")
-		instanceProgressLabel:SetText(strformat("%s%s: %s", CreateAtlasMarkup("DungeonSkull", 12, 12), L["progress"], instanceProgress))
+		instanceProgressLabel:SetText(strformat("%s: %s", L["progress"], instanceProgress))
 		instanceProgressLabel:SetFullWidth(true)
 		instanceProgressLabel:SetHeight(labelHeight)
 
@@ -955,7 +955,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 			self:SecureHookScript(raidInstanceNameLabels[raidInstanceIndex].frame, "OnEnter", function()
 				GameTooltip:ClearLines()
 				GameTooltip:SetOwner(raidInstanceNameLabels[raidInstanceIndex].frame, "ANCHOR_CURSOR")
-					GameTooltip:AddLine(strformat(INSTANCE_LOCK_SS, characterName, raidInstance.instanceName))
+				GameTooltip:AddLine(strformat(L["bossesAndIcon"], CreateAtlasMarkup("DungeonSkull", 12, 12)))
 					for _, encounterInfo in ipairs(raidInstance.encounterInformation) do
 						local rightRed = encounterInfo.isKilled and 1 or 0
 						local rightGreen = encounterInfo.isKilled and 0 or 1
