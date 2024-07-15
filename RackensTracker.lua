@@ -196,6 +196,7 @@ function RackensTracker:CreateRealmOptions()
 					if (not ContainsIf(self.db.global.realms[realmName].characters, function(character) return RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level) end)) then
 						options.args[realmName].args.displayedCharactersHeader.name = L["optionsNoCharactersHeader"]
 					end
+					self.db.global.realms[realmName].selectedCharacterForDeletion = nil
 					AceConfigRegistry:NotifyChange(addOnName)
 				end,
 				order = order,
