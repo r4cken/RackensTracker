@@ -34,19 +34,24 @@ function ColorUtil:FormatEncounterProgress(progress, numEncounters)
     if progress == nil then
         return nil
      end
-     local color
-     if (progress == 0) then
-        color = RED_FONT_COLOR_CODE
-     elseif (progress == numEncounters) then
-        color = GREEN_FONT_COLOR_CODE
-     else
-        color = ORANGE_FONT_COLOR_CODE
-     end
 
-     local progressColorized = self:FormatColor(color, "%i", progress)
-     local numEncountersColorized = self:FormatColor(GREEN_FONT_COLOR_CODE, "%i", numEncounters)
-     local colorizedTest = strformat("%s/%s", progressColorized, numEncountersColorized)
-     return colorizedTest
+     local progressColor
+     local completionColor
+     if (progress == 0) then
+        progressColor = GREEN_FONT_COLOR_CODE
+        completionColor = GREEN_FONT_COLOR_CODE
+     elseif (progress == numEncounters) then
+        progressColor = RED_FONT_COLOR_CODE
+        completionColor = RED_FONT_COLOR_CODE
+     else
+        progressColor = ORANGE_FONT_COLOR_CODE
+        completionColor = RED_FONT_COLOR_CODE
+     end
+     
+     local numEncountersColorized = self:FormatColor(completionColor, "%i", numEncounters)
+     local progressColorized = self:FormatColor(progressColor, "%i", progress)
+     local colorizedText = strformat("%s/%s", progressColorized, numEncountersColorized)
+     return colorizedText
 end
 
 RT.ColorUtil = ColorUtil

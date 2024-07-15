@@ -50,7 +50,7 @@ local EpicureansAward = Currency:New(81)
 local IllustriousJewelcraftersToken = Currency:New(361)
 local JewelcraftersToken = Currency:New(61)
 local DarkmoonPrizeTicket = Currency:New(515)
-local WintergraspMarks = Currency:New(126)
+-- local WintergraspMarks = Currency:New(126)
 -- local AlteracValleyMarks = Currency:New(121)
 -- local ArathiBasinMarks = Currency:New(122)
 -- local EyeOfTheStormMarks = Currency:New(123)
@@ -80,7 +80,6 @@ RT.Currencies = {
     IllustriousJewelcraftersToken,
     JewelcraftersToken,
     DarkmoonPrizeTicket,
-    WintergraspMarks,
 }
 
 RT.ExcludedCurrencyIds = {
@@ -90,7 +89,7 @@ RT.ExcludedCurrencyIds = {
     [123] = true,  -- Eye of the Storm Mark of Honor
     [124] = true,  -- Strand of the Ancients Mark of Honor
     [125] = true,  -- Warsong Gulch Mark of Honor
-    [126] = false, -- Wintergrasp Mark of Honor
+    [126] = true,  -- Wintergrasp Mark of Honor
     [181] = true,  -- Honor Points DEPRECATED2,
     -- [221] = true,   -- Emblem of Conquest
     -- [341] = true,   -- Emblem of Frost

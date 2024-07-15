@@ -7,8 +7,9 @@ local Instance = {}
 RT.Instance = Instance
 
 -- TODO: change the signature of the method to accept a table instead
-function Instance:New(instanceName, instanceID, lockoutID, resetsIn, isRaid, isHeroic, maxPlayers, difficultyID, difficultyName, toggleDifficultyID, encountersTotal, encountersCompleted)
+function Instance:New(savedInstanceIndex, instanceName, instanceID, lockoutID, resetsIn, isRaid, isHeroic, maxPlayers, difficultyID, difficultyName, toggleDifficultyID, encountersTotal, encountersCompleted, encounterInformation)
 	local instance = {
+		savedInstanceIndex = savedInstanceIndex,
         instanceName = instanceName,
         instanceID = instanceID,
         lockoutID = lockoutID,
@@ -20,7 +21,8 @@ function Instance:New(instanceName, instanceID, lockoutID, resetsIn, isRaid, isH
         difficultyName = difficultyName,
 		toggleDifficultyID = toggleDifficultyID,
         encountersTotal = encountersTotal,
-        encountersCompleted = encountersCompleted
+        encountersCompleted = encountersCompleted,
+		encounterInformation = encounterInformation
     }
 	setmetatable(instance, self)
 	self.__index = self

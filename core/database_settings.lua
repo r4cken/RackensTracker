@@ -82,7 +82,6 @@ local database_defaults = {
 				["361"] = true,  -- Illustrious Jewelcrafter's Token
 				["61"] = false,	 -- Dalaran Jewelcrafter's Token
 				["515"] = true,  -- Darkmoon Prize Ticket
-				["126"] = false, -- Wintergrasp Mark of Honor
 			},
 			shownCharacters = {
 				['*'] = true

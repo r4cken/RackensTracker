@@ -2,8 +2,8 @@ local addOnName, RT = ...
 
 local strformat = string.format
 local GetServerTime = GetServerTime
-local GetNumSavedInstances, GetSavedInstanceInfo, GetDifficultyInfo =
-      GetNumSavedInstances, GetSavedInstanceInfo, GetDifficultyInfo
+local GetNumSavedInstances, GetSavedInstanceInfo, GetSavedInstanceEncounterInfo, GetDifficultyInfo =
+      GetNumSavedInstances, GetSavedInstanceInfo, GetSavedInstanceEncounterInfo, GetDifficultyInfo
 
 local addon = LibStub("AceAddon-3.0"):GetAddon(addOnName) --[[@as RackensTracker]]
 
@@ -23,16 +23,27 @@ local function GetCharacterLockouts()
 	local nSavedInstances = GetNumSavedInstances()
 
 	if (nSavedInstances > 0) then
-		for i = 1, MAX_RAID_INFOS do -- blizz ui stores max 20 entries per character so why not follow suit
-			if ( i <= nSavedInstances) then
-				local instanceName, lockoutID, resetsIn, difficultyID, isLocked, _, _, isRaid, maxPlayers, difficultyName, encountersTotal, encountersCompleted, _, instanceID = GetSavedInstanceInfo(i)
+		for savedInstanceIndex = 1, MAX_RAID_INFOS do -- blizz ui stores max 20 entries per character so why not follow suit
+			if ( savedInstanceIndex <= nSavedInstances) then
+				local instanceName, lockoutID, resetsIn, difficultyID, isLocked, _, _, isRaid, maxPlayers, difficultyName, encountersTotal, encountersCompleted, _, instanceID = GetSavedInstanceInfo(savedInstanceIndex)
 				local _, _, isHeroic, _, _, _, toggleDifficultyID = GetDifficultyInfo(difficultyID);
 
 				-- Only store active lockouts
 				if resetsIn > 0 and isLocked then
 					local id = strformat("%s %s", instanceName, difficultyName)
+					local encounterInformation = {}
+					for encounterIndex = 1, encountersTotal do
+						local bossName, fileDataID, isKilled, _ = GetSavedInstanceEncounterInfo(savedInstanceIndex, encounterIndex)
+						encounterInformation[encounterIndex] =
+						{
+							bossName = bossName,
+							isKilled = isKilled,
+							fileDataID = fileDataID,
+						}
+					end
 					savedInstances[id] =
 					{
+						savedInstanceIndex = savedInstanceIndex,
 						instanceName = instanceName,
 						instanceID = instanceID,
 						lockoutID = lockoutID,
@@ -45,7 +56,8 @@ local function GetCharacterLockouts()
 						difficultyName = difficultyName,
 						toggleDifficultyID = toggleDifficultyID,
 						encountersTotal = encountersTotal,
-						encountersCompleted = encountersCompleted
+						encountersCompleted = encountersCompleted,
+						encounterInformation = encounterInformation,
 					}
 				end
 			end

@@ -757,7 +757,13 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				currencyDisplayLabel:SetText(strformat("%s\n%s %s", colorizedName, icon, disabledAmount))
 			else
 				if (maxQuantity ~= 0) then
-					currencyDisplayLabel:SetText(strformat("%s\n%s %s/%s", colorizedName, icon, quantity, maxQuantity))
+					if (quantity == maxQuantity) then
+						local maxQuantityColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.RED_FONT_COLOR_CODE, "%i", maxQuantity)
+						local quantityColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.RED_FONT_COLOR_CODE, "%i", quantity)
+						currencyDisplayLabel:SetText(strformat("%s\n%s %s/%s", colorizedName, icon, quantityColorized, maxQuantityColorized))
+					else
+						currencyDisplayLabel:SetText(strformat("%s\n%s %s/%s", colorizedName, icon, quantity, maxQuantity))
+					end
 				else
 					currencyDisplayLabel:SetText(strformat("%s\n%s %s", colorizedName, icon, quantity))
 				end
@@ -803,9 +809,7 @@ end
 ---@return boolean characterHasLockouts
 ---@return table raidInstances
 ---@return table dungeonInstances
----@return table lockoutInformation
 function RackensTracker:GetSavedInstanceInformationFor(characterName)
-	local lockoutInformation = {}
 	local raidInstances = RT.Container:New()
 	local dungeonInstances = RT.Container:New()
 
@@ -820,6 +824,7 @@ function RackensTracker:GetSavedInstanceInformationFor(characterName)
 			end
 
 			local instance = RT.Instance:New(
+				savedInstance.savedInstanceIndex,
 				savedInstance.instanceName,
 				savedInstance.instanceID,
 				savedInstance.lockoutID,
@@ -831,28 +836,20 @@ function RackensTracker:GetSavedInstanceInformationFor(characterName)
 				savedInstance.difficultyName,
 				savedInstance.toggleDifficultyID,
 				savedInstance.encountersTotal,
-				savedInstance.encountersCompleted)
+				savedInstance.encountersCompleted,
+				savedInstance.encounterInformation)
 				if (isRaid) then
-					if (raidInstances:Add(instance)) then
-						lockoutInformation[instance.id] = {}
-					end
-
-					lockoutInformation[instance.id]["progress"] = RT.ColorUtil:FormatEncounterProgress(instance.encountersCompleted, instance.encountersTotal)
+					raidInstances:Add(instance)
 				else
-					if (dungeonInstances:Add(instance)) then
-						lockoutInformation[instance.id] = {}
-					end
-
-					lockoutInformation[instance.id]["progress"] = RT.ColorUtil:FormatEncounterProgress(instance.encountersCompleted, instance.encountersTotal)
+					dungeonInstances:Add(instance)
 				end
-
 
 			characterHasLockouts = true
 		end
 	end
 
 
-	return characterHasLockouts, raidInstances, dungeonInstances, lockoutInformation
+	return characterHasLockouts, raidInstances, dungeonInstances
 
 end
 
@@ -864,7 +861,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	-- Refresh the currently known daily and weekly reset timers
 	RackensTracker:UpdateWeeklyDailyResetTime()
 
-	local characterHasLockouts, raidInstances, dungeonInstances, lockoutInformation = self:GetSavedInstanceInformationFor(characterName)
+	local characterHasLockouts, raidInstances, dungeonInstances = self:GetSavedInstanceInformationFor(characterName)
 	local nRaids, nDungeons = #raidInstances.sorted, #dungeonInstances.sorted
 
 	-- Heading
@@ -933,21 +930,36 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	local hasMoreRaidsThanDungeons = nRaids > nDungeons
 	local hasEqualRaidsAndDungeons = nRaids == nDungeons
 
-	local instanceNameLabel, instanceProgressLabel, instanceColorizedName = nil, nil, nil
+	local instanceProgressLabel, instanceColorizedName = nil, nil
+	local instanceProgress = nil
+	local raidInstanceNameLabels = {}
+	local dungeonInstanceNameLabels = {}
 	local labelHeight = 20
-	local lockoutInfo = {}
-	for _, instance in ipairs(raidInstances.sorted) do
-		lockoutInfo = lockoutInformation[instance.id]
-		instanceNameLabel = AceGUI:Create("Label")
-		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.NORMAL_FONT_COLOR_CODE, "%s", instance.id)
-		instanceNameLabel:SetText(instanceColorizedName)
-		instanceNameLabel:SetFullWidth(true)
-		instanceNameLabel:SetHeight(labelHeight)
-		raidGroup:AddChild(instanceNameLabel)
+
+	for raidInstanceIndex, raidInstance in ipairs(raidInstances.sorted) do
+		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.NORMAL_FONT_COLOR_CODE, "%s", raidInstance.id)
+		raidInstanceNameLabels[raidInstanceIndex] = AceGUI:Create("Label")
+		raidInstanceNameLabels[raidInstanceIndex]:SetText(instanceColorizedName)
+		raidInstanceNameLabels[raidInstanceIndex]:SetFullWidth(true)
+		raidInstanceNameLabels[raidInstanceIndex]:SetHeight(labelHeight)
+		raidGroup:AddChild(raidInstanceNameLabels[raidInstanceIndex])
+		instanceProgress = RT.ColorUtil:FormatEncounterProgress(raidInstance.encountersCompleted, raidInstance.encountersTotal)
 		instanceProgressLabel = AceGUI:Create("Label")
-		instanceProgressLabel:SetText(strformat("%s%s: %s", CreateAtlasMarkup("DungeonSkull", 12, 12), L["progress"], lockoutInfo.progress))
+		instanceProgressLabel:SetText(strformat("%s%s: %s", CreateAtlasMarkup("DungeonSkull", 12, 12), L["progress"], instanceProgress))
 		instanceProgressLabel:SetFullWidth(true)
 		instanceProgressLabel:SetHeight(labelHeight)
+
+		if not self:IsHooked(raidInstanceNameLabels[raidInstanceIndex].frame, "OnEnter") and not self:IsHooked(raidInstanceNameLabels[raidInstanceIndex].frame, "OnLeave") then
+			self:SecureHookScript(raidInstanceNameLabels[raidInstanceIndex].frame, "OnEnter", function()
+				GameTooltip:ClearLines()
+				GameTooltip:SetOwner(raidInstanceNameLabels[raidInstanceIndex].frame, "ANCHOR_CURSOR")
+				GameTooltip:SetInstanceLockEncountersComplete(raidInstance.savedInstanceIndex)
+			end)
+			self:SecureHookScript(raidInstanceNameLabels[raidInstanceIndex].frame, "OnLeave", function()
+				GameTooltip:Hide()
+			end)
+		end
+
 		raidGroup:AddChild(instanceProgressLabel)
 	end
 
@@ -961,18 +973,30 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	end
 
 	-- Fill in the character for this tab's dungeon lockouts
-	for _, instance in ipairs(dungeonInstances.sorted) do
-		lockoutInfo = lockoutInformation[instance.id]
-		instanceNameLabel = AceGUI:Create("Label")
-		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.NORMAL_FONT_COLOR_CODE, "%s", instance.id)
-		instanceNameLabel:SetText(instanceColorizedName)
-		instanceNameLabel:SetFullWidth(true)
-		instanceNameLabel:SetHeight(labelHeight)
-		dungeonGroup:AddChild(instanceNameLabel)
+	for dungeonInstanceIndex, dungeonInstance in ipairs(dungeonInstances.sorted) do
+		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.NORMAL_FONT_COLOR_CODE, "%s", dungeonInstance.id)
+		dungeonInstanceNameLabels[dungeonInstanceIndex] = AceGUI:Create("Label")
+		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetText(instanceColorizedName)
+		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetFullWidth(true)
+		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetHeight(labelHeight)
+		dungeonGroup:AddChild(dungeonInstanceNameLabels[dungeonInstanceIndex])
+		instanceProgress = RT.ColorUtil:FormatEncounterProgress(dungeonInstance.encountersCompleted, dungeonInstance.encountersTotal)
 		instanceProgressLabel = AceGUI:Create("Label")
-		instanceProgressLabel:SetText(strformat("%s%s: %s", CreateAtlasMarkup("DungeonSkull", 12, 12), L["progress"], lockoutInfo.progress))
+		instanceProgressLabel:SetText(strformat("%s%s: %s", CreateAtlasMarkup("DungeonSkull", 12, 12), L["progress"], instanceProgress))
 		instanceProgressLabel:SetFullWidth(true)
 		instanceProgressLabel:SetHeight(labelHeight)
+
+		if not self:IsHooked(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnEnter") and not self:IsHooked(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnLeave") then
+			self:SecureHookScript(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnEnter", function()
+				GameTooltip:ClearLines()
+				GameTooltip:SetOwner(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "ANCHOR_CURSOR")
+				GameTooltip:SetInstanceLockEncountersComplete(dungeonInstance.savedInstanceIndex)
+			end)
+			self:SecureHookScript(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnLeave", function()
+				GameTooltip:Hide()
+			end)
+		end
+
 		dungeonGroup:AddChild(instanceProgressLabel)
 	end
 
@@ -991,6 +1015,7 @@ end
 ---@param event string
 ---@param characterName string
 local function SelectCharacterTab(container, event, characterName)
+	RackensTracker:UnhookAll()
 	container:ReleaseChildren()
 
 	container:PauseLayout()
