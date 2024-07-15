@@ -13,6 +13,8 @@ local GetSecondsUntilWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset
 local GetSecondsUntilDailyReset  = C_DateAndTime.GetSecondsUntilDailyReset
 
 local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
+local INSTANCE_LOCK_SS, BOSS_DEAD, AVAILABLE =
+	  INSTANCE_LOCK_SS, BOSS_DEAD, AVAILABLE
 
 local UnitName, UnitLevel, CreateAtlasMarkup =
 	  UnitName, UnitLevel, CreateAtlasMarkup
@@ -953,7 +955,13 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 			self:SecureHookScript(raidInstanceNameLabels[raidInstanceIndex].frame, "OnEnter", function()
 				GameTooltip:ClearLines()
 				GameTooltip:SetOwner(raidInstanceNameLabels[raidInstanceIndex].frame, "ANCHOR_CURSOR")
-				GameTooltip:SetInstanceLockEncountersComplete(raidInstance.savedInstanceIndex)
+					GameTooltip:AddLine(strformat(INSTANCE_LOCK_SS, characterName, raidInstance.instanceName))
+					for _, encounterInfo in ipairs(raidInstance.encounterInformation) do
+						local rightRed = encounterInfo.isKilled and 1 or 0
+						local rightGreen = encounterInfo.isKilled and 0 or 1
+						GameTooltip:AddDoubleLine(encounterInfo.bossName, encounterInfo.isKilled and BOSS_DEAD or AVAILABLE, 1, 1, 1, rightRed, rightGreen, 0)
+					end
+					GameTooltip:Show()
 			end)
 			self:SecureHookScript(raidInstanceNameLabels[raidInstanceIndex].frame, "OnLeave", function()
 				GameTooltip:Hide()
