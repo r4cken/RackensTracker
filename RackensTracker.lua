@@ -736,7 +736,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 
 	for _, currency in ipairs(RT.Currencies) do
 		if (self.db.global.options.shownCurrencies[tostring(currency.id)]) then
-
+			local characterCurrency = characterCurrencies[currency.id]
 			currencyDisplayLabel = AceGUI:Create("Label")
 			currencyDisplayLabel:SetHeight(labelHeight)
 			currencyDisplayLabel:SetRelativeWidth(relWidthPerCurrency) -- Make each currency take up equal space and give each an extra 10%
@@ -745,9 +745,9 @@ function RackensTracker:DrawCurrencies(container, characterName)
 			icon = currency:GetIcon(12) --iconSize set to 12
 
 			-- If this character has this currency, that means we have quantity information.
-			if (characterCurrencies[currency.id]) then
-				quantity = characterCurrencies[currency.id].quantity
-				maxQuantity = characterCurrencies[currency.id].maxQuantity
+			if (characterCurrency) then
+				quantity = characterCurrency.quantity
+				maxQuantity = characterCurrency.maxQuantity
 			else
 				-- The selected character doesnt have any quantity for the currency.
 				quantity = 0
@@ -764,7 +764,12 @@ function RackensTracker:DrawCurrencies(container, characterName)
 						local quantityColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.RED_FONT_COLOR_CODE, "%i", quantity)
 						currencyDisplayLabel:SetText(strformat("%s\n%s %s/%s", colorizedName, icon, quantityColorized, maxQuantityColorized))
 					else
-						currencyDisplayLabel:SetText(strformat("%s\n%s %s/%s", colorizedName, icon, quantity, maxQuantity))
+						-- Currencies that dont have a total earned, which mostly is seasonal currencies.
+						if not characterCurrency.useTotalEarnedForMaxQty and characterCurrency.totalEarned == 0 then
+							currencyDisplayLabel:SetText(strformat("%s\n%s %s/%s", colorizedName, icon, quantity, maxQuantity))
+						else
+							currencyDisplayLabel:SetText(strformat("%s\n%s %s", colorizedName, icon, quantity))
+						end
 					end
 				else
 					currencyDisplayLabel:SetText(strformat("%s\n%s %s", colorizedName, icon, quantity))
@@ -774,6 +779,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 			if not self:IsHooked(currencyDisplayLabel.frame, "OnEnter") and not self:IsHooked(currencyDisplayLabel.frame, "OnLeave") then
 				self:SecureHookScript(currencyDisplayLabel.frame, "OnEnter", function()
 					GameTooltip:SetOwner(currencyDisplayLabel.frame, "ANCHOR_CURSOR")
+					--TODO: Replace this with a custom tooltip as this only displays currency information for the currently logged on character :(
 					GameTooltip:SetCurrencyTokenByID(currency.id)
 				end)
 				self:SecureHookScript(currencyDisplayLabel.frame, "OnLeave", function()

@@ -16,8 +16,9 @@ local function Log(message, ...)
 end
 
 --- Retrieves all the current players currencies
----@return { [string]: DbCurrency } currencies A table of currencies keyed by currencyID
+---@return table<number, DbCurrency> currencies A table of currencies keyed by currencyID
 local function GetCharacterCurrencies()
+	---@type table<number, DbCurrency>
 	local currencies = {}
 	-- Iterate over all known currency ID's
 	for currencyID = 61, 3000, 1 do
@@ -34,7 +35,9 @@ local function GetCharacterCurrencies()
 					maxQuantity = currency.maxQuantity,
 					quality = currency.quality,
 					iconFileID = currency.iconFileID,
-					discovered = currency.discovered
+					discovered = currency.discovered,
+					totalEarned = currency.totalEarned,
+					useTotalEarnedForMaxQty = currency.useTotalEarnedForMaxQty,
 				}
 		   end
 		end

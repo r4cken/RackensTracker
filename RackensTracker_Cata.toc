@@ -2,7 +2,7 @@
 ## Title: |TInterface/Addons/RackensTracker/Art/RackensTracker-Small:16:16|t|cff8142a8RackensTracker|r
 ## Notes: Tracks your weekly/daily quests, instance lockouts and currencies per realm, across all your characters
 ## Author: r4cken
-## Version: 0.1.2
+## Version: 0.1.3
 ## SavedVariables: RackensTrackerDB
 ## OptionalDeps: LibStub, CallbackHandler-1.0, Ace3
 

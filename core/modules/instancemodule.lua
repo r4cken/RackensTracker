@@ -19,6 +19,7 @@ end
 --- Retrieves all of the current characters locked raids and dungeons
 ---@return { [string]: DbSavedInstance } instances A table of raids and dungeons keyed by the string 'instanceName SPACE difficultyName'
 local function GetCharacterLockouts()
+	---@type table<string, DbSavedInstance>
 	local savedInstances = {}
 	local nSavedInstances = GetNumSavedInstances()
 
