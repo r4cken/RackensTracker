@@ -17,7 +17,7 @@ if L then
     L["noLockouts"] = "No lockouts"
     L["noTrackingAvailable"] = "No tracking information available"
     L["noTrackingAvailableDescription1"] = "RackensTracker can't display tracking information gathered about quest, instance lockout or currency information because"
-    L["noTrackingAvailableDescription2"] = "1. You've hidden all max level characters (level 80) for this realm using the options menu (enable at least one character to display tracking information)\n\n2. You haven't logged into any max level character (level 80) on this realm yet."
+    L["noTrackingAvailableDescription2"] = "1. You've hidden all max level characters (level 85) for this realm using the options menu (enable at least one character to display tracking information)\n\n2. You haven't logged into any max level character (level 85) on this realm yet."
     L["raids"] = "Raids"
     L["dungeons"] = "Dungeons"
     L["progress"] = "Progress"

@@ -990,7 +990,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		dungeonGroup:AddChild(dungeonInstanceNameLabels[dungeonInstanceIndex])
 		instanceProgress = RT.ColorUtil:FormatEncounterProgress(dungeonInstance.encountersCompleted, dungeonInstance.encountersTotal)
 		instanceProgressLabel = AceGUI:Create("Label")
-		instanceProgressLabel:SetText(strformat("%s%s: %s", CreateAtlasMarkup("DungeonSkull", 12, 12), L["progress"], instanceProgress))
+		instanceProgressLabel:SetText(strformat("%s: %s", L["progress"], instanceProgress))
 		instanceProgressLabel:SetFullWidth(true)
 		instanceProgressLabel:SetHeight(labelHeight)
 
@@ -998,7 +998,13 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 			self:SecureHookScript(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnEnter", function()
 				GameTooltip:ClearLines()
 				GameTooltip:SetOwner(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "ANCHOR_CURSOR")
-				GameTooltip:SetInstanceLockEncountersComplete(dungeonInstance.savedInstanceIndex)
+				GameTooltip:AddLine(strformat(L["bossesAndIcon"], CreateAtlasMarkup("DungeonSkull", 12, 12)))
+					for _, encounterInfo in ipairs(dungeonInstance.encounterInformation) do
+						local rightRed = encounterInfo.isKilled and 1 or 0
+						local rightGreen = encounterInfo.isKilled and 0 or 1
+						GameTooltip:AddDoubleLine(encounterInfo.bossName, encounterInfo.isKilled and BOSS_DEAD or AVAILABLE, 1, 1, 1, rightRed, rightGreen, 0)
+					end
+					GameTooltip:Show()
 			end)
 			self:SecureHookScript(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnLeave", function()
 				GameTooltip:Hide()

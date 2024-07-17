@@ -1,6 +1,6 @@
 local addOnName, RT = ... --[[@type string, table]]
 
-local LOGGING_ENABLED = true
+local LOGGING_ENABLED = false
 
 ---@class RackensTracker : AceModule, AceConsole-3.0, AceEvent-3.0
 ---@field db AceDBObject-3.0
