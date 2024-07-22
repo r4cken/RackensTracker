@@ -1,7 +1,12 @@
 local addOnName, RT = ...
 local addOnVersion = C_AddOns.GetAddOnMetadata(addOnName, "Version");
 
-local strformat = string.format
+local strformat, strsplit =
+	  string.format, strsplit
+
+local tIndexOf, tinsert =
+	  tIndexOf, tinsert
+
 local table, math, type, strtrim, pairs, ipairs =
 	  table, math, type, strtrim, pairs, ipairs
 
@@ -13,8 +18,8 @@ local GetSecondsUntilWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset
 local GetSecondsUntilDailyReset  = C_DateAndTime.GetSecondsUntilDailyReset
 
 local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
-local INSTANCE_LOCK_SS, BOSS_DEAD, AVAILABLE =
-	  INSTANCE_LOCK_SS, BOSS_DEAD, AVAILABLE
+local CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, BOSS_DEAD, AVAILABLE =
+	  CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, BOSS_DEAD, AVAILABLE
 
 local UnitName, UnitLevel, CreateAtlasMarkup =
 	  UnitName, UnitLevel, CreateAtlasMarkup
@@ -289,7 +294,6 @@ function RackensTracker:OnInitialize()
 		icon = [[Interface\Addons\RackensTracker\art\RackensTracker-Medium]],
 		OnClick = function(_, button)
 			if (button == "LeftButton") then
-				-- If the window is already created
 				self:ToggleTrackerFrame()
 			end
 			if (button == "RightButton") then
@@ -323,8 +327,8 @@ function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOp
 	-- Register the Options menu
 	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory(addOnName)
 	self.optionsCategory.ID = addOnName
-
 	self.realmSubFramesAndCategoryIds = {}
+
 	local realmsAvailable = GetKeysArray(self.db.global.realms)
 	table.sort(realmsAvailable, function(a,b) return a < b end)
 
@@ -438,7 +442,6 @@ end
 function RackensTracker:OnEventPlayerLevelUp(event, newLevel)
 	self:UpdateCharacterLevel(newLevel)
 	if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(newLevel)) then
-		--self:RegisterAddOnSettings(self.OnQuestOptionSettingChanged, self.OnCurrencyOptionSettingChanged, self.OnRealmOptionChanged)
 		AceConfigRegistry:NotifyChange(addOnName)
 	end
 end
@@ -610,7 +613,6 @@ end
 --- Draws the graphical elements to display which realm is currently being viewed
 ---@param container AceGUIWidget
 function RackensTracker:DrawCurrentRealmInfo(container)
-	--container:AddChild(CreateDummyFrame())
 	local realmHeading = AceGUI:Create("Heading")
 	realmHeading:SetFullWidth(true)
 	realmHeading:SetText(self.currentDisplayedRealm)
@@ -699,96 +701,6 @@ function RackensTracker:DrawQuests(container, characterName)
 	end
 
 	container:AddChild(CreateDummyFrame())
-end
-
---- Draws the graphical elements to display the currencies, given a known character name
----@param container AceGUIWidget
----@param characterName string name of the character to render quests for
-function RackensTracker:DrawCurrencies(container, characterName)
-	if (not ContainsIf(self.db.global.options.shownCurrencies, function(currencyTypeEnabled) return currencyTypeEnabled end) or not self.db.global.options.showCurrencies) then
-		return
-	end
-
-	local labelHeight = 20
-	local relWidthPerCurrency = 0.25 -- Use a quarter of the container space per item, making new rows as fit.
-
-	local characterCurrencies = self.db.global.realms[self.currentDisplayedRealm].characters[characterName].currencies
-
-	container:AddChild(CreateDummyFrame())
-
-	-- Heading
-	local currenciesHeading = AceGUI:Create("Heading")
-	currenciesHeading:SetText(L["currencies"])
-	currenciesHeading:SetFullWidth(true)
-	container:AddChild(currenciesHeading)
-
-	container:AddChild(CreateDummyFrame())
-
-	local currenciesGroup = AceGUI:Create("SimpleGroup")
-	currenciesGroup:SetLayout("Flow")
-	currenciesGroup:SetFullHeight(true)
-	currenciesGroup:SetFullWidth(true)
-
-	container:AddChild(currenciesGroup)
-
-	local currencyDisplayLabel
-	local colorizedName, icon, quantity, maxQuantity = "", "", 0, 0
-
-	for _, currency in ipairs(RT.Currencies) do
-		if (self.db.global.options.shownCurrencies[tostring(currency.id)]) then
-			local characterCurrency = characterCurrencies[currency.id]
-			currencyDisplayLabel = AceGUI:Create("Label")
-			currencyDisplayLabel:SetHeight(labelHeight)
-			currencyDisplayLabel:SetRelativeWidth(relWidthPerCurrency) -- Make each currency take up equal space and give each an extra 10%
-
-			colorizedName = currency:GetColorizedName()
-			icon = currency:GetIcon(12) --iconSize set to 12
-
-			-- If this character has this currency, that means we have quantity information.
-			if (characterCurrency) then
-				quantity = characterCurrency.quantity
-				maxQuantity = characterCurrency.maxQuantity
-			else
-				-- The selected character doesnt have any quantity for the currency.
-				quantity = 0
-				maxQuantity = 0
-			end
-
-			if (quantity == 0) then
-				local disabledAmount = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.GRAY_FONT_COLOR_CODE, quantity)
-				currencyDisplayLabel:SetText(strformat("%s\n%s %s", colorizedName, icon, disabledAmount))
-			else
-				if (maxQuantity ~= 0) then
-					if (quantity == maxQuantity) then
-						local maxQuantityColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.RED_FONT_COLOR_CODE, "%i", maxQuantity)
-						local quantityColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.RED_FONT_COLOR_CODE, "%i", quantity)
-						currencyDisplayLabel:SetText(strformat("%s\n%s %s/%s", colorizedName, icon, quantityColorized, maxQuantityColorized))
-					else
-						-- Currencies that dont have a total earned, which mostly is seasonal currencies.
-						if not characterCurrency.useTotalEarnedForMaxQty and characterCurrency.totalEarned == 0 then
-							currencyDisplayLabel:SetText(strformat("%s\n%s %s/%s", colorizedName, icon, quantity, maxQuantity))
-						else
-							currencyDisplayLabel:SetText(strformat("%s\n%s %s", colorizedName, icon, quantity))
-						end
-					end
-				else
-					currencyDisplayLabel:SetText(strformat("%s\n%s %s", colorizedName, icon, quantity))
-				end
-			end
-
-			if not self:IsHooked(currencyDisplayLabel.frame, "OnEnter") and not self:IsHooked(currencyDisplayLabel.frame, "OnLeave") then
-				self:SecureHookScript(currencyDisplayLabel.frame, "OnEnter", function()
-					GameTooltip:SetOwner(currencyDisplayLabel.frame, "ANCHOR_CURSOR")
-					--TODO: Replace this with a custom tooltip as this only displays currency information for the currently logged on character :(
-					GameTooltip:SetCurrencyTokenByID(currency.id)
-				end)
-				self:SecureHookScript(currencyDisplayLabel.frame, "OnLeave", function()
-					GameTooltip:Hide()
-				end)
-			end
-			currenciesGroup:AddChild(currencyDisplayLabel)
-		end
-	end
 end
 
 --- Returns the texture used to display the weekly or daily dungeon reset, together with the time remaining.
@@ -957,7 +869,9 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		instanceProgressLabel:SetFullWidth(true)
 		instanceProgressLabel:SetHeight(labelHeight)
 
-		if not self:IsHooked(raidInstanceNameLabels[raidInstanceIndex].frame, "OnEnter") and not self:IsHooked(raidInstanceNameLabels[raidInstanceIndex].frame, "OnLeave") then
+		-- Custom Instance information GameTooltip allowing us to inject information held by any character tracked about bosses killed.
+		if not self:IsHooked(raidInstanceNameLabels[raidInstanceIndex].frame, "OnEnter") and
+			not self:IsHooked(raidInstanceNameLabels[raidInstanceIndex].frame, "OnLeave") then
 			self:SecureHookScript(raidInstanceNameLabels[raidInstanceIndex].frame, "OnEnter", function()
 				GameTooltip:ClearLines()
 				GameTooltip:SetOwner(raidInstanceNameLabels[raidInstanceIndex].frame, "ANCHOR_CURSOR")
@@ -1000,6 +914,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		instanceProgressLabel:SetFullWidth(true)
 		instanceProgressLabel:SetHeight(labelHeight)
 
+		-- Custom Instance information GameTooltip allowing us to inject information held by any character tracked about bosses killed.
 		if not self:IsHooked(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnEnter") and not self:IsHooked(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnLeave") then
 			self:SecureHookScript(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnEnter", function()
 				GameTooltip:ClearLines()
@@ -1026,6 +941,118 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 				dungeonGroup:AddChild(CreateDummyFrame())
 				dungeonGroup:AddChild(CreateDummyFrame())
 			end
+		end
+	end
+end
+
+--- Draws the graphical elements to display the currencies, given a known character name
+---@param container AceGUIWidget
+---@param characterName string name of the character to render quests for
+function RackensTracker:DrawCurrencies(container, characterName)
+	if (not ContainsIf(self.db.global.options.shownCurrencies, function(currencyTypeEnabled) return currencyTypeEnabled end) or not self.db.global.options.showCurrencies) then
+		return
+	end
+
+	local labelHeight = 20
+	local relWidthPerCurrency = 0.25 -- Use a quarter of the container space per item, making new rows as fit.
+
+	local characterCurrencies = self.db.global.realms[self.currentDisplayedRealm].characters[characterName].currencies
+
+	container:AddChild(CreateDummyFrame())
+
+	-- Heading
+	local currenciesHeading = AceGUI:Create("Heading")
+	currenciesHeading:SetText(L["currencies"])
+	currenciesHeading:SetFullWidth(true)
+	container:AddChild(currenciesHeading)
+
+	container:AddChild(CreateDummyFrame())
+
+	local currenciesGroup = AceGUI:Create("SimpleGroup")
+	currenciesGroup:SetLayout("Flow")
+	currenciesGroup:SetFullHeight(true)
+	currenciesGroup:SetFullWidth(true)
+
+	container:AddChild(currenciesGroup)
+
+	local currencyDisplayLabels = {}
+	
+	for _, currency in ipairs(RT.Currencies) do
+		local colorizedName = ""
+		local icon = ""
+		local nameAndIcon = ""
+		local useTotalEarnedForMaxQty = false
+		local quantity = 0
+		local maxQuantity = 0
+		local totalEarned = 0
+
+		if (self.db.global.options.shownCurrencies[tostring(currency.id)]) then
+			local characterHeldCurrency = characterCurrencies[currency.id]
+			currencyDisplayLabels[currency.id] = AceGUI:Create("Label")
+			currencyDisplayLabels[currency.id]:SetHeight(labelHeight)
+			currencyDisplayLabels[currency.id]:SetRelativeWidth(relWidthPerCurrency) -- Make each currency take up equal space and give each an extra 10%
+
+			colorizedName = currency:GetColorizedName()
+			icon = currency:GetIcon(12) --iconSize set to 12
+			nameAndIcon = strformat("%s\n%s", colorizedName, icon)
+			useTotalEarnedForMaxQty = currency:GetUseTotalEarnedForMaxQty()
+
+			-- If this character has this currency, that means we have quantity information.
+			if (characterHeldCurrency) then
+				quantity = characterHeldCurrency.quantity
+				maxQuantity = characterHeldCurrency.maxQuantity
+				totalEarned = characterHeldCurrency.totalEarned
+			end
+			
+			if (quantity == 0) then
+				local zeroQuantity = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.GRAY_FONT_COLOR_CODE, quantity)
+				currencyDisplayLabels[currency.id]:SetText(strformat("%s %s", nameAndIcon, zeroQuantity))
+			else
+				currencyDisplayLabels[currency.id]:SetText(strformat("%s %s", nameAndIcon, quantity))
+				-- Currencies that dont have a seasonal cap but do have a maximum cap.
+				if (maxQuantity ~= 0) then
+					if not useTotalEarnedForMaxQty then
+						local isCapped = quantity == maxQuantity
+						local quantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.RED_FONT_COLOR_CODE, "%i", quantity)
+						local maxQuantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.RED_FONT_COLOR_CODE, "%i", maxQuantity)
+						currencyDisplayLabels[currency.id]:SetText(strformat("%s %s/%s", nameAndIcon, isCapped and quantityRedColorized or quantity, isCapped and maxQuantityRedColorized or maxQuantity))
+					end
+				end
+			end
+
+			-- Custom Currency GameTooltip allowing us to inject information about currencies held by any character tracked.
+			if not self:IsHooked(currencyDisplayLabels[currency.id].frame, "OnEnter") and
+				not self:IsHooked(currencyDisplayLabels[currency.id].frame, "OnLeave") then
+				self:SecureHookScript(currencyDisplayLabels[currency.id].frame, "OnEnter", function()
+					GameTooltip:ClearLines()
+					GameTooltip:SetOwner(currencyDisplayLabels[currency.id].frame, "ANCHOR_CURSOR")
+
+					GameTooltip:AddLine(colorizedName)
+					if (characterHeldCurrency.description ~= "") then
+						GameTooltip:AddLine(characterHeldCurrency.description, nil, nil, nil, true)
+					end
+
+					GameTooltip:AddLine(" ")
+
+					--- Display the Total of this currency either if its a seasonal one or a regular one without cap
+					if (maxQuantity == 0 or useTotalEarnedForMaxQty) then
+						GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.HIGHLIGHT_FONT_COLOR_CODE, quantity))
+					end
+					
+					-- Display the Total Maximum of this currency that has some sort of maximum cap or seasonal cap
+					if (maxQuantity ~= 0) then
+						local isRegularCapped = quantity == maxQuantity
+						local isSeasonCapped = useTotalEarnedForMaxQty and (totalEarned == maxQuantity)
+						GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.RED_FONT_COLOR_CODE or RT.ColorUtil.Color.HIGHLIGHT_FONT_COLOR_CODE, useTotalEarnedForMaxQty and totalEarned or quantity, maxQuantity))
+					end
+
+					GameTooltip:Show()
+				end)
+				self:SecureHookScript(currencyDisplayLabels[currency.id].frame, "OnLeave", function()
+					GameTooltip:Hide()
+				end)
+			end
+			currenciesGroup:AddChild(currencyDisplayLabels[currency.id])
 		end
 	end
 end
@@ -1122,12 +1149,12 @@ function RackensTracker:OpenTrackerFrame()
 	local tabName = ""
 
 	-- TODO: Enable configuration options to include certain characters regardless of their level.
-	--		 Currently only create tabs for each level 80 character and if none is found, we display a helpful message.
+	--		 Currently only create tabs for each level 85 character and if none is found, we display a helpful message.
 
 	local initialCharacterTab = self.currentCharacter.name
 	local isInitialCharacterMaxLevel = false
 
-	-- Create one tab per level 80 character
+	-- Create one tab per level 85 character
 	for characterName, character in pairs(self.db.global.realms[self.currentDisplayedRealm].characters) do
 		local optionsKey = strformat("%s.%s", character.realm, characterName)
 		if (self.db.global.options.shownCharacters[optionsKey]) then
@@ -1142,7 +1169,7 @@ function RackensTracker:OpenTrackerFrame()
 		end
 	end
 
-	-- Do we have ANY level 80 characters at all?
+	-- Do we have ANY level 85 characters at all?
 	local isAnyCharacterMaxLevel = #tabsData > 0
 	if (isAnyCharacterMaxLevel) then
 		-- Add the TabGroup to the main frame

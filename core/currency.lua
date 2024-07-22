@@ -37,7 +37,7 @@ local CreateTextureMarkup, GetCurrencyInfo =
 
 local DEFAULT_ICON_SIZE = 16
 local ITEM_QUALITY_COLORS = ITEM_QUALITY_COLORS
-local Constants = Constants
+--local Constants = Constants
 
 local Currency = {}
 RT.Currency = Currency
@@ -47,6 +47,13 @@ function Currency:New(id)
     setmetatable(currency, self)
     self.__index = self
     return currency
+end
+
+function Currency:GetUseTotalEarnedForMaxQty()
+    local currency = GetCurrencyInfo(self.id)
+    local useTotalEarnedForMaxQty = currency["useTotalEarnedForMaxQty"]
+    self.useTotalEarnedForMaxQty = self.useTotalEarnedForMaxQty or useTotalEarnedForMaxQty
+    return self.useTotalEarnedForMaxQty
 end
 
 -- Returns the localized name of the currency provided.
@@ -78,16 +85,6 @@ function Currency:GetIcon(iconSize)
 
     self.icon = self.icon or iconTexture
     return self.icon
-end
-
--- Returns the current amount of a currency the player has, or a provided overrideAmount is used
-function Currency:GetAmount(overrideAmount)
-    if (overrideAmount) then
-        return overrideAmount
-    else
-        self.quantity = GetCurrencyInfo(self.id)["quantity"]
-        return self.quantity
-    end
 end
 
 function Currency:__eq(other)
