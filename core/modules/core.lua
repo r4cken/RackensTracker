@@ -5,7 +5,7 @@ local LOGGING_ENABLED = false
 ---@class RackensTracker : AceModule, AceConsole-3.0, AceEvent-3.0
 ---@field db AceDBObject-3.0
 ---@field LOGGING_ENABLED boolean
-local addon = LibStub("AceAddon-3.0"):NewAddon(RT, addOnName, "AceConsole-3.0", "AceEvent-3.0", "AceHook-3.0")
+local addon = LibStub("AceAddon-3.0"):NewAddon(RT, addOnName, "AceConsole-3.0", "AceEvent-3.0")
 addon.LOGGING_ENABLED = LOGGING_ENABLED
 
 ---@class AddonModulePrototype

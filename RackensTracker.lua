@@ -428,7 +428,6 @@ end
 function RackensTracker:OnDisable()
 	-- Called when the addon is disabled
 	self:UnregisterChatCommand(addOnName)
-	self:UnhookAll()
 end
 
 --- Updates the database with the new level for the current character
@@ -617,6 +616,24 @@ function RackensTracker:DrawCurrentRealmInfo(container)
 	realmHeading:SetFullWidth(true)
 	realmHeading:SetText(self.currentDisplayedRealm)
 	container:AddChild(realmHeading)
+
+	-- Display weekly raid reset time
+	local raidResetTimeIconLabel = AceGUI:Create("Label")
+	local weeklyLockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(true)
+	raidResetTimeIconLabel:SetText(weeklyLockoutWithIcon)
+	raidResetTimeIconLabel:SetFullWidth(true)
+	raidResetTimeIconLabel:SetJustifyH("CENTER")
+
+	container:AddChild(raidResetTimeIconLabel)
+
+	-- Display dungeon daily reset time
+	local dungeonResetTimeIconLabel = AceGUI:Create("Label")
+	local dungeonLockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(false)
+	dungeonResetTimeIconLabel:SetText(dungeonLockoutWithIcon)
+	dungeonResetTimeIconLabel:SetFullWidth(true)
+	dungeonResetTimeIconLabel:SetJustifyH("CENTER")
+
+	container:AddChild(dungeonResetTimeIconLabel)
 end
 
 --- Draws the graphical elements to display the tracked quests, given a known character name
@@ -796,23 +813,6 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 
 	container:AddChild(lockoutsHeading)
 
-	-- Empty Row
-	container:AddChild(CreateDummyFrame())
-
-	-- Display weekly raid reset time
-	local raidResetTimeIconLabel = AceGUI:Create("Label")
-	local weeklyLockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(true)
-	raidResetTimeIconLabel:SetText(weeklyLockoutWithIcon)
-	raidResetTimeIconLabel:SetFullWidth(true)
-	container:AddChild(raidResetTimeIconLabel)
-
-	-- Display dungeon daily reset time
-	local dungeonResetTimeIconLabel = AceGUI:Create("Label")
-	local dungeonLockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(false)
-	dungeonResetTimeIconLabel:SetText(dungeonLockoutWithIcon)
-	dungeonResetTimeIconLabel:SetFullWidth(true)
-	container:AddChild(dungeonResetTimeIconLabel)
-
 	if (characterHasLockouts == false) then
 		return
 	end
@@ -858,7 +858,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 
 	for raidInstanceIndex, raidInstance in ipairs(raidInstances.sorted) do
 		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.NORMAL_FONT_COLOR_CODE, "%s", raidInstance.id)
-		raidInstanceNameLabels[raidInstanceIndex] = AceGUI:Create("Label")
+		raidInstanceNameLabels[raidInstanceIndex] = AceGUI:Create("InteractiveLabel")
 		raidInstanceNameLabels[raidInstanceIndex]:SetText(instanceColorizedName)
 		raidInstanceNameLabels[raidInstanceIndex]:SetFullWidth(true)
 		raidInstanceNameLabels[raidInstanceIndex]:SetHeight(labelHeight)
@@ -870,23 +870,22 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		instanceProgressLabel:SetHeight(labelHeight)
 
 		-- Custom Instance information GameTooltip allowing us to inject information held by any character tracked about bosses killed.
-		if not self:IsHooked(raidInstanceNameLabels[raidInstanceIndex].frame, "OnEnter") and
-			not self:IsHooked(raidInstanceNameLabels[raidInstanceIndex].frame, "OnLeave") then
-			self:SecureHookScript(raidInstanceNameLabels[raidInstanceIndex].frame, "OnEnter", function()
-				GameTooltip:ClearLines()
-				GameTooltip:SetOwner(raidInstanceNameLabels[raidInstanceIndex].frame, "ANCHOR_CURSOR")
-				GameTooltip:AddLine(strformat(L["bossesAndIcon"], CreateAtlasMarkup("DungeonSkull", 12, 12)))
-					for _, encounterInfo in ipairs(raidInstance.encounterInformation) do
-						local rightRed = encounterInfo.isKilled and 1 or 0
-						local rightGreen = encounterInfo.isKilled and 0 or 1
-						GameTooltip:AddDoubleLine(encounterInfo.bossName, encounterInfo.isKilled and BOSS_DEAD or AVAILABLE, 1, 1, 1, rightRed, rightGreen, 0)
-					end
-					GameTooltip:Show()
-			end)
-			self:SecureHookScript(raidInstanceNameLabels[raidInstanceIndex].frame, "OnLeave", function()
-				GameTooltip:Hide()
-			end)
-		end
+
+		raidInstanceNameLabels[raidInstanceIndex]:SetCallback("OnEnter", function()
+			GameTooltip:ClearLines()
+			GameTooltip:SetOwner(raidInstanceNameLabels[raidInstanceIndex].frame, "ANCHOR_CURSOR")
+			GameTooltip:AddLine(strformat(L["bossesAndIcon"], CreateAtlasMarkup("DungeonSkull", 12, 12)))
+			for _, encounterInfo in ipairs(raidInstance.encounterInformation) do
+				local rightRed = encounterInfo.isKilled and 1 or 0
+				local rightGreen = encounterInfo.isKilled and 0 or 1
+				GameTooltip:AddDoubleLine(encounterInfo.bossName, encounterInfo.isKilled and BOSS_DEAD or AVAILABLE, 1, 1, 1, rightRed, rightGreen, 0)
+			end
+			GameTooltip:Show()
+		end)
+
+		raidInstanceNameLabels[raidInstanceIndex]:SetCallback("OnLeave", function()
+			GameTooltip:Hide()
+		end)
 
 		raidGroup:AddChild(instanceProgressLabel)
 	end
@@ -903,7 +902,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	-- Fill in the character for this tab's dungeon lockouts
 	for dungeonInstanceIndex, dungeonInstance in ipairs(dungeonInstances.sorted) do
 		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.NORMAL_FONT_COLOR_CODE, "%s", dungeonInstance.id)
-		dungeonInstanceNameLabels[dungeonInstanceIndex] = AceGUI:Create("Label")
+		dungeonInstanceNameLabels[dungeonInstanceIndex] = AceGUI:Create("InteractiveLabel")
 		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetText(instanceColorizedName)
 		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetFullWidth(true)
 		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetHeight(labelHeight)
@@ -915,22 +914,21 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 		instanceProgressLabel:SetHeight(labelHeight)
 
 		-- Custom Instance information GameTooltip allowing us to inject information held by any character tracked about bosses killed.
-		if not self:IsHooked(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnEnter") and not self:IsHooked(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnLeave") then
-			self:SecureHookScript(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnEnter", function()
-				GameTooltip:ClearLines()
-				GameTooltip:SetOwner(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "ANCHOR_CURSOR")
-				GameTooltip:AddLine(strformat(L["bossesAndIcon"], CreateAtlasMarkup("DungeonSkull", 12, 12)))
-					for _, encounterInfo in ipairs(dungeonInstance.encounterInformation) do
-						local rightRed = encounterInfo.isKilled and 1 or 0
-						local rightGreen = encounterInfo.isKilled and 0 or 1
-						GameTooltip:AddDoubleLine(encounterInfo.bossName, encounterInfo.isKilled and BOSS_DEAD or AVAILABLE, 1, 1, 1, rightRed, rightGreen, 0)
-					end
-					GameTooltip:Show()
-			end)
-			self:SecureHookScript(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "OnLeave", function()
-				GameTooltip:Hide()
-			end)
-		end
+		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetCallback("OnEnter", function()
+			GameTooltip:ClearLines()
+			GameTooltip:SetOwner(dungeonInstanceNameLabels[dungeonInstanceIndex].frame, "ANCHOR_CURSOR")
+			GameTooltip:AddLine(strformat(L["bossesAndIcon"], CreateAtlasMarkup("DungeonSkull", 12, 12)))
+			for _, encounterInfo in ipairs(dungeonInstance.encounterInformation) do
+				local rightRed = encounterInfo.isKilled and 1 or 0
+				local rightGreen = encounterInfo.isKilled and 0 or 1
+				GameTooltip:AddDoubleLine(encounterInfo.bossName, encounterInfo.isKilled and BOSS_DEAD or AVAILABLE, 1, 1, 1, rightRed, rightGreen, 0)
+			end
+			GameTooltip:Show()
+		end)
+
+		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetCallback("OnLeave", function()
+			GameTooltip:Hide()
+		end)
 
 		dungeonGroup:AddChild(instanceProgressLabel)
 	end
@@ -988,7 +986,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 
 		if (self.db.global.options.shownCurrencies[tostring(currency.id)]) then
 			local characterHeldCurrency = characterCurrencies[currency.id]
-			currencyDisplayLabels[currency.id] = AceGUI:Create("Label")
+			currencyDisplayLabels[currency.id] = AceGUI:Create("InteractiveLabel")
 			currencyDisplayLabels[currency.id]:SetHeight(labelHeight)
 			currencyDisplayLabels[currency.id]:SetRelativeWidth(relWidthPerCurrency) -- Make each currency take up equal space and give each an extra 10%
 
@@ -1021,37 +1019,36 @@ function RackensTracker:DrawCurrencies(container, characterName)
 			end
 
 			-- Custom Currency GameTooltip allowing us to inject information about currencies held by any character tracked.
-			if not self:IsHooked(currencyDisplayLabels[currency.id].frame, "OnEnter") and
-				not self:IsHooked(currencyDisplayLabels[currency.id].frame, "OnLeave") then
-				self:SecureHookScript(currencyDisplayLabels[currency.id].frame, "OnEnter", function()
-					GameTooltip:ClearLines()
-					GameTooltip:SetOwner(currencyDisplayLabels[currency.id].frame, "ANCHOR_CURSOR")
+			currencyDisplayLabels[currency.id]:SetCallback("OnEnter", function()
+				GameTooltip:ClearLines()
+				GameTooltip:SetOwner(currencyDisplayLabels[currency.id].frame, "ANCHOR_CURSOR")
 
-					GameTooltip:AddLine(colorizedName)
-					if (characterHeldCurrency.description ~= "") then
-						GameTooltip:AddLine(characterHeldCurrency.description, nil, nil, nil, true)
-					end
+				GameTooltip:AddLine(colorizedName)
+				if (characterHeldCurrency.description ~= "") then
+					GameTooltip:AddLine(characterHeldCurrency.description, nil, nil, nil, true)
+				end
 
-					GameTooltip:AddLine(" ")
+				GameTooltip:AddLine(" ")
 
-					--- Display the Total of this currency either if its a seasonal one or a regular one without cap
-					if (maxQuantity == 0 or useTotalEarnedForMaxQty) then
-						GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.HIGHLIGHT_FONT_COLOR_CODE, quantity))
-					end
-					
-					-- Display the Total Maximum of this currency that has some sort of maximum cap or seasonal cap
-					if (maxQuantity ~= 0) then
-						local isRegularCapped = quantity == maxQuantity
-						local isSeasonCapped = useTotalEarnedForMaxQty and (totalEarned == maxQuantity)
-						GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.RED_FONT_COLOR_CODE or RT.ColorUtil.Color.HIGHLIGHT_FONT_COLOR_CODE, useTotalEarnedForMaxQty and totalEarned or quantity, maxQuantity))
-					end
+				--- Display the Total of this currency either if its a seasonal one or a regular one without cap
+				if (maxQuantity == 0 or useTotalEarnedForMaxQty) then
+					GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.HIGHLIGHT_FONT_COLOR_CODE, quantity))
+				end
 
-					GameTooltip:Show()
-				end)
-				self:SecureHookScript(currencyDisplayLabels[currency.id].frame, "OnLeave", function()
-					GameTooltip:Hide()
-				end)
-			end
+				-- Display the Total Maximum of this currency that has some sort of maximum cap or seasonal cap
+				if (maxQuantity ~= 0) then
+					local isRegularCapped = quantity == maxQuantity
+					local isSeasonCapped = useTotalEarnedForMaxQty and (totalEarned == maxQuantity)
+					GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.RED_FONT_COLOR_CODE or RT.ColorUtil.Color.HIGHLIGHT_FONT_COLOR_CODE, useTotalEarnedForMaxQty and totalEarned or quantity, maxQuantity))
+				end
+
+				GameTooltip:Show()
+			end)
+
+			currencyDisplayLabels[currency.id]:SetCallback("OnLeave", function()
+				GameTooltip:Hide()
+			end)
+
 			currenciesGroup:AddChild(currencyDisplayLabels[currency.id])
 		end
 	end
@@ -1062,7 +1059,6 @@ end
 ---@param event string
 ---@param characterName string
 local function SelectCharacterTab(container, event, characterName)
-	RackensTracker:UnhookAll()
 	container:ReleaseChildren()
 
 	container:PauseLayout()
@@ -1083,7 +1079,6 @@ function RackensTracker:CloseTrackerFrame()
 	AceGUI:Release(self.tracker_frame)
 	self.tracker_frame = nil
 	self.tracker_tabs = nil
-	self:UnhookAll()
 end
 
 --- Opens the setting panel for the AddOn
@@ -1121,18 +1116,17 @@ function RackensTracker:OpenTrackerFrame()
 	local addonTexture = CreateSimpleTextureMarkup([[Interface\Addons\RackensTracker\Art\RackensTracker-Small]], textureSize, textureSize)
 	self.tracker_frame:SetTitle(string.format("%s %s", addonTexture, addOnName))
 	self.tracker_frame:SetLayout("Fill")
-	self.tracker_frame:SetWidth(650)
+	self.tracker_frame:SetWidth(750)
 	self.tracker_frame:SetHeight(650)
 
 	-- Minimum width and height when resizing the window.
-	self.tracker_frame.frame:SetResizeBounds(650, 650)
+	self.tracker_frame.frame:SetResizeBounds(750, 650)
 
 	self.tracker_frame:SetCallback("OnClose", function(widget)
 		-- Clear any local tables containing processed instances and currencies
 		AceGUI:Release(widget)
 		self.tracker_frame = nil
 		self.tracker_tabs = nil
-		self:UnhookAll()
 	end)
 
 	-- Create our TabGroup
@@ -1173,6 +1167,7 @@ function RackensTracker:OpenTrackerFrame()
 	local isAnyCharacterMaxLevel = #tabsData > 0
 	if (isAnyCharacterMaxLevel) then
 		-- Add the TabGroup to the main frame
+		-- REALLY IMPORTANT THIS ISNT PLACED ON ANY OTHER LINE
 		self.tracker_frame:AddChild(self.tracker_tabs)
 
 		self.tracker_tabs:SetTabs(tabsData)
