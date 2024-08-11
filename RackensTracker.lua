@@ -1120,7 +1120,7 @@ function RackensTracker:OpenTrackerFrame()
 	self.tracker_frame:SetHeight(650)
 
 	-- Minimum width and height when resizing the window.
-	self.tracker_frame.frame:SetResizeBounds(750, 650)
+	self.tracker_frame.frame:SetResizeBounds(650, 650)
 
 	self.tracker_frame:SetCallback("OnClose", function(widget)
 		-- Clear any local tables containing processed instances and currencies
