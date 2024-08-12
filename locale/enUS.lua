@@ -1,6 +1,8 @@
 local L = LibStub("AceLocale-3.0"):NewLocale("RackensTracker", "enUS", true);
 
 if L then
+    L["itemLevel"] = "Item Level"
+    L["unknown"] = "unknown"
     L["bossesAndIcon"] = "Bosses %s"
     L["currentRealmLabel"] = "Viewing Tracking Data For:"
     L["raidLockExpiresIn"] = "Raid Locks Expire In"

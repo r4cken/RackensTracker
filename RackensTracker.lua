@@ -17,6 +17,9 @@ local GetServerTime = GetServerTime
 local GetSecondsUntilWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset
 local GetSecondsUntilDailyReset  = C_DateAndTime.GetSecondsUntilDailyReset
 
+local CreateSimpleTextureMarkup = CreateSimpleTextureMarkup
+local GetAverageItemLevel = GetAverageItemLevel
+
 local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
 local CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, BOSS_DEAD, AVAILABLE =
 	  CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, BOSS_DEAD, AVAILABLE
@@ -247,6 +250,8 @@ function RackensTracker:OnInitialize()
 	self.currentCharacter.faction = UnitFactionGroup("player")
 	self.currentCharacter.guid = UnitGUID("player")
 
+	self.currentCharacter.overallIlvl, self.currentCharacter.equippedIlvl = GetAverageItemLevel()
+
 	-- Update weekly and daily reset timers
 	self:UpdateWeeklyDailyResetTime()
 
@@ -283,7 +288,7 @@ function RackensTracker:OnInitialize()
 	LibStub("AceConfig-3.0"):RegisterOptionsTable(addOnName, options)
 	-- Sets up the layout and options see under the AddOn options
 	AceConfigRegistry:NotifyChange(addOnName)
-	
+
 	self:RegisterAddOnSettings(OnQuestOptionSettingChanged, OnCurrencyOptionSettingChanged, OnRealmOptionChanged)
 
 	-- Setup the data broken and the minimap icon
@@ -420,6 +425,9 @@ function RackensTracker:OnEnable()
 	-- Level up event
 	self:RegisterEvent("PLAYER_LEVEL_UP", "OnEventPlayerLevelUp")
 
+	-- ilvl Tracking
+	self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "OnPlayerEquipmentChanged")
+
 	-- Register Slash Commands
 	self:RegisterChatCommand(addOnName, "HandleSlashCommands")
 end
@@ -443,6 +451,14 @@ function RackensTracker:OnEventPlayerLevelUp(event, newLevel)
 	if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(newLevel)) then
 		AceConfigRegistry:NotifyChange(addOnName)
 	end
+end
+
+--- Called when the player's equipment has changed
+---@param event string PLAYER_EQUIPMENT_CHANGED
+---@param equipmentSlot number
+---@param hasCurrent boolean
+function RackensTracker:OnPlayerEquipmentChanged(event, equipmentSlot, hasCurrent)
+	self.currentCharacter.overallIlvl, self.currentCharacter.equippedIlvl = GetAverageItemLevel()
 end
 
 --- Prints the available slash commands used for this AddOn to the chat window
@@ -609,6 +625,35 @@ local function createTrackedQuestLogItemEntry(quest)
 	return questLabel
 end
 
+--- Draws the graphical elements to display character information (ilvl currently)
+---@param container AceGUIWidget
+---@param characterName string name of the character to render ilvl information for
+function RackensTracker:DrawCharacterInfo(container, characterName)
+	local characterHeading = AceGUI:Create("Heading")
+	characterHeading:SetFullWidth(true)
+	characterHeading:SetText(characterName)
+	container:AddChild(characterHeading)
+
+	local characterEquipmentIcon = AceGUI:Create("Label")
+	characterEquipmentIcon:SetFullWidth(true)
+	--characterEquipmentIcon:SetJustifyH("CENTER")
+	characterEquipmentIcon:SetText(RT.CharacterUtil:GetEquipmentIcon(24))
+
+	container:AddChild(characterEquipmentIcon)
+
+	local characterIlvlLabel = AceGUI:Create("Label")
+	characterIlvlLabel:SetFullWidth(true)
+	--characterIlvlLabel:SetJustifyH("CENTER")
+	if (self.db.global.realms[self.currentDisplayedRealm].characters[characterName].equippedIlvl ~= 0 or self.db.global.realms[self.currentDisplayedRealm].characters[characterName].overallIlvl ~= 0) then
+		characterIlvlLabel:SetText(strformat("%s: %d/%d", L["itemLevel"], self.db.global.realms[self.currentDisplayedRealm].characters[characterName].equippedIlvl, self.db.global.realms[self.currentDisplayedRealm].characters[characterName].overallIlvl))
+	else
+		characterIlvlLabel:SetText(strformat("%s: %s", L["itemLevel"], L["unknown"]))
+	end
+
+	container:AddChild(characterIlvlLabel)
+end
+
+
 --- Draws the graphical elements to display which realm is currently being viewed
 ---@param container AceGUIWidget
 function RackensTracker:DrawCurrentRealmInfo(container)
@@ -622,7 +667,7 @@ function RackensTracker:DrawCurrentRealmInfo(container)
 	local weeklyLockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(true)
 	raidResetTimeIconLabel:SetText(weeklyLockoutWithIcon)
 	raidResetTimeIconLabel:SetFullWidth(true)
-	raidResetTimeIconLabel:SetJustifyH("CENTER")
+	--raidResetTimeIconLabel:SetJustifyH("CENTER")
 
 	container:AddChild(raidResetTimeIconLabel)
 
@@ -631,7 +676,7 @@ function RackensTracker:DrawCurrentRealmInfo(container)
 	local dungeonLockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(false)
 	dungeonResetTimeIconLabel:SetText(dungeonLockoutWithIcon)
 	dungeonResetTimeIconLabel:SetFullWidth(true)
-	dungeonResetTimeIconLabel:SetJustifyH("CENTER")
+	--dungeonResetTimeIconLabel:SetJustifyH("CENTER")
 
 	container:AddChild(dungeonResetTimeIconLabel)
 end
@@ -974,7 +1019,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	container:AddChild(currenciesGroup)
 
 	local currencyDisplayLabels = {}
-	
+
 	for _, currency in ipairs(RT.Currencies) do
 		local colorizedName = ""
 		local icon = ""
@@ -1001,7 +1046,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				maxQuantity = characterHeldCurrency.maxQuantity
 				totalEarned = characterHeldCurrency.totalEarned
 			end
-			
+
 			if (quantity == 0) then
 				local zeroQuantity = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.GRAY_FONT_COLOR_CODE, quantity)
 				currencyDisplayLabels[currency.id]:SetText(strformat("%s %s", nameAndIcon, zeroQuantity))
@@ -1060,12 +1105,13 @@ end
 ---@param characterName string
 local function SelectCharacterTab(container, event, characterName)
 	container:ReleaseChildren()
-
+	
 	container:PauseLayout()
 	-- NOTE: Layout pausing is necessary in order for everything to calculate correctly during rendering
 	-- this fixes all my current sizing and anchoring problems, without this all hell breaks loose.
 	-- Figured out that every AddChild call runs PerformLayout EVERY TIME and this causes major layout shift and visual glitches
 	-- Just pause all layout calculations until after we placed all the widgets on screen.
+	RackensTracker:DrawCharacterInfo(container, characterName)
 	RackensTracker:DrawCurrentRealmInfo(container)
 	RackensTracker:DrawQuests(container, characterName)
 	RackensTracker:DrawSavedInstances(container, characterName)

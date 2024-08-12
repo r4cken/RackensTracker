@@ -58,6 +58,8 @@ RT.DatabaseSettings = DatabaseSettings
 ---@field realm string|nil
 ---@field faction string|nil
 ---@field guid string|nil
+---@field overallIlvl number
+---@field equippedIlvl number
 ---@field savedInstances table<string, DbSavedInstance>
 ---@field currencies table<currencyID, DbCurrency>
 ---@field quests table<questID, DbQuest>
@@ -109,6 +111,8 @@ local database_defaults = {
 						realm = nil,
 						faction = nil,
 						guid = nil,
+						overallIlvl = 0,
+						equippedIlvl = 0,
 						savedInstances = {},
 						currencies = {},
 						quests = {},
