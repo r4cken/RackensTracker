@@ -250,8 +250,6 @@ function RackensTracker:OnInitialize()
 	self.currentCharacter.faction = UnitFactionGroup("player")
 	self.currentCharacter.guid = UnitGUID("player")
 
-	self.currentCharacter.overallIlvl, self.currentCharacter.equippedIlvl = GetAverageItemLevel()
-
 	-- Update weekly and daily reset timers
 	self:UpdateWeeklyDailyResetTime()
 
@@ -430,6 +428,10 @@ function RackensTracker:OnEnable()
 
 	-- Register Slash Commands
 	self:RegisterChatCommand(addOnName, "HandleSlashCommands")
+
+	-- Update the stored item level for the current character
+	-- NOTE: This can't be put in OnInitialize because the function doesnt have access yet to the character data.
+	self.currentCharacter.overallIlvl, self.currentCharacter.equippedIlvl = GetAverageItemLevel()
 end
 
 --- Called when the addon is disabled
@@ -629,6 +631,8 @@ end
 ---@param container AceGUIWidget
 ---@param characterName string name of the character to render ilvl information for
 function RackensTracker:DrawCharacterInfo(container, characterName)
+	local character = self.db.global.realms[self.currentDisplayedRealm].characters[characterName]
+
 	local characterHeading = AceGUI:Create("Heading")
 	characterHeading:SetFullWidth(true)
 	characterHeading:SetText(characterName)
@@ -644,8 +648,8 @@ function RackensTracker:DrawCharacterInfo(container, characterName)
 	local characterIlvlLabel = AceGUI:Create("Label")
 	characterIlvlLabel:SetFullWidth(true)
 	--characterIlvlLabel:SetJustifyH("CENTER")
-	if (self.db.global.realms[self.currentDisplayedRealm].characters[characterName].equippedIlvl ~= 0 or self.db.global.realms[self.currentDisplayedRealm].characters[characterName].overallIlvl ~= 0) then
-		characterIlvlLabel:SetText(strformat("%s: %d/%d", L["itemLevel"], self.db.global.realms[self.currentDisplayedRealm].characters[characterName].equippedIlvl, self.db.global.realms[self.currentDisplayedRealm].characters[characterName].overallIlvl))
+	if (character.equippedIlvl ~= 0 or character.overallIlvl ~= 0) then
+		characterIlvlLabel:SetText(strformat("%s: %d/%d", L["itemLevel"], character.equippedIlvl, character.overallIlvl))
 	else
 		characterIlvlLabel:SetText(strformat("%s: %s", L["itemLevel"], L["unknown"]))
 	end
@@ -1111,8 +1115,8 @@ local function SelectCharacterTab(container, event, characterName)
 	-- this fixes all my current sizing and anchoring problems, without this all hell breaks loose.
 	-- Figured out that every AddChild call runs PerformLayout EVERY TIME and this causes major layout shift and visual glitches
 	-- Just pause all layout calculations until after we placed all the widgets on screen.
-	RackensTracker:DrawCharacterInfo(container, characterName)
 	RackensTracker:DrawCurrentRealmInfo(container)
+	RackensTracker:DrawCharacterInfo(container, characterName)
 	RackensTracker:DrawQuests(container, characterName)
 	RackensTracker:DrawSavedInstances(container, characterName)
 	RackensTracker:DrawCurrencies(container, characterName)
