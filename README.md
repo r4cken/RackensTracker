@@ -3,6 +3,8 @@ RackensTracker keeps track of all your characters currencies, raid and dungeon l
 
 The tracking window displays several relevant sections such as realm data, character data, lockout and currencies and each section is customizable allowing you to view what is most relevant for you.
 
+![image](https://github.com/user-attachments/assets/6ace5887-48b4-4ff0-8599-99d38e4d35d5)
+
 ## Features
 * Displays when raid and dungeon locks expire
 * Displays character data such as iLvl
