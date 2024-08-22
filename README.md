@@ -23,7 +23,7 @@ Keybind support added under Options ->Game->Keybindings allowing you to set a ke
 * Realm specific settings allowing you to delete characters from the tracking database
 
 ## Slash Commands
-/rackenstracker help menu
+/rackenstracker - Shows the text help menu
 
 /rackenstracker toggle - Closes or opens the tracking window
 
