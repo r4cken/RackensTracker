@@ -1,5 +1,6 @@
 local addOnName, RT = ...
 
+local MAX_RAID_INFOS = MAX_RAID_INFOS
 local strformat = string.format
 local GetServerTime = GetServerTime
 local GetNumSavedInstances, GetSavedInstanceInfo, GetSavedInstanceEncounterInfo, GetDifficultyInfo =

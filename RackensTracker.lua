@@ -157,7 +157,7 @@ function RackensTracker:CreateRealmOptions()
 			order = order + 1
 			options.args[realmName].args.deleteCharacterHeader = {
 				type = "header",
-				name = L["optionsSelectDeleteCharacter"],
+				name = L["optionsCharactersDeleteHeader"],
 				order = order,
 			}
 			order = order + 1
@@ -269,6 +269,15 @@ function RackensTracker:OnInitialize()
 		end
 	end
 
+	local function OnCharacterDataOptionSettingChanged(_, setting, value)
+		local variable = setting:GetVariable()
+		if (variable == "showCharacterData") then
+			self.db.global.options.showCharacterData = value
+		else
+			self.db.global.options.shownCharacterData[variable] = value
+		end
+	end
+
 	local function OnCurrencyOptionSettingChanged(_, setting, value)
 		local variable = setting:GetVariable()
 		if (variable == "showCurrencies") then
@@ -279,6 +288,7 @@ function RackensTracker:OnInitialize()
 	end
 
 	self.OnQuestOptionSettingChanged = OnQuestOptionSettingChanged
+	self.OnCharacterDataOptionSettingChanged = OnCharacterDataOptionSettingChanged
 	self.OnCurrencyOptionSettingChanged = OnCurrencyOptionSettingChanged
 	self.OnRealmOptionChanged = OnRealmOptionChanged
 
@@ -287,7 +297,7 @@ function RackensTracker:OnInitialize()
 	-- Sets up the layout and options see under the AddOn options
 	AceConfigRegistry:NotifyChange(addOnName)
 
-	self:RegisterAddOnSettings(OnQuestOptionSettingChanged, OnCurrencyOptionSettingChanged, OnRealmOptionChanged)
+	self:RegisterAddOnSettings(OnCharacterDataOptionSettingChanged, OnCurrencyOptionSettingChanged, OnRealmOptionChanged)
 
 	-- Setup the data broken and the minimap icon
 	self.libDataBroker = LibStub("LibDataBroker-1.1", true)
@@ -323,10 +333,10 @@ function RackensTracker:OnInitialize()
 end
 
 --- Registers this AddOns configurable settings and specifies the layout and graphical elements for the settings panel.
----@param OnQuestOptionChanged function
+---@param OnCharacterDataOptionSettingChanged function
 ---@param OnCurrencyOptionChanged function
 ---@param OnRealmOptionChanged function
-function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOptionChanged, OnRealmOptionChanged)
+function RackensTracker:RegisterAddOnSettings(OnCharacterDataOptionSettingChanged, OnCurrencyOptionChanged, OnRealmOptionChanged)
 	-- Register the Options menu
 	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory(addOnName)
 	self.optionsCategory.ID = addOnName
@@ -358,32 +368,32 @@ function RackensTracker:RegisterAddOnSettings(OnQuestOptionChanged, OnCurrencyOp
 	end
 
 	-- Weekly / Daily options
-	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsQuestsHeader"]))
-	local allQuestsOptionVariable = "showQuests"
-	local allQuestsOptionDisplayName = L["optionsToggleDescriptionShowQuests"]
-	local defaultAllQuestsVisibilityValue = database_defaults.global.options.showQuests
-	local allQuestsOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allQuestsOptionDisplayName, allQuestsOptionVariable, type(defaultAllQuestsVisibilityValue), defaultAllQuestsVisibilityValue)
-	local allQuestsOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, allQuestsOptionVisibilitySetting)
-	Settings.SetOnValueChangedCallback(allQuestsOptionVariable, OnQuestOptionChanged)
-	allQuestsOptionVisibilitySetting:SetValue(self.db.global.options.showQuests, true) -- true means force
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCharacterDataHeader"]))
+	local allCharacterDataOptionVariable = "showCharacterData"
+	local allCharacterDataOptionDisplayName = L["optionsToggleDescriptionShowCharacterData"]
+	local defaultAllCharacterDataVisibilityValue = database_defaults.global.options.showCharacterData
+	local allCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCharacterDataOptionDisplayName, allCharacterDataOptionVariable, type(defaultAllCharacterDataVisibilityValue), defaultAllCharacterDataVisibilityValue)
+	local allCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, allCharacterDataOptionVisibilitySetting)
+	Settings.SetOnValueChangedCallback(allCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
+	allCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.showCharacterData, true) -- true means force
 
-	local weeklyQuestOptionVariable = "Weekly"
-	local weeklyQuestOptionDisplayName = L["optionsToggleDescriptionWeeklyQuest"]
-	local defaultWeeklyQuestVisibilityValue = database_defaults.global.options.shownQuests[weeklyQuestOptionVariable]
-	local weeklyQuestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, weeklyQuestOptionDisplayName, weeklyQuestOptionVariable, type(defaultWeeklyQuestVisibilityValue), defaultWeeklyQuestVisibilityValue)
-	local weeklyQuestOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, weeklyQuestOptionVisibilitySetting)
-	Settings.SetOnValueChangedCallback(weeklyQuestOptionVariable, OnQuestOptionChanged)
-	weeklyQuestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[weeklyQuestOptionVariable], true) -- true means force
-	weeklyQuestOptionInitializer:SetParentInitializer(allQuestsOptionInitializer, function() return allQuestsOptionVisibilitySetting:GetValue() end)
+	local iLvlCharacterDataOptionVariable = "iLvl"
+	local iLvlCharacterDataOptionDisplayName = L["optionsToggleDescriptioniLvlCharacterData"]
+	local defaultiLvlCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[iLvlCharacterDataOptionVariable]
+	local iLvlCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, iLvlCharacterDataOptionDisplayName, iLvlCharacterDataOptionVariable, type(defaultiLvlCharacterDataVisibilityValue), defaultiLvlCharacterDataVisibilityValue)
+	local iLvlCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, iLvlCharacterDataOptionVisibilitySetting)
+	Settings.SetOnValueChangedCallback(iLvlCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
+	iLvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[iLvlCharacterDataOptionVariable], true) -- true means force
+	iLvlCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
 
-	local dailyQuestOptionVariable = "Daily"
-	local dailyQuestOptionDisplayName = L["optionsToggleDescriptionDailyQuest"]
-	local defaultDailyQuestVisibilityValue = database_defaults.global.options.shownQuests[dailyQuestOptionVariable]
-	local dailyquestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, dailyQuestOptionDisplayName, dailyQuestOptionVariable, type(defaultDailyQuestVisibilityValue), defaultDailyQuestVisibilityValue)
-	local dailyQuestOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, dailyquestOptionVisibilitySetting)
-	Settings.SetOnValueChangedCallback(dailyQuestOptionVariable, OnQuestOptionChanged)
-	dailyquestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[dailyQuestOptionVariable], true) -- true means force
-	dailyQuestOptionInitializer:SetParentInitializer(allQuestsOptionInitializer, function() return allQuestsOptionVisibilitySetting:GetValue() end)
+	-- local dailyQuestOptionVariable = "Daily"
+	-- local dailyQuestOptionDisplayName = L["optionsToggleDescriptionDailyQuest"]
+	-- local defaultDailyQuestVisibilityValue = database_defaults.global.options.shownQuests[dailyQuestOptionVariable]
+	-- local dailyquestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, dailyQuestOptionDisplayName, dailyQuestOptionVariable, type(defaultDailyQuestVisibilityValue), defaultDailyQuestVisibilityValue)
+	-- local dailyQuestOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, dailyquestOptionVisibilitySetting)
+	-- Settings.SetOnValueChangedCallback(dailyQuestOptionVariable, OnQuestOptionChanged)
+	-- dailyquestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[dailyQuestOptionVariable], true) -- true means force
+	-- dailyQuestOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
 
 	-- Currency options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
@@ -631,6 +641,10 @@ end
 ---@param container AceGUIWidget
 ---@param characterName string name of the character to render ilvl information for
 function RackensTracker:DrawCharacterInfo(container, characterName)
+	if (not ContainsIf(self.db.global.options.shownCharacterData, function(characterDataEnabled) return characterDataEnabled end) or not self.db.global.options.showCharacterData) then
+		return
+	end
+
 	local character = self.db.global.realms[self.currentDisplayedRealm].characters[characterName]
 
 	local characterHeading = AceGUI:Create("Heading")
@@ -1109,7 +1123,7 @@ end
 ---@param characterName string
 local function SelectCharacterTab(container, event, characterName)
 	container:ReleaseChildren()
-	
+
 	container:PauseLayout()
 	-- NOTE: Layout pausing is necessary in order for everything to calculate correctly during rendering
 	-- this fixes all my current sizing and anchoring problems, without this all hell breaks loose.
@@ -1117,7 +1131,7 @@ local function SelectCharacterTab(container, event, characterName)
 	-- Just pause all layout calculations until after we placed all the widgets on screen.
 	RackensTracker:DrawCurrentRealmInfo(container)
 	RackensTracker:DrawCharacterInfo(container, characterName)
-	RackensTracker:DrawQuests(container, characterName)
+	--RackensTracker:DrawQuests(container, characterName)
 	RackensTracker:DrawSavedInstances(container, characterName)
 	RackensTracker:DrawCurrencies(container, characterName)
 	container:ResumeLayout()

@@ -88,6 +88,10 @@ local database_defaults = {
 			shownCharacters = {
 				['*'] = true
 			},
+			showCharacterData = true,
+			shownCharacterData = {
+				["iLvl"] = true,
+			},
 			showQuests = false,
 			shownQuests = {
 				["Weekly"] = true,
