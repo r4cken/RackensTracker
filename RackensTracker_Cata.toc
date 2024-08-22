@@ -5,6 +5,7 @@
 ## Version: 0.1.8
 ## SavedVariables: RackensTrackerDB
 ## OptionalDeps: LibStub, CallbackHandler-1.0, Ace3
+## X-Curse-Project-ID: 1088819
 
 embeds.xml
 locale\locales.xml
