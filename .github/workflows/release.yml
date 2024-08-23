@@ -8,6 +8,7 @@ on:
 
 env:
   CF_API_KEY: ${{ secrets.CF_API_KEY }}
+  WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
   # for github releases, this secret is automatically provided to the workflow
   # this must be explicitly configured with read-write permissions on the repository
   GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
@@ -22,4 +23,4 @@ jobs:
 
       - uses: BigWigsMods/packager@v2
         with:
-          args: -w 0 -a 0
+          args: -w 0 -a 4N2mYVGL
