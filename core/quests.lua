@@ -1,4 +1,5 @@
-local _, RT = ...
+---@class RT
+local RT = select(2, ...)
 
 local select = select
 local GetQuestInfo = C_QuestLog.GetQuestInfo
@@ -36,6 +37,7 @@ end
 -- 78752, Proof of Demise: Titan Rune Protocol Gamma
 -- 78753, Proof of Demise: Threats to Azeroth
 
+---@class Quests
 RT.Quests = {
     -- [24579] = {
     --     id = 24579,

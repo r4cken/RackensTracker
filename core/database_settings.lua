@@ -1,5 +1,9 @@
-local _, RT = ...
+---@class RT
+local RT = select(2, ...)
+
+---@class DatabaseSettings
 local DatabaseSettings = {}
+
 RT.DatabaseSettings = DatabaseSettings
 
 ---@alias questID number
@@ -35,6 +39,11 @@ RT.DatabaseSettings = DatabaseSettings
 -- Whether the currency has a moving maximum (e.g seasonal)
 ---@field useTotalEarnedForMaxQty boolean
 
+---@class (exact) DbSavedInstanceEncounterInformation
+---@field bossName string
+---@field isKilled boolean
+---@field fileDataID number
+
 ---@class (exact) DbSavedInstance
 ---@field savedInstanceIndex number
 ---@field instanceName string
@@ -50,6 +59,7 @@ RT.DatabaseSettings = DatabaseSettings
 ---@field toggleDifficultyID number?
 ---@field encountersTotal number
 ---@field encountersCompleted number
+---@field encounterInformation table<number, DbSavedInstanceEncounterInformation>
 
 ---@class (exact) DbCharacter
 ---@field name string|nil
@@ -131,8 +141,8 @@ local database_defaults = {
 		}
 	},
 }
-
----@return DatabaseDefaults
+--- Returns all the default settings for the AceDB
+---@return DatabaseDefaults database_defaults
 function DatabaseSettings:GetDefaults()
     return database_defaults
 end

@@ -1,4 +1,7 @@
-local addOnName, RT = ...
+local addOnName = ...
+
+---@class RT
+local RT = select(2, ...)
 
 local MAX_RAID_INFOS = MAX_RAID_INFOS
 local strformat = string.format
@@ -11,6 +14,9 @@ local addon = LibStub("AceAddon-3.0"):GetAddon(addOnName) --[[@as RackensTracker
 ---@class InstanceModule: AceModule, AceConsole-3.0, AceEvent-3.0, AddonModulePrototype
 local InstanceModule = addon:NewModule("Instances", "AceEvent-3.0")
 
+--- Logs message to the chat frame
+---@param message string
+---@param ... any
 local function Log(message, ...)
 	if (addon.LOGGING_ENABLED) then
     	InstanceModule:DebugLog(message, ...)
@@ -18,7 +24,7 @@ local function Log(message, ...)
 end
 
 --- Retrieves all of the current characters locked raids and dungeons
----@return { [string]: DbSavedInstance } instances A table of raids and dungeons keyed by the string 'instanceName SPACE difficultyName'
+---@return table<string, DbSavedInstance> savedInstances A table of raids and dungeons keyed by the string 'instanceName SPACE difficultyName'
 local function GetCharacterLockouts()
 	---@type table<string, DbSavedInstance>
 	local savedInstances = {}
@@ -33,6 +39,7 @@ local function GetCharacterLockouts()
 				-- Only store active lockouts
 				if resetsIn > 0 and isLocked then
 					local id = strformat("%s %s", instanceName, difficultyName)
+					---@type table<number, DbSavedInstanceEncounterInformation>
 					local encounterInformation = {}
 					for encounterIndex = 1, encountersTotal do
 						local bossName, fileDataID, isKilled, _ = GetSavedInstanceEncounterInfo(savedInstanceIndex, encounterIndex)

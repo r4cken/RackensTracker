@@ -1,4 +1,7 @@
-local addOnName, RT = ... --[[@type string, table]]
+local addOnName = ...
+
+---@class RT
+local RT = select(2, ...)
 
 local UnitName = UnitName
 local strtrim = strtrim
@@ -9,6 +12,9 @@ local addon = LibStub("AceAddon-3.0"):GetAddon(addOnName) --[[@as RackensTracker
 ---@class CurrencyModule: AceModule, AceConsole-3.0, AceEvent-3.0, AddonModulePrototype
 local CurrencyModule = addon:NewModule("Currencies", "AceEvent-3.0")
 
+--- Logs message to the chat frame
+---@param message string
+---@param ... any
 local function Log(message, ...)
 	if (addon.LOGGING_ENABLED) then
     	CurrencyModule:DebugLog(message, ...)

@@ -1,4 +1,8 @@
-local addOnName, RT = ...
+local addOnName = ...
+
+---@class RT
+local RT = select(2, ...)
+
 local addOnVersion = C_AddOns.GetAddOnMetadata(addOnName, "Version");
 
 local strformat, strsplit =
@@ -38,17 +42,23 @@ local AceConfigDialog = LibStub("AceConfigDialog-3.0")
 local AceConfigRegistry = LibStub("AceConfigRegistry-3.0")
 
 -- Set bindings translations (used in game options keybinds section)
-_G.BINDING_HEADER_RACKENSTRACKER = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.ADDON_FONT_COLOR_CODE, addOnName)
+_G.BINDING_HEADER_RACKENSTRACKER = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Addon, addOnName)
 _G.BINDING_NAME_RACKENSTRACKER_TOGGLE = L["toggleTrackerPanel"]
 _G.BINDING_NAME_RACKENSTRACKER_OPTIONS_OPEN = L["openOptionsPanel"]
 
 ---@type DatabaseDefaults
 local database_defaults = RT.DatabaseSettings:GetDefaults()
 
+--- Logs slash command usage to the chat frame
+---@param message string
+---@param ... any
 local function SlashCmdLog(message, ...)
 	RackensTracker:Printf(message, ...)
 end
 
+--- Logs message to the chat frame
+---@param message string
+---@param ... any
 local function Log(message, ...)
 	if (RackensTracker.LOGGING_ENABLED) then
     	RackensTracker:Printf(message, ...)
@@ -110,6 +120,7 @@ function RackensTracker:DeleteCharacterDataIfNecessary()
 	end
 end
 
+--- Creates the realm specific options used in the realm specific options menues
 function RackensTracker:CreateRealmOptions()
 	local realmsAvailable = GetKeysArray(self.db.global.realms)
 	table.sort(realmsAvailable, function(a,b) return a < b end)
@@ -225,6 +236,7 @@ function RackensTracker:CreateRealmOptions()
 
 	return options
 end
+
 --- Called when the addon is initialized
 function RackensTracker:OnInitialize()
 	-- Load saved variables
@@ -260,14 +272,14 @@ function RackensTracker:OnInitialize()
 		end
 	end
 
-	local function OnQuestOptionSettingChanged(_, setting, value)
-		local variable = setting:GetVariable()
-		if (variable == "showQuests") then
-			self.db.global.options.showQuests = value
-		else
-			self.db.global.options.shownQuests[variable] = value
-		end
-	end
+	-- local function OnQuestOptionSettingChanged(_, setting, value)
+	-- 	local variable = setting:GetVariable()
+	-- 	if (variable == "showQuests") then
+	-- 		self.db.global.options.showQuests = value
+	-- 	else
+	-- 		self.db.global.options.shownQuests[variable] = value
+	-- 	end
+	-- end
 
 	local function OnCharacterDataOptionSettingChanged(_, setting, value)
 		local variable = setting:GetVariable()
@@ -287,7 +299,7 @@ function RackensTracker:OnInitialize()
 		end
 	end
 
-	self.OnQuestOptionSettingChanged = OnQuestOptionSettingChanged
+	--self.OnQuestOptionSettingChanged = OnQuestOptionSettingChanged
 	self.OnCharacterDataOptionSettingChanged = OnCharacterDataOptionSettingChanged
 	self.OnCurrencyOptionSettingChanged = OnCurrencyOptionSettingChanged
 	self.OnRealmOptionChanged = OnRealmOptionChanged
@@ -317,10 +329,10 @@ function RackensTracker:OnInitialize()
 		label = addOnName,
 		---@type function|GameTooltip
 		OnTooltipShow = function(tooltip)
-			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.HIGHLIGHT_FONT_COLOR_CODE, "%s - %s %s", addOnName, L["version"], addOnVersion))
-			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.GRAY_FONT_COLOR_CODE, "%s", "/rackenstracker for available commands"))
-			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.GRAY_FONT_COLOR_CODE, "%s: ", L["minimapLeftClickAction"]) .. RT.ColorUtil:FormatColor(RT.ColorUtil.Color.NORMAL_FONT_COLOR_CODE, "%s", L["minimapLeftClickDescription"]))
-			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.GRAY_FONT_COLOR_CODE, "%s: ", L["minimapRightClickAction"]) .. RT.ColorUtil:FormatColor(RT.ColorUtil.Color.NORMAL_FONT_COLOR_CODE, "%s", L["minimapRightClickDescription"]))
+			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Highlight, "%s - %s %s", addOnName, L["version"], addOnVersion))
+			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Gray, "%s", "/rackenstracker for available commands"))
+			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Gray, "%s: ", L["minimapLeftClickAction"]) .. RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Normal, "%s", L["minimapLeftClickDescription"]))
+			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Gray, "%s: ", L["minimapRightClickAction"]) .. RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Normal, "%s", L["minimapRightClickDescription"]))
 		end,
 	})
 
@@ -345,12 +357,13 @@ function RackensTracker:RegisterAddOnSettings(OnCharacterDataOptionSettingChange
 	local realmsAvailable = GetKeysArray(self.db.global.realms)
 	table.sort(realmsAvailable, function(a,b) return a < b end)
 
-	-- Realm data 
+	-- Realm data options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsTrackedRealmsHeader"]))
 	local realmsDropDownOptionVariable = "shownRealm"
 	local realmsDropDownOptionDisplayName = L["optionsDropDownDescriptionRealms"]
 	local defaultRealmsDropDownOptionValue = self.currentRealm
 	local realmsDropDownOptionTooltip = L["optionsDropDownTooltipRealms"]
+
 	local function GetRealmOptions()
 		local container = Settings.CreateControlTextContainer();
 		for _, realmName in ipairs(realmsAvailable) do
@@ -358,6 +371,7 @@ function RackensTracker:RegisterAddOnSettings(OnCharacterDataOptionSettingChange
 		end
 		return container:GetData();
 	end
+
 	local shownRealmSetting = Settings.RegisterAddOnSetting(self.optionsCategory, realmsDropDownOptionDisplayName, realmsDropDownOptionVariable, Settings.VarType.string, defaultRealmsDropDownOptionValue)
 	Settings.CreateDropDown(self.optionsCategory, shownRealmSetting, GetRealmOptions, realmsDropDownOptionTooltip)
 	Settings.SetOnValueChangedCallback(realmsDropDownOptionVariable, OnRealmOptionChanged)
@@ -367,7 +381,7 @@ function RackensTracker:RegisterAddOnSettings(OnCharacterDataOptionSettingChange
 		shownRealmSetting:SetValue(self.db.global.options[realmsDropDownOptionVariable], true)
 	end
 
-	-- Weekly / Daily options
+	-- Character Data options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCharacterDataHeader"]))
 	local allCharacterDataOptionVariable = "showCharacterData"
 	local allCharacterDataOptionDisplayName = L["optionsToggleDescriptionShowCharacterData"]
@@ -558,7 +572,7 @@ local function createAvailableQuestLogItemEntry(name, questTag, isWeekly)
 		displayedQuestTag = strformat(DAILY_QUEST_TAG_TEMPLATE, questTag)
 	end
 
-	local colorizedText = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", isWeekly and L["weeklyQuest"] or name, displayedQuestTag, status)
+	local colorizedText = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Yellow, "%s (%s) - %s", isWeekly and L["weeklyQuest"] or name, displayedQuestTag, status)
 	local labelText = strformat("%s %s", icon, colorizedText)
 
 	questLabel:SetText(labelText)
@@ -630,7 +644,7 @@ local function createTrackedQuestLogItemEntry(quest)
 		status = status .. " " .. L["questStatusExpired"]
 	end
 
-	local colorizedText = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.YELLOW_FONT_COLOR_CODE, "%s (%s) - %s", quest.isWeekly and L["weeklyQuest"] or quest.name, questTag, status)
+	local colorizedText = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Yellow, "%s (%s) - %s", quest.isWeekly and L["weeklyQuest"] or quest.name, questTag, status)
 	local labelText = strformat("%s %s", icon, colorizedText)
 
 	questLabel:SetText(labelText)
@@ -652,17 +666,11 @@ function RackensTracker:DrawCharacterInfo(container, characterName)
 	characterHeading:SetText(characterName)
 	container:AddChild(characterHeading)
 
-	local characterEquipmentIcon = AceGUI:Create("Label")
-	characterEquipmentIcon:SetFullWidth(true)
-	--characterEquipmentIcon:SetJustifyH("CENTER")
-	characterEquipmentIcon:SetText(RT.CharacterUtil:GetEquipmentIcon(24))
-
-	container:AddChild(characterEquipmentIcon)
-
 	local characterIlvlLabel = AceGUI:Create("Label")
 	characterIlvlLabel:SetFullWidth(true)
-	--characterIlvlLabel:SetJustifyH("CENTER")
 	if (character.equippedIlvl ~= 0 or character.overallIlvl ~= 0) then
+		characterIlvlLabel:SetImage([[Interface\PaperDollInfoFrame\UI-EquipmentManager-Toggle]])
+		characterIlvlLabel:SetImageSize(22, 22)
 		characterIlvlLabel:SetText(strformat("%s: %d/%d", L["itemLevel"], character.equippedIlvl, character.overallIlvl))
 	else
 		characterIlvlLabel:SetText(strformat("%s: %s", L["itemLevel"], L["unknown"]))
@@ -682,19 +690,23 @@ function RackensTracker:DrawCurrentRealmInfo(container)
 
 	-- Display weekly raid reset time
 	local raidResetTimeIconLabel = AceGUI:Create("Label")
-	local weeklyLockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(true)
-	raidResetTimeIconLabel:SetText(weeklyLockoutWithIcon)
+	local weeklyLockoutText = RackensTracker:GetLockoutTime(true)
+	local raidAtlasInfo = C_Texture.GetAtlasInfo("Raid")
 	raidResetTimeIconLabel:SetFullWidth(true)
-	--raidResetTimeIconLabel:SetJustifyH("CENTER")
+	raidResetTimeIconLabel:SetImage(raidAtlasInfo.file, raidAtlasInfo.leftTexCoord, raidAtlasInfo.rightTexCoord, raidAtlasInfo.topTexCoord, raidAtlasInfo.bottomTexCoord)
+	raidResetTimeIconLabel:SetImageSize(22, 22)
+	raidResetTimeIconLabel:SetText(weeklyLockoutText)
 
 	container:AddChild(raidResetTimeIconLabel)
 
 	-- Display dungeon daily reset time
 	local dungeonResetTimeIconLabel = AceGUI:Create("Label")
-	local dungeonLockoutWithIcon = RackensTracker:GetLockoutTimeWithIcon(false)
-	dungeonResetTimeIconLabel:SetText(dungeonLockoutWithIcon)
+	local dungeonLockoutText = RackensTracker:GetLockoutTime(false)
+	local dungeonAtlasInfo = C_Texture.GetAtlasInfo("Dungeon")
 	dungeonResetTimeIconLabel:SetFullWidth(true)
-	--dungeonResetTimeIconLabel:SetJustifyH("CENTER")
+	dungeonResetTimeIconLabel:SetImage(dungeonAtlasInfo.file, dungeonAtlasInfo.leftTexCoord, dungeonAtlasInfo.rightTexCoord, dungeonAtlasInfo.topTexCoord, dungeonAtlasInfo.bottomTexCoord)
+	dungeonResetTimeIconLabel:SetImageSize(22, 22)
+	dungeonResetTimeIconLabel:SetText(dungeonLockoutText)
 
 	container:AddChild(dungeonResetTimeIconLabel)
 end
@@ -783,28 +795,20 @@ function RackensTracker:DrawQuests(container, characterName)
 	container:AddChild(CreateDummyFrame())
 end
 
---- Returns the texture used to display the weekly or daily dungeon reset, together with the time remaining.
+--- Returns a formatted string for the lockout time remaining
 ---@param isRaid boolean
----@return string atlasMarkup
-function RackensTracker:GetLockoutTimeWithIcon(isRaid)
-
-	-- https://www.wowhead.com/wotlk/icon=134238/inv-misc-key-04
-	local raidAtlas = "Raid"
-	-- https://www.wowhead.com/wotlk/icon=134237/inv-misc-key-03
-	local dungeonAtlas = "Dungeon"
-	local atlasSize = 16
-	local iconMarkup = ""
+---@return string lockoutFormattedString
+function RackensTracker:GetLockoutTime(isRaid)
 	if (isRaid and self.db.global.realms[self.currentDisplayedRealm].secondsToWeeklyReset) then
-		iconMarkup = CreateAtlasMarkup(raidAtlas, atlasSize, atlasSize)
-		return strformat("%s %s: %s", iconMarkup, L["raidLockExpiresIn"], RT.TimeUtil.TimeFormatter:Format(self.db.global.realms[self.currentDisplayedRealm].secondsToWeeklyReset))
+		return strformat("%s: %s", L["raidLockExpiresIn"], RT.TimeUtil.TimeFormatter:Format(self.db.global.realms[self.currentDisplayedRealm].secondsToWeeklyReset))
 	end
 	if (isRaid == false and self.db.global.realms[self.currentDisplayedRealm].secondsToDailyReset) then
-		iconMarkup = CreateAtlasMarkup(dungeonAtlas, atlasSize, atlasSize)
-		return strformat("%s %s: %s", iconMarkup, L["dungeonLockExpiresIn"], RT.TimeUtil.TimeFormatter:Format(self.db.global.realms[self.currentDisplayedRealm].secondsToDailyReset))
+		return strformat("%s: %s", L["dungeonLockExpiresIn"], RT.TimeUtil.TimeFormatter:Format(self.db.global.realms[self.currentDisplayedRealm].secondsToDailyReset))
 	end
 	return ""
 end
 
+--- Returns Saved instance information for a given character by name
 ---@param characterName string
 ---@return boolean characterHasLockouts
 ---@return table raidInstances
@@ -920,7 +924,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	local labelHeight = 20
 
 	for raidInstanceIndex, raidInstance in ipairs(raidInstances.sorted) do
-		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.NORMAL_FONT_COLOR_CODE, "%s", raidInstance.id)
+		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Normal, "%s", raidInstance.id)
 		raidInstanceNameLabels[raidInstanceIndex] = AceGUI:Create("InteractiveLabel")
 		raidInstanceNameLabels[raidInstanceIndex]:SetText(instanceColorizedName)
 		raidInstanceNameLabels[raidInstanceIndex]:SetFullWidth(true)
@@ -964,7 +968,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 
 	-- Fill in the character for this tab's dungeon lockouts
 	for dungeonInstanceIndex, dungeonInstance in ipairs(dungeonInstances.sorted) do
-		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.NORMAL_FONT_COLOR_CODE, "%s", dungeonInstance.id)
+		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Normal, "%s", dungeonInstance.id)
 		dungeonInstanceNameLabels[dungeonInstanceIndex] = AceGUI:Create("InteractiveLabel")
 		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetText(instanceColorizedName)
 		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetFullWidth(true)
@@ -1066,7 +1070,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 			end
 
 			if (quantity == 0) then
-				local zeroQuantity = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.GRAY_FONT_COLOR_CODE, quantity)
+				local zeroQuantity = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Gray, quantity)
 				currencyDisplayLabels[currency.id]:SetText(strformat("%s %s", nameAndIcon, zeroQuantity))
 			else
 				currencyDisplayLabels[currency.id]:SetText(strformat("%s %s", nameAndIcon, quantity))
@@ -1074,8 +1078,8 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				if (maxQuantity ~= 0) then
 					if not useTotalEarnedForMaxQty then
 						local isCapped = quantity == maxQuantity
-						local quantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.RED_FONT_COLOR_CODE, "%i", quantity)
-						local maxQuantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.RED_FONT_COLOR_CODE, "%i", maxQuantity)
+						local quantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%i", quantity)
+						local maxQuantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%i", maxQuantity)
 						currencyDisplayLabels[currency.id]:SetText(strformat("%s %s/%s", nameAndIcon, isCapped and quantityRedColorized or quantity, isCapped and maxQuantityRedColorized or maxQuantity))
 					end
 				end
@@ -1095,14 +1099,14 @@ function RackensTracker:DrawCurrencies(container, characterName)
 
 				--- Display the Total of this currency either if its a seasonal one or a regular one without cap
 				if (maxQuantity == 0 or useTotalEarnedForMaxQty) then
-					GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.HIGHLIGHT_FONT_COLOR_CODE, quantity))
+					GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight, quantity))
 				end
 
 				-- Display the Total Maximum of this currency that has some sort of maximum cap or seasonal cap
 				if (maxQuantity ~= 0) then
 					local isRegularCapped = quantity == maxQuantity
 					local isSeasonCapped = useTotalEarnedForMaxQty and (totalEarned == maxQuantity)
-					GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.RED_FONT_COLOR_CODE or RT.ColorUtil.Color.HIGHLIGHT_FONT_COLOR_CODE, useTotalEarnedForMaxQty and totalEarned or quantity, maxQuantity))
+					GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red or RT.ColorUtil.Color.Highlight, useTotalEarnedForMaxQty and totalEarned or quantity, maxQuantity))
 				end
 
 				GameTooltip:Show()
@@ -1222,7 +1226,7 @@ function RackensTracker:OpenTrackerFrame()
 				end
 				tabIcon = RT.CharacterUtil:GetCharacterIcon(character.class, tabIconSize)
 				tabName = RT.ColorUtil:FormatColorClass(character.class, character.name)
-				table.insert(tabsData, { text=strformat("%s %s", tabIcon, tabName), value=characterName})
+				table.insert(tabsData, {text = strformat("%s %s", tabIcon, tabName), value=characterName})
 			end
 		end
 	end

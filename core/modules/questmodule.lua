@@ -1,4 +1,7 @@
-local addOnName, RT = ...
+local addOnName = ...
+
+---@class RT
+local RT = select(2, ...)
 
 local tostring = tostring
 ---@diagnostic disable-next-line: undefined-global
@@ -14,6 +17,9 @@ local addon = LibStub("AceAddon-3.0"):GetAddon(addOnName) --[[@as RackensTracker
 local QuestModule = addon:NewModule("Quests", "AceEvent-3.0")
 addon:DisableModule("Quests")
 
+--- Logs message to the chat frame
+---@param message string
+---@param ... any
 local function Log(message, ...)
 	if (addon.LOGGING_ENABLED) then
     	QuestModule:DebugLog(message, ...)

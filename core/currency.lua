@@ -26,8 +26,8 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-local _, RT = ...
+---@class RT
+local RT = select(2, ...)
 
 local setmetatable, strformat =
       setmetatable, string.format
@@ -39,6 +39,8 @@ local DEFAULT_ICON_SIZE = 16
 local ITEM_QUALITY_COLORS = ITEM_QUALITY_COLORS
 --local Constants = Constants
 
+---@class Currency
+---@field order number
 local Currency = {}
 RT.Currency = Currency
 
@@ -56,12 +58,15 @@ function Currency:GetUseTotalEarnedForMaxQty()
     return self.useTotalEarnedForMaxQty
 end
 
--- Returns the localized name of the currency provided.
+--- Returns the localized name of the currency provided.
+---@return string
 function Currency:GetName()
     self.name = self.name or GetCurrencyInfo(self.id)["name"]
     return self.name
 end
 
+--- Returns the localized name of the currency colored by its rarity
+---@return string
 function Currency:GetColorizedName()
     local currency = GetCurrencyInfo(self.id)
     local name, quality = currency["name"], currency["quality"]
@@ -70,6 +75,9 @@ function Currency:GetColorizedName()
     return self.colorizedName
 end
 
+--- Returns the icon for the currency as textual markup
+---@param iconSize number icon size in UI pixels
+---@return string
 function Currency:GetIcon(iconSize)
     iconSize = iconSize or DEFAULT_ICON_SIZE
 

@@ -1,8 +1,12 @@
-local _, RT = ...
+---@class RT
+local RT = select(2, ...)
 
 local table, setmetatable =
 	  table, setmetatable
 
+---@class Container
+---@field byId table
+---@field sorted table
 local Container = {}
 RT.Container = Container
 

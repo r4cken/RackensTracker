@@ -26,7 +26,8 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-local _, RT = ...
+---@class RT
+local RT = select(2, ...)
 
 local Currency = RT.Currency
 
@@ -61,6 +62,7 @@ local ChampionsSeal = Currency:New(241)
 --local IsleOfConquestMarks = Currency:New(321)
 
 
+---@class Currencies
 RT.Currencies = {
     JusticePoints,
     ValorPoints,
@@ -78,6 +80,7 @@ RT.Currencies = {
     ChampionsSeal,
 }
 
+---@class ExcludedCurrencyIds
 RT.ExcludedCurrencyIds = {
     [104] = true,  -- Honor Points DEPRECATED
     [121] = true,  -- Alterac Valley Mark of Honor

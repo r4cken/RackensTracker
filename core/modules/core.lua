@@ -1,4 +1,7 @@
-local addOnName, RT = ... --[[@type string, table]]
+local addOnName = ...
+
+---@class RT
+local RT = select(2, ...)
 
 local LOGGING_ENABLED = false
 
@@ -11,8 +14,8 @@ addon.LOGGING_ENABLED = LOGGING_ENABLED
 ---@class AddonModulePrototype
 ---@field DebugLog function
 local modulePrototype = {
-    ---@param format string same syntax as standard Lua format()
-    ---@param ...? any Arguments to the format string
+    ---@param format string Same syntax as standard Lua format()
+    ---@param ... any Arguments to the format string
     DebugLog = function(self, format, ...)
         self:Printf(format, ...)
     end,
