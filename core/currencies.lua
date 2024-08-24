@@ -116,6 +116,9 @@ if RT.AddonUtil.IsRetail() then
     local NerubArFinery = Currency:New(3093)
     local RestoredCofferKey = Currency:New(3028)
 
+    -- Timewarping stuff
+    local TimewarpedBadge = Currency:New(1166)
+
     -- TWW Pre patch currency?
     local ResidualMemories = Currency:New(3089)
 
@@ -126,6 +129,9 @@ if RT.AddonUtil.IsRetail() then
     local Honor = Currency:New(1792)
     local Conquest = Currency:New(1602)
     local BloodyTokens = Currency:New(2123)
+
+    -- Garrison Resources
+    local GarrisonResources = Currency:New(824)
 
     ---@class Currencies
     RT.Currencies = {
@@ -140,10 +146,12 @@ if RT.AddonUtil.IsRetail() then
         Kej,
         NerubArFinery,
         RestoredCofferKey,
+        TimewarpedBadge,
         Honor,
         Conquest,
         BloodyTokens,
-        MereldarDerbyMark
+        MereldarDerbyMark,
+        GarrisonResources
      }
 
     ---@class ExcludedCurrencyIds

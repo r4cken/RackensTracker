@@ -105,15 +105,17 @@ do
 			["2916"] = true,  -- Runed Harbinger Crest
 			["2917"] = true,  -- Gilded Harbinger Crest
 			["2815"] = true,  -- Resonance Crystals
+			["3089"] = true,  -- Residual Memories
 			["2803"] = true,  -- Undercoin
 			["3056"] = true,  -- Kej
 			["3093"] = true,  -- Nerub-ar Finery
 			["3028"] = true,  -- Restored Coffer Key
-			["3089"] = true,  -- Residual Memories
-			["3055"] = true,  -- Mereldar Derby Mark
+			["1166"] = true,  -- Timewarped Badge
 			["1792"] = true,  -- Honor
 			["1602"] = true,  -- Conquest
-			["2123"] = true,  -- Bloody Tokens 
+			["2123"] = true,  -- Bloody Tokens
+			["3055"] = true,  -- Mereldar Derby Mark
+			["824"]  = false, -- Garrison Resources
 		}
 	end
 end
