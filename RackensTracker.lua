@@ -31,8 +31,7 @@ local CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, BOSS_DEAD, AVAILABLE =
 local UnitName, UnitLevel, CreateAtlasMarkup =
 	  UnitName, UnitLevel, CreateAtlasMarkup
 
-local Settings, CreateSettingsListSectionHeaderInitializer =
-	  Settings, CreateSettingsListSectionHeaderInitializer
+local Settings = Settings
 
 ---@class RackensTracker : AceAddon, AceConsole-3.0, AceEvent-3.0
 local RackensTracker = LibStub("AceAddon-3.0"):GetAddon(addOnName)
@@ -73,7 +72,6 @@ function RackensTracker:UpdateWeeklyDailyResetTime()
 	self.db.global.realms[self.currentRealm].weeklyResetTime = GetServerTime() + self.db.global.realms[self.currentRealm].secondsToWeeklyReset
 	self.db.global.realms[self.currentRealm].dailyResetTime = GetServerTime() + self.db.global.realms[self.currentRealm].secondsToDailyReset
 end
-
 
 --- Checks if a character has transfered realm or changed name.
 --- Checks if a character has faction changed.
@@ -134,101 +132,99 @@ function RackensTracker:CreateRealmOptions()
 	-- Create one subcategory with characters to display per realm
 	for _, realmName in ipairs(realmsAvailable) do
 		local order = 0
-		--if not options.args[realmName] then
-			options.args[realmName] = {}
-			options.args[realmName].name = string.format("%s character options", realmName)
-			options.args[realmName].type = "group"
-			options.args[realmName].args = {}
-			options.args[realmName].args.displayedCharactersHeader = {
-				type = "header",
-				name = L["optionsCharactersHeader"],
-				order = order
-			}
+		options.args[realmName] = {}
+		options.args[realmName].name = string.format("%s character options", realmName)
+		options.args[realmName].type = "group"
+		options.args[realmName].args = {}
+		options.args[realmName].args.displayedCharactersHeader = {
+			type = "header",
+			name = L["optionsCharactersHeader"],
+			order = order
+		}
 
-			-- Character toggles for the tracker
-			for characterName, character in pairs(self.db.global.realms[realmName].characters) do
-				order = order + 1
-				local key = strformat("%s.%s", character.realm, characterName)
-				options.args[realmName].args[characterName] = {
-					name = characterName,
-					desc = L["optionsToggleCharacterTooltip"],
-					type = "toggle",
-					order = order,
-					set = function(info, value) self.db.global.options.shownCharacters[key] = value end,
-					get = function(info) return self.db.global.options.shownCharacters[key] end,
-				}
-			end
-
+		-- Character toggles for the tracker
+		for characterName, character in pairs(self.db.global.realms[realmName].characters) do
 			order = order + 1
-			options.args[realmName].args.deleteCharacterHeader = {
-				type = "header",
-				name = L["optionsCharactersDeleteHeader"],
+			local key = strformat("%s.%s", character.realm, characterName)
+			options.args[realmName].args[characterName] = {
+				name = characterName,
+				desc = L["optionsToggleCharacterTooltip"],
+				type = "toggle",
 				order = order,
+				set = function(info, value) self.db.global.options.shownCharacters[key] = value end,
+				get = function(info) return self.db.global.options.shownCharacters[key] end,
 			}
-			order = order + 1
+		end
 
-			-- Dropdown select for which character to select for deletion
-			options.args[realmName].args.characterSelectDelete = {
-				type = "select",
-				name = L["optionsSelectDeleteCharacter"],
-				desc = L["optionsSelectDeleteCharacterTooltip"],
-				values = {},
-				sorting = {},
-				order = order,
-				width = "normal",
-				get = function(info)
-					return self.db.global.realms[realmName].selectedCharacterForDeletion
-				end,
-				set = function(info, value) self.db.global.realms[realmName].selectedCharacterForDeletion = value end,
-			}
+		order = order + 1
+		options.args[realmName].args.deleteCharacterHeader = {
+			type = "header",
+			name = L["optionsCharactersDeleteHeader"],
+			order = order,
+		}
+		order = order + 1
 
-			for characterName, character in pairs(self.db.global.realms[realmName].characters) do
-				local key = strformat("%s.%s", realmName, characterName)
-				options.args[realmName].args.characterSelectDelete.values[key] = characterName
-				options.args[realmName].args.characterSelectDelete.sorting[#options.args[realmName].args.characterSelectDelete.sorting + 1] = key
-			end
+		-- Dropdown select for which character to select for deletion
+		options.args[realmName].args.characterSelectDelete = {
+			type = "select",
+			name = L["optionsSelectDeleteCharacter"],
+			desc = L["optionsSelectDeleteCharacterTooltip"],
+			values = {},
+			sorting = {},
+			order = order,
+			width = "normal",
+			get = function(info)
+				return self.db.global.realms[realmName].selectedCharacterForDeletion
+			end,
+			set = function(info, value) self.db.global.realms[realmName].selectedCharacterForDeletion = value end,
+		}
 
-			-- Button to delete the selected character from the select dropdown
-			order = order + 1
-			options.args[realmName].args.deleteCharacterButton = {
-				type = "execute",
-				name = L["optionsButtonDeleteCharacter"],
-				desc = L["optionsButtonDeleteCharacterTooltip"],
-				func = function(info, value)
-					-- TODO: Figure out why this is so buggy, the dropdown isnt populated after deletion and state seems to be all kinds of screwed up :/
-					-- a /reload fixes the dropdowns and makes it work correctly but its a hack solution and confuses the users.
-					local realm, name = strsplit(".", self.db.global.realms[realmName].selectedCharacterForDeletion)
-					self.db.global.options.shownCharacters[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
-					-- Checkbox removal
-					options.args[realmName].args[name] = nil
-					-- Remove the sorted dropdown index
-					local sortedIndex = tIndexOf(options.args[realmName].args.characterSelectDelete.sorting, self.db.global.realms[realmName].selectedCharacterForDeletion)
-					if sortedIndex then
-						options.args[realmName].args.characterSelectDelete.sorting[sortedIndex] = nil
-					end
-					-- Remove the dropdown value
-					options.args[realmName].args.characterSelectDelete.values[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
-					-- Unset the db value for selectedCharacterForDeletion
-					self.db.global.realms[realmName].selectedCharacterForDeletion = nil
-					-- Unset all database data for the character removed
-					self.db.global.realms[realm].characters[name] = nil
-					if #options.args[realmName].args.characterSelectDelete.values > 0 then
-						self.db.global.realms[realmName].selectedCharacterForDeletion = options.args[realmName].args.characterSelectDelete.values[1]
-					end
-					AceConfigRegistry:NotifyChange(addOnName)
-				end,
-				order = order,
-				confirm = function()
-					local _, name = strsplit(".", self.db.global.realms[realmName].selectedCharacterForDeletion)
-					return string.format(L["optionsButtonDeleteCharacterConfirm"], name);
-				end,
-				disabled = function()
-					if not self.db.global.realms[realmName].selectedCharacterForDeletion then
-						return true
-					end
-				end,
-			}
-		--end
+		for characterName, character in pairs(self.db.global.realms[realmName].characters) do
+			local key = strformat("%s.%s", realmName, characterName)
+			options.args[realmName].args.characterSelectDelete.values[key] = characterName
+			options.args[realmName].args.characterSelectDelete.sorting[#options.args[realmName].args.characterSelectDelete.sorting + 1] = key
+		end
+
+		-- Button to delete the selected character from the select dropdown
+		order = order + 1
+		options.args[realmName].args.deleteCharacterButton = {
+			type = "execute",
+			name = L["optionsButtonDeleteCharacter"],
+			desc = L["optionsButtonDeleteCharacterTooltip"],
+			func = function(info, value)
+				-- TODO: Figure out why this is so buggy, the dropdown isnt populated after deletion and state seems to be all kinds of screwed up :/
+				-- a /reload fixes the dropdowns and makes it work correctly but its a hack solution and confuses the users.
+				local realm, name = strsplit(".", self.db.global.realms[realmName].selectedCharacterForDeletion)
+				self.db.global.options.shownCharacters[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
+				-- Checkbox removal
+				options.args[realmName].args[name] = nil
+				-- Remove the sorted dropdown index
+				local sortedIndex = tIndexOf(options.args[realmName].args.characterSelectDelete.sorting, self.db.global.realms[realmName].selectedCharacterForDeletion)
+				if sortedIndex then
+					options.args[realmName].args.characterSelectDelete.sorting[sortedIndex] = nil
+				end
+				-- Remove the dropdown value
+				options.args[realmName].args.characterSelectDelete.values[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
+				-- Unset the db value for selectedCharacterForDeletion
+				self.db.global.realms[realmName].selectedCharacterForDeletion = nil
+				-- Unset all database data for the character removed
+				self.db.global.realms[realm].characters[name] = nil
+				if #options.args[realmName].args.characterSelectDelete.values > 0 then
+					self.db.global.realms[realmName].selectedCharacterForDeletion = options.args[realmName].args.characterSelectDelete.values[1]
+				end
+				AceConfigRegistry:NotifyChange(addOnName)
+			end,
+			order = order,
+			confirm = function()
+				local _, name = strsplit(".", self.db.global.realms[realmName].selectedCharacterForDeletion)
+				return string.format(L["optionsButtonDeleteCharacterConfirm"], name);
+			end,
+			disabled = function()
+				if not self.db.global.realms[realmName].selectedCharacterForDeletion then
+					return true
+				end
+			end,
+		}
 	end
 
 	return options
@@ -268,15 +264,6 @@ function RackensTracker:OnInitialize()
 			self.currentDisplayedRealm = value
 		end
 	end
-
-	-- local function OnQuestOptionSettingChanged(_, setting, value)
-	-- 	local variable = setting:GetVariable()
-	-- 	if (variable == "showQuests") then
-	-- 		self.db.global.options.showQuests = value
-	-- 	else
-	-- 		self.db.global.options.shownQuests[variable] = value
-	-- 	end
-	-- end
 
 	local function OnMinimumCharacterLevelChanged(_, _, value)
 		self.db.global.options.showCharactersAtOrBelowLevel = value
@@ -348,6 +335,26 @@ function RackensTracker:OnInitialize()
 
 	tinsert(UISpecialFrames, "RackensTrackerWindowFrame")
 end
+
+local CreateSettingsListSectionHeaderInitializer
+do
+	if RT.AddonUtil.IsCataClassic() then
+		-- NOTE: This is copied from the blizzard code because the original uses Settings.CreateElementInitializer that can end up tainting :(
+		CreateSettingsListSectionHeaderInitializer = function(name)
+			local data = {name = name};
+			return Settings.CreateSettingInitializer("SettingsListSectionHeaderTemplate", data);
+		end
+	end
+
+	if RT.AddonUtil.IsRetail() then
+		-- NOTE: This is copied from the blizzard code because the original uses Settings.CreateElementInitializer that can end up tainting :(
+		CreateSettingsListSectionHeaderInitializer = function(name, tooltip)
+			local data = {name = name, tooltip = tooltip};
+			return Settings.CreateSettingInitializer("SettingsListSectionHeaderTemplate", data);
+		end
+	end
+end
+
 
 --- Registers this AddOns configurable settings and specifies the layout and graphical elements for the settings panel.
 ---@param OnCharacterDataOptionSettingChanged function
@@ -501,7 +508,7 @@ function RackensTracker:RegisterAddOnSettings_Retail()
 	end
 
 	-- Realm data options
-	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsTrackedRealmsHeader"]))
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsTrackedRealmsHeader"], nil))
 	local realmsDropDownOptionVariable = strformat("%s_%s", addOnName, "shownRealm")
 	local realmsDropDownOptionName = L["optionsDropDownDescriptionRealms"]
 	local realmsDropDownOptionTooltip = L["optionsDropDownTooltipRealms"]
@@ -1080,9 +1087,7 @@ function RackensTracker:GetSavedInstanceInformationFor(characterName)
 		end
 	end
 
-
 	return characterHasLockouts, raidInstances, dungeonInstances
-
 end
 
 --- Draws the graphical elements to display the saved instances, given a known character name
