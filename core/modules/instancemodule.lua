@@ -3,7 +3,6 @@ local addOnName = ...
 ---@class RT
 local RT = select(2, ...)
 
-local MAX_RAID_INFOS = MAX_RAID_INFOS
 local strformat = string.format
 local GetServerTime = GetServerTime
 local GetNumSavedInstances, GetSavedInstanceInfo, GetSavedInstanceEncounterInfo, GetDifficultyInfo =
@@ -29,9 +28,10 @@ local function GetCharacterLockouts()
 	---@type table<string, DbSavedInstance>
 	local savedInstances = {}
 	local nSavedInstances = GetNumSavedInstances()
-
+	-- MAX_RAID_INFOS is nil on retail but has a value for other flavors
+	local MAX_RAID_INFOS = MAX_RAID_INFOS or nSavedInstances
 	if (nSavedInstances > 0) then
-		for savedInstanceIndex = 1, MAX_RAID_INFOS do -- blizz ui stores max 20 entries per character so why not follow suit
+		for savedInstanceIndex = 1, MAX_RAID_INFOS do
 			if ( savedInstanceIndex <= nSavedInstances) then
 				local instanceName, lockoutID, resetsIn, difficultyID, isLocked, _, _, isRaid, maxPlayers, difficultyName, encountersTotal, encountersCompleted, _, instanceID = GetSavedInstanceInfo(savedInstanceIndex)
 				local _, _, isHeroic, _, _, _, toggleDifficultyID = GetDifficultyInfo(difficultyID);
