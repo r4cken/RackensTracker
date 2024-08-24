@@ -31,76 +31,124 @@ local RT = select(2, ...)
 
 local Currency = RT.Currency
 
-local JusticePoints = Currency:New(395)
-local ValorPoints = Currency:New(396)
-local MoteOfDarkness = Currency:New(614)
-local MarkOfTheWorldTree = Currency:New(416)
-local HonorPoints = Currency:New(1901)
-local ArenaPoints = Currency:New(1900)
-local ConquestPoints = Currency:New(390)
-local TolBaradCommendation = Currency:New(391)
-local ChefsAward = Currency:New(402)
-local EpicureansAward = Currency:New(81)
-local IllustriousJewelcraftersToken = Currency:New(361)
-local JewelcraftersToken = Currency:New(61)
-local DarkmoonPrizeTicket = Currency:New(515)
-local ChampionsSeal = Currency:New(241)
---local EmblemOfFrost = Currency:New(341)
---local EmblemOfTriumph = Currency:New(301)
---local EmblemOfConquest = Currency:New(221)
---local EmblemOfValor = Currency:New(102)
---local EmblemOfHeroism = Currency:New(101)
---local DefilersScourgeStone = Currency:New(2711)
---local SiderealEssence = Currency:New(2589)
---local StoneKeepersShards = Currency:New(161)
---local WintergraspMarks = Currency:New(126)
---local AlteracValleyMarks = Currency:New(121)
---local ArathiBasinMarks = Currency:New(122)
---local EyeOfTheStormMarks = Currency:New(123)
---local StrandOfTheAncientsMarks = Currency:New(124)
---local WarsongGulchMarks = Currency:New(125)
---local IsleOfConquestMarks = Currency:New(321)
+if RT.AddonUtil.IsCataClassic() then
+    local JusticePoints = Currency:New(395)
+    local ValorPoints = Currency:New(396)
+    local MoteOfDarkness = Currency:New(614)
+    local MarkOfTheWorldTree = Currency:New(416)
+    local HonorPoints = Currency:New(1901)
+    local ArenaPoints = Currency:New(1900)
+    local ConquestPoints = Currency:New(390)
+    local TolBaradCommendation = Currency:New(391)
+    local ChefsAward = Currency:New(402)
+    local EpicureansAward = Currency:New(81)
+    local IllustriousJewelcraftersToken = Currency:New(361)
+    local JewelcraftersToken = Currency:New(61)
+    local DarkmoonPrizeTicket = Currency:New(515)
+    local ChampionsSeal = Currency:New(241)
+    --local EmblemOfFrost = Currency:New(341)
+    --local EmblemOfTriumph = Currency:New(301)
+    --local EmblemOfConquest = Currency:New(221)
+    --local EmblemOfValor = Currency:New(102)
+    --local EmblemOfHeroism = Currency:New(101)
+    --local DefilersScourgeStone = Currency:New(2711)
+    --local SiderealEssence = Currency:New(2589)
+    --local StoneKeepersShards = Currency:New(161)
+    --local WintergraspMarks = Currency:New(126)
+    --local AlteracValleyMarks = Currency:New(121)
+    --local ArathiBasinMarks = Currency:New(122)
+    --local EyeOfTheStormMarks = Currency:New(123)
+    --local StrandOfTheAncientsMarks = Currency:New(124)
+    --local WarsongGulchMarks = Currency:New(125)
+    --local IsleOfConquestMarks = Currency:New(321)
 
 
----@class Currencies
-RT.Currencies = {
-    JusticePoints,
-    ValorPoints,
-    MoteOfDarkness,
-    MarkOfTheWorldTree,
-    HonorPoints,
-    ArenaPoints,
-    ConquestPoints,
-    TolBaradCommendation,
-    ChefsAward,
-    EpicureansAward,
-    IllustriousJewelcraftersToken,
-    JewelcraftersToken,
-    DarkmoonPrizeTicket,
-    ChampionsSeal,
-}
+    ---@class Currencies
+    RT.Currencies = {
+        JusticePoints,
+        ValorPoints,
+        MoteOfDarkness,
+        MarkOfTheWorldTree,
+        HonorPoints,
+        ArenaPoints,
+        ConquestPoints,
+        TolBaradCommendation,
+        ChefsAward,
+        EpicureansAward,
+        IllustriousJewelcraftersToken,
+        JewelcraftersToken,
+        DarkmoonPrizeTicket,
+        ChampionsSeal,
+    }
 
----@class ExcludedCurrencyIds
-RT.ExcludedCurrencyIds = {
-    [104] = true,  -- Honor Points DEPRECATED
-    [121] = true,  -- Alterac Valley Mark of Honor
-    [122] = true,  -- Arathi Basin Mark of Honor
-    [123] = true,  -- Eye of the Storm Mark of Honor
-    [124] = true,  -- Strand of the Ancients Mark of Honor
-    [125] = true,  -- Warsong Gulch Mark of Honor
-    [126] = true,  -- Wintergrasp Mark of Honor
-    [321] = true,  -- Isle of Conquest Mark of Honor
-    [392] = true,  -- Honor Deprecated 3
-    [181] = true,  -- Honor Points DEPRECATED2,
-    [221] = true,  -- Emblem of Conquest
-    [341] = true,  -- Emblem of Frost
-    [101] = true,  -- Emblem of Heroism
-    [301] = true,  -- Emblem of Triumph
-    [102] = true,  -- Emblem of Valor
-    [2589] = true, -- Sidereal Essence
-    [161] = true,  -- Stone Keeper's Shard
-    [2711] = true, -- Defiler's Scourgestone
-}
+    ---@class ExcludedCurrencyIds
+    RT.ExcludedCurrencyIds = {
+        [104] = true,  -- Honor Points DEPRECATED
+        [121] = true,  -- Alterac Valley Mark of Honor
+        [122] = true,  -- Arathi Basin Mark of Honor
+        [123] = true,  -- Eye of the Storm Mark of Honor
+        [124] = true,  -- Strand of the Ancients Mark of Honor
+        [125] = true,  -- Warsong Gulch Mark of Honor
+        [126] = true,  -- Wintergrasp Mark of Honor
+        [321] = true,  -- Isle of Conquest Mark of Honor
+        [392] = true,  -- Honor Deprecated 3
+        [181] = true,  -- Honor Points DEPRECATED2,
+        [221] = true,  -- Emblem of Conquest
+        [341] = true,  -- Emblem of Frost
+        [101] = true,  -- Emblem of Heroism
+        [301] = true,  -- Emblem of Triumph
+        [102] = true,  -- Emblem of Valor
+        [2589] = true, -- Sidereal Essence
+        [161] = true,  -- Stone Keeper's Shard
+        [2711] = true, -- Defiler's Scourgestone
+    }
+end
+
+if RT.AddonUtil.IsRetail() then
+    local Valorstones = Currency:New(3008)
+    local WeatheredHarbingerCrest = Currency:New(2914)
+    local CarvedHarbingerCrest = Currency:New(2915)
+    local RunedHarbingerCrest = Currency:New(2916)
+    local GildedHarbingerCrest = Currency:New(2917)
+    local ResonanceCrystals = Currency:New(2815)
+    local Undercoin = Currency:New(2803)
+    local Kej = Currency:New(3056)
+    local NerubArFinery = Currency:New(3093)
+    local RestoredCofferKey = Currency:New(3028)
+
+    -- TWW Pre patch currency?
+    local ResidualMemories = Currency:New(3089)
+
+    -- Fishing derby currency
+    local MereldarDerbyMark = Currency:New(3055)
+
+    -- PVP currency
+    local Honor = Currency:New(1792)
+    local Conquest = Currency:New(1602)
+    local BloodyTokens = Currency:New(2123)
+
+    ---@class Currencies
+    RT.Currencies = {
+        Valorstones,
+        WeatheredHarbingerCrest,
+        CarvedHarbingerCrest,
+        RunedHarbingerCrest,
+        GildedHarbingerCrest,
+        ResonanceCrystals,
+        ResidualMemories,
+        Undercoin,
+        Kej,
+        NerubArFinery,
+        RestoredCofferKey,
+        Honor,
+        Conquest,
+        BloodyTokens,
+        MereldarDerbyMark
+     }
+
+    ---@class ExcludedCurrencyIds
+    RT.ExcludedCurrencyIds = { }
+end
 
 for k, v in ipairs(RT.Currencies) do
     v.order = k
