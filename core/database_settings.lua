@@ -110,12 +110,13 @@ do
 			["3056"] = true,  -- Kej
 			["3093"] = true,  -- Nerub-ar Finery
 			["3028"] = true,  -- Restored Coffer Key
+			["3055"] = true,  -- Mereldar Derby Mark
+			["2032"] = true,  -- Trader's Tender
 			["1166"] = true,  -- Timewarped Badge
+			["824"]  = false, -- Garrison Resources
 			["1792"] = true,  -- Honor
 			["1602"] = true,  -- Conquest
 			["2123"] = true,  -- Bloody Tokens
-			["3055"] = true,  -- Mereldar Derby Mark
-			["824"]  = false, -- Garrison Resources
 		}
 	end
 end

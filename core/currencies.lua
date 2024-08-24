@@ -111,6 +111,10 @@ if RT.AddonUtil.IsRetail() then
     local RunedHarbingerCrest = Currency:New(2916)
     local GildedHarbingerCrest = Currency:New(2917)
     local ResonanceCrystals = Currency:New(2815)
+
+    -- TWW Pre patch currency?
+    local ResidualMemories = Currency:New(3089)
+
     local Undercoin = Currency:New(2803)
     local Kej = Currency:New(3056)
     local NerubArFinery = Currency:New(3093)
@@ -119,19 +123,18 @@ if RT.AddonUtil.IsRetail() then
     -- Timewarping stuff
     local TimewarpedBadge = Currency:New(1166)
 
-    -- TWW Pre patch currency?
-    local ResidualMemories = Currency:New(3089)
-
-    -- Fishing derby currency
-    local MereldarDerbyMark = Currency:New(3055)
-
     -- PVP currency
     local Honor = Currency:New(1792)
     local Conquest = Currency:New(1602)
     local BloodyTokens = Currency:New(2123)
 
+    -- Fishing derby currency
+    local MereldarDerbyMark = Currency:New(3055)
+
     -- Garrison Resources
     local GarrisonResources = Currency:New(824)
+
+    local TradersTender = Currency:New(2032)
 
     ---@class Currencies
     RT.Currencies = {
@@ -146,12 +149,13 @@ if RT.AddonUtil.IsRetail() then
         Kej,
         NerubArFinery,
         RestoredCofferKey,
+        MereldarDerbyMark,
+        TradersTender,
         TimewarpedBadge,
+        GarrisonResources,
         Honor,
         Conquest,
         BloodyTokens,
-        MereldarDerbyMark,
-        GarrisonResources
      }
 
     ---@class ExcludedCurrencyIds
