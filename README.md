@@ -3,7 +3,7 @@ RackensTracker keeps track of all your characters currencies, raid and dungeon l
 
 The tracking window displays several relevant sections such as realm data, character data, lockout and currencies and each section is customizable allowing you to view what is most relevant for you.
 
-![image](https://github.com/user-attachments/assets/6ace5887-48b4-4ff0-8599-99d38e4d35d5)
+![image](https://github.com/user-attachments/assets/ef039f06-5d59-4f92-a938-89c4aa0032c0)
 
 ## Features
 * Displays when raid and dungeon locks expire
@@ -13,11 +13,11 @@ The tracking window displays several relevant sections such as realm data, chara
 
 ## Configuration
 ### Keybindings
-Keybind support added under Options ->Game->Keybindings allowing you to set a keybind for opening the tracking window, and a keybind for the options menu
+Keybind support added under Options->Game->Keybindings allowing you to set a keybind for opening the tracking window, and a keybind for the options menu
 
 ### Options menu
 * Select the realm you wish the tracking window to display data for
-* Select what character specific data is visible in the tracking window (currently supports displaying iLvl)
+* Select what character specific data is visible in the tracking window (currently supports displaying character level and item level)
 * Select which currencies are visible in the tracking window
 * Realm specific settings allowing you to hide/show specific characters from the tracking window
 * Realm specific settings allowing you to delete characters from the tracking database
