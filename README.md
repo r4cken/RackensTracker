@@ -35,7 +35,3 @@ Keybind support added under Options ->Game->Keybindings allowing you to set a ke
 
 ## Usage
 The tracking starts once you've logged in to each character you wish to track for the first time after installing
-
-## Notes
-**note**:
-The tracker is set to operate only on max level characters at present but this will be changed in an upcoming patch allowing you to set the minimum level RackensTracker operates under with a slider option setting.
