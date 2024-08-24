@@ -29,7 +29,7 @@ local ColorUtil = {
 }
 
 ---@param color string A wow color code (including '|c')
----@param format string Same syntax as standard Lua format()
+---@param format string | number Same syntax as standard Lua format()
 ---@param ... any Arguments to the format string
 ---@return string
 --- Formats input text and returns it colorized by given color
@@ -38,7 +38,7 @@ function ColorUtil:FormatColor(color, format, ...)
 end
 
 ---@param class ClassBaseName
----@param format string Same syntax as standard Lua format()
+---@param format string | number Same syntax as standard Lua format()
 ---@param ... any Arguments to the format string
 ---@return string
 --- Formats input text and returns it colorized by given player class

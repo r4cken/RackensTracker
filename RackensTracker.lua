@@ -1441,7 +1441,7 @@ function RackensTracker:OpenTrackerFrame()
 	local tabName = ""
 
 	local initialCharacterTab = self.currentCharacter.name
-	local isInitialCharacterMaxLevel = false
+	local isInitialCharacterEligible = false
 
 	-- Create one tab per level eligible character
 	for characterName, character in pairs(self.db.global.realms[self.currentDisplayedRealm].characters) do
@@ -1449,7 +1449,7 @@ function RackensTracker:OpenTrackerFrame()
 		if (self.db.global.options.shownCharacters[optionsKey]) then
 			if (self:IsCharacterEligibleForTracking(character.level)) then
 				if (character.name == initialCharacterTab and self:IsCharacterEligibleForTracking(character.level)) then
-					isInitialCharacterMaxLevel = true
+					isInitialCharacterEligible = true
 				end
 				tabIcon = RT.CharacterUtil:GetCharacterIcon(character.class, tabIconSize)
 				tabName = RT.ColorUtil:FormatColorClass(character.class, character.name)
@@ -1459,8 +1459,8 @@ function RackensTracker:OpenTrackerFrame()
 	end
 
 	-- Do we have ANY level eligible characters at all?
-	local isAnyCharacterMaxLevel = #tabsData > 0
-	if (isAnyCharacterMaxLevel) then
+	local isAnyCharacterEligible = #tabsData > 0
+	if (isAnyCharacterEligible) then
 		-- Add the TabGroup to the main frame
 		-- REALLY IMPORTANT THIS ISNT PLACED ON ANY OTHER LINE
 		self.tracker_frame:AddChild(self.tracker_tabs)
@@ -1469,7 +1469,7 @@ function RackensTracker:OpenTrackerFrame()
 		-- Register callbacks on tab selected
 		self.tracker_tabs:SetCallback("OnGroupSelected", SelectCharacterTab)
 
-		if (isInitialCharacterMaxLevel) then
+		if (isInitialCharacterEligible) then
 			-- Set initial tab to the current character
 			self.tracker_tabs:SelectTab(initialCharacterTab)
 		else
