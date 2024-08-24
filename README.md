@@ -17,6 +17,7 @@ Keybind support added under Options->Game->Keybindings allowing you to set a key
 
 ### Options menu
 * Select the realm you wish the tracking window to display data for
+* Select the minimum character level required for characters to be visible in the tracking window (helpful if you dont care about showing bank alts or lower level characters)
 * Select what character specific data is visible in the tracking window (currently supports displaying character level and item level)
 * Select which currencies are visible in the tracking window
 * Realm specific settings allowing you to hide/show specific characters from the tracking window
