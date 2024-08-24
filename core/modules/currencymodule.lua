@@ -27,7 +27,7 @@ local function GetCharacterCurrencies()
 	---@type table<number, DbCurrency>
 	local currencies = {}
 	-- Iterate over all known currency ID's
-	for currencyID = 61, 3000, 1 do
+	for currencyID = 61, 10000, 1 do
 		-- Exclude some currencies which arent useful or those that are deprecated
 		if (not RT.ExcludedCurrencyIds[currencyID]) then
 		   local currency = GetCurrencyInfo(currencyID)

@@ -144,25 +144,19 @@ function RackensTracker:CreateRealmOptions()
 				name = L["optionsCharactersHeader"],
 				order = order
 			}
-			-- Display an options header depending if we have eligible characters to track or not, on this realm
-			if (not ContainsIf(self.db.global.realms[realmName].characters, function(character) return RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level) end)) then
-				options.args[realmName].args.displayedCharactersHeader.name = L["optionsNoCharactersHeader"]
-			end
 
 			-- Character toggles for the tracker
 			for characterName, character in pairs(self.db.global.realms[realmName].characters) do
 				order = order + 1
-				if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
-					local key = strformat("%s.%s", character.realm, characterName)
-					options.args[realmName].args[characterName] = {
-						name = characterName,
-						desc = L["optionsToggleCharacterTooltip"],
-						type = "toggle",
-						order = order,
-						set = function(info, value) self.db.global.options.shownCharacters[key] = value end,
-						get = function(info) return self.db.global.options.shownCharacters[key] end,
-					}
-				end
+				local key = strformat("%s.%s", character.realm, characterName)
+				options.args[realmName].args[characterName] = {
+					name = characterName,
+					desc = L["optionsToggleCharacterTooltip"],
+					type = "toggle",
+					order = order,
+					set = function(info, value) self.db.global.options.shownCharacters[key] = value end,
+					get = function(info) return self.db.global.options.shownCharacters[key] end,
+				}
 			end
 
 			order = order + 1
@@ -183,18 +177,15 @@ function RackensTracker:CreateRealmOptions()
 				order = order,
 				width = "normal",
 				get = function(info)
-					--self.db.global.realms[realmName].selectedCharacterForDeletion = self.db.global.realms[realmName].selectedCharacterForDeletion or strformat("%s.%s", self.currentCharacter.realm, self.currentCharacter.name)
 					return self.db.global.realms[realmName].selectedCharacterForDeletion
 				end,
 				set = function(info, value) self.db.global.realms[realmName].selectedCharacterForDeletion = value end,
 			}
 
 			for characterName, character in pairs(self.db.global.realms[realmName].characters) do
-				if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
-					local key = strformat("%s.%s", realmName, characterName)
-					options.args[realmName].args.characterSelectDelete.values[key] = characterName
-					options.args[realmName].args.characterSelectDelete.sorting[#options.args[realmName].args.characterSelectDelete.sorting + 1] = key
-				end
+				local key = strformat("%s.%s", realmName, characterName)
+				options.args[realmName].args.characterSelectDelete.values[key] = characterName
+				options.args[realmName].args.characterSelectDelete.sorting[#options.args[realmName].args.characterSelectDelete.sorting + 1] = key
 			end
 
 			-- Button to delete the selected character from the select dropdown
@@ -204,20 +195,26 @@ function RackensTracker:CreateRealmOptions()
 				name = L["optionsButtonDeleteCharacter"],
 				desc = L["optionsButtonDeleteCharacterTooltip"],
 				func = function(info, value)
+					-- TODO: Figure out why this is so buggy, the dropdown isnt populated after deletion and state seems to be all kinds of screwed up :/
+					-- a /reload fixes the dropdowns and makes it work correctly but its a hack solution and confuses the users.
 					local realm, name = strsplit(".", self.db.global.realms[realmName].selectedCharacterForDeletion)
-					self.db.global.realms[realm].characters[name] = nil
 					self.db.global.options.shownCharacters[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
+					-- Checkbox removal
 					options.args[realmName].args[name] = nil
-					options.args[realmName].args.characterSelectDelete.values[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
+					-- Remove the sorted dropdown index
 					local sortedIndex = tIndexOf(options.args[realmName].args.characterSelectDelete.sorting, self.db.global.realms[realmName].selectedCharacterForDeletion)
 					if sortedIndex then
 						options.args[realmName].args.characterSelectDelete.sorting[sortedIndex] = nil
 					end
-					-- Display an options header depending if we have eligible characters to track or not, on this realm
-					if (not ContainsIf(self.db.global.realms[realmName].characters, function(character) return RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level) end)) then
-						options.args[realmName].args.displayedCharactersHeader.name = L["optionsNoCharactersHeader"]
-					end
+					-- Remove the dropdown value
+					options.args[realmName].args.characterSelectDelete.values[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
+					-- Unset the db value for selectedCharacterForDeletion
 					self.db.global.realms[realmName].selectedCharacterForDeletion = nil
+					-- Unset all database data for the character removed
+					self.db.global.realms[realm].characters[name] = nil
+					if #options.args[realmName].args.characterSelectDelete.values > 0 then
+						self.db.global.realms[realmName].selectedCharacterForDeletion = options.args[realmName].args.characterSelectDelete.values[1]
+					end
 					AceConfigRegistry:NotifyChange(addOnName)
 				end,
 				order = order,
@@ -281,6 +278,10 @@ function RackensTracker:OnInitialize()
 	-- 	end
 	-- end
 
+	local function OnMinimumCharacterLevelChanged(_, _, value)
+		self.db.global.options.showCharactersAtOrBelowLevel = value
+	end
+
 	local function OnCharacterDataOptionSettingChanged(_, setting, value)
 		local variable = setting:GetVariable()
 		if (variable == "showCharacterData") then
@@ -299,7 +300,7 @@ function RackensTracker:OnInitialize()
 		end
 	end
 
-	--self.OnQuestOptionSettingChanged = OnQuestOptionSettingChanged
+	self.OnMinimumCharacterLevelChanged = OnMinimumCharacterLevelChanged
 	self.OnCharacterDataOptionSettingChanged = OnCharacterDataOptionSettingChanged
 	self.OnCurrencyOptionSettingChanged = OnCurrencyOptionSettingChanged
 	self.OnRealmOptionChanged = OnRealmOptionChanged
@@ -309,7 +310,11 @@ function RackensTracker:OnInitialize()
 	-- Sets up the layout and options see under the AddOn options
 	AceConfigRegistry:NotifyChange(addOnName)
 
-	self:RegisterAddOnSettings(OnCharacterDataOptionSettingChanged, OnCurrencyOptionSettingChanged, OnRealmOptionChanged)
+	if RT.AddonUtil.IsRetail() then
+		self:RegisterAddOnSettings_Retail()
+	else
+		self:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, OnCharacterDataOptionSettingChanged, OnCurrencyOptionSettingChanged, OnRealmOptionChanged)
+	end
 
 	-- Setup the data broken and the minimap icon
 	self.libDataBroker = LibStub("LibDataBroker-1.1", true)
@@ -348,7 +353,7 @@ end
 ---@param OnCharacterDataOptionSettingChanged function
 ---@param OnCurrencyOptionChanged function
 ---@param OnRealmOptionChanged function
-function RackensTracker:RegisterAddOnSettings(OnCharacterDataOptionSettingChanged, OnCurrencyOptionChanged, OnRealmOptionChanged)
+function RackensTracker:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, OnCharacterDataOptionSettingChanged, OnCurrencyOptionChanged, OnRealmOptionChanged)
 	-- Register the Options menu
 	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory(addOnName)
 	self.optionsCategory.ID = addOnName
@@ -360,9 +365,9 @@ function RackensTracker:RegisterAddOnSettings(OnCharacterDataOptionSettingChange
 	-- Realm data options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsTrackedRealmsHeader"]))
 	local realmsDropDownOptionVariable = "shownRealm"
-	local realmsDropDownOptionDisplayName = L["optionsDropDownDescriptionRealms"]
-	local defaultRealmsDropDownOptionValue = self.currentRealm
+	local realmsDropDownOptionName = L["optionsDropDownDescriptionRealms"]
 	local realmsDropDownOptionTooltip = L["optionsDropDownTooltipRealms"]
+	local defaultRealmsDropDownOptionValue = self.currentRealm
 
 	local function GetRealmOptions()
 		local container = Settings.CreateControlTextContainer();
@@ -372,65 +377,262 @@ function RackensTracker:RegisterAddOnSettings(OnCharacterDataOptionSettingChange
 		return container:GetData();
 	end
 
-	local shownRealmSetting = Settings.RegisterAddOnSetting(self.optionsCategory, realmsDropDownOptionDisplayName, realmsDropDownOptionVariable, Settings.VarType.string, defaultRealmsDropDownOptionValue)
-	Settings.CreateDropDown(self.optionsCategory, shownRealmSetting, GetRealmOptions, realmsDropDownOptionTooltip)
+	local shownRealmSetting = Settings.RegisterAddOnSetting(self.optionsCategory, realmsDropDownOptionName, realmsDropDownOptionVariable, Settings.VarType.string, defaultRealmsDropDownOptionValue)
 	Settings.SetOnValueChangedCallback(realmsDropDownOptionVariable, OnRealmOptionChanged)
+
+	Settings.CreateDropDown(self.optionsCategory, shownRealmSetting, GetRealmOptions, realmsDropDownOptionTooltip)
 	if (self.db.global.options.shownRealm == nil) then
 		shownRealmSetting:SetValue(self.currentRealm, true)
 	else
 		shownRealmSetting:SetValue(self.db.global.options[realmsDropDownOptionVariable], true)
 	end
 
+	local function FormatLevel(value)
+		local levelFormat = "Level %d"
+		return levelFormat:format(value)
+	end
+
+	-- Slider options (minimum character level required to display tracking data)
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsMinimumCharacterLevelHeader"]))
+	local showCharactersAtOrBelowLevelOptionName = L["optionsSliderDescriptionShowMinimumCharacterLevel"]
+	local showCharactersAtOrBelowLevelOptionTooltip = L["optionsSliderShowMinimumCharacterLevelTooltip"]
+	local showCharactersAtOrBelowLevelOptionVariable = "showCharactersAtOrBelowLevel"
+	local showCharactersAtOrBelowLevelOptionVariableKey = "showCharactersAtOrBelowLevel"
+	local defaultShowCharactersAtOrBelowLevelVisibilityValue = database_defaults.global.options.showCharactersAtOrBelowLevel
+	local showCharactersAtOrBelowLevelOptionMinValue = 1
+	local showCharactersAtOrBelowLevelOptionMaxValue = GetMaxPlayerLevel()
+	local showCharactersAtOrBelowLevelOptionSliderStep = 1
+
+	local showCharactersAtOrBelowLevelOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, showCharactersAtOrBelowLevelOptionName, showCharactersAtOrBelowLevelOptionVariable, type(defaultShowCharactersAtOrBelowLevelVisibilityValue), defaultShowCharactersAtOrBelowLevelVisibilityValue)
+	local showCharactersAtOrBelowLevelOptions = Settings.CreateSliderOptions(showCharactersAtOrBelowLevelOptionMinValue, showCharactersAtOrBelowLevelOptionMaxValue, showCharactersAtOrBelowLevelOptionSliderStep)
+	showCharactersAtOrBelowLevelOptions:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, FormatLevel)
+
+	Settings.CreateSlider(self.optionsCategory, showCharactersAtOrBelowLevelOptionVisibilitySetting, showCharactersAtOrBelowLevelOptions, showCharactersAtOrBelowLevelOptionTooltip)
+	Settings.SetOnValueChangedCallback(showCharactersAtOrBelowLevelOptionVariable, OnMinimumCharacterLevelChanged)
+	showCharactersAtOrBelowLevelOptionVisibilitySetting:SetValue(self.db.global.options[showCharactersAtOrBelowLevelOptionVariableKey], true) -- true means force
+
 	-- Character Data options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCharacterDataHeader"]))
+	local allCharacterDataOptionName = L["optionsToggleDescriptionShowCharacterData"]
+	local allCharacterDataOptionTooltip = L["optionsToggleShowCharacterDataTooltip"]
 	local allCharacterDataOptionVariable = "showCharacterData"
-	local allCharacterDataOptionDisplayName = L["optionsToggleDescriptionShowCharacterData"]
+	local allCharacterDataOptionVariableKey = "showCharacterData"
 	local defaultAllCharacterDataVisibilityValue = database_defaults.global.options.showCharacterData
-	local allCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCharacterDataOptionDisplayName, allCharacterDataOptionVariable, type(defaultAllCharacterDataVisibilityValue), defaultAllCharacterDataVisibilityValue)
-	local allCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, allCharacterDataOptionVisibilitySetting)
+	local allCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCharacterDataOptionName, allCharacterDataOptionVariable, type(defaultAllCharacterDataVisibilityValue), defaultAllCharacterDataVisibilityValue)
+	local allCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, allCharacterDataOptionVisibilitySetting, allCharacterDataOptionTooltip)
 	Settings.SetOnValueChangedCallback(allCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
-	allCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.showCharacterData, true) -- true means force
+	allCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options[allCharacterDataOptionVariableKey], true) -- true means force
 
+	local lvlCharacterDataOptionName = L["optionsToggleDescriptionLvlCharacterData"]
+	local lvlCharacterDataOptionTooltip = L["optionsToggleLvlCharacterDataTooltip"]
+	local lvlCharacterDataOptionVariable = "lvl"
+	local lvlCharacterDataOptionVariableKey = "lvl"
+	local defaultLvlCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[lvlCharacterDataOptionVariable]
+	local lvlCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, lvlCharacterDataOptionName, lvlCharacterDataOptionVariable, type(defaultLvlCharacterDataVisibilityValue), defaultLvlCharacterDataVisibilityValue)
+	local lvlCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, lvlCharacterDataOptionVisibilitySetting, lvlCharacterDataOptionTooltip)
+	Settings.SetOnValueChangedCallback(lvlCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
+	lvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[lvlCharacterDataOptionVariableKey], true) -- true means force
+	lvlCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
+
+	local iLvlCharacterDataOptionName = L["optionsToggleDescriptioniLvlCharacterData"]
+	local iLvlCharacterDataOptionTooltip = L["optionsToggleiLvlCharacterDataTooltip"]
 	local iLvlCharacterDataOptionVariable = "iLvl"
-	local iLvlCharacterDataOptionDisplayName = L["optionsToggleDescriptioniLvlCharacterData"]
+	local iLvlCharacterDataOptionVariableKey = "iLvl"
 	local defaultiLvlCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[iLvlCharacterDataOptionVariable]
-	local iLvlCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, iLvlCharacterDataOptionDisplayName, iLvlCharacterDataOptionVariable, type(defaultiLvlCharacterDataVisibilityValue), defaultiLvlCharacterDataVisibilityValue)
-	local iLvlCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, iLvlCharacterDataOptionVisibilitySetting)
+	local iLvlCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, iLvlCharacterDataOptionName, iLvlCharacterDataOptionVariable, type(defaultiLvlCharacterDataVisibilityValue), defaultiLvlCharacterDataVisibilityValue)
+	local iLvlCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, iLvlCharacterDataOptionVisibilitySetting, iLvlCharacterDataOptionTooltip)
 	Settings.SetOnValueChangedCallback(iLvlCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
-	iLvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[iLvlCharacterDataOptionVariable], true) -- true means force
+	iLvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[iLvlCharacterDataOptionVariableKey], true) -- true means force
 	iLvlCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
-
-	-- local dailyQuestOptionVariable = "Daily"
-	-- local dailyQuestOptionDisplayName = L["optionsToggleDescriptionDailyQuest"]
-	-- local defaultDailyQuestVisibilityValue = database_defaults.global.options.shownQuests[dailyQuestOptionVariable]
-	-- local dailyquestOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, dailyQuestOptionDisplayName, dailyQuestOptionVariable, type(defaultDailyQuestVisibilityValue), defaultDailyQuestVisibilityValue)
-	-- local dailyQuestOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, dailyquestOptionVisibilitySetting)
-	-- Settings.SetOnValueChangedCallback(dailyQuestOptionVariable, OnQuestOptionChanged)
-	-- dailyquestOptionVisibilitySetting:SetValue(self.db.global.options.shownQuests[dailyQuestOptionVariable], true) -- true means force
-	-- dailyQuestOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
 
 	-- Currency options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
+	local allCurrencyOptionName = L["optionsToggleDescriptionShowCurrencies"]
+	local allCurrencyOptionTooltip = L["optionsToggleShowCurrenciesTooltip"]
 	local allCurrencyOptionVariable = "showCurrencies"
-	local allCurrencyOptionDisplayName = L["optionsToggleDescriptionShowCurrencies"]
+	local allCurrencyOptionVariableKey = "showCurrencies"
 	local defaultAllCurrencyVisibilityValue = database_defaults.global.options.showCurrencies
-	local allCurrencyOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCurrencyOptionDisplayName, allCurrencyOptionVariable, type(defaultAllCurrencyVisibilityValue), defaultAllCurrencyVisibilityValue)
-	local allCurrencyOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, allCurrencyOptionVisibilitySetting)
+	local allCurrencyOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCurrencyOptionName, allCurrencyOptionVariable, type(defaultAllCurrencyVisibilityValue), defaultAllCurrencyVisibilityValue)
+	local allCurrencyOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, allCurrencyOptionVisibilitySetting, allCurrencyOptionTooltip)
 	Settings.SetOnValueChangedCallback(allCurrencyOptionVariable, OnCurrencyOptionChanged)
-	allCurrencyOptionVisibilitySetting:SetValue(self.db.global.options.showCurrencies, true) -- true means force
+	allCurrencyOptionVisibilitySetting:SetValue(self.db.global.options[allCurrencyOptionVariableKey], true) -- true means force
 
 	for _, currency in ipairs(RT.Currencies) do
-		local variable = tostring(currency.id)
 		local name = currency:GetName()
-		local defaultValue = database_defaults.global.options.shownCurrencies[variable]
-		local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, type(defaultValue), defaultValue)
-		local initializer = Settings.CreateCheckBox(self.optionsCategory, setting, L["optionsToggleCurrencyTooltip"])
-		Settings.SetOnValueChangedCallback(variable, OnCurrencyOptionChanged)
+		if name and database_defaults.global.options.shownCurrencies[tostring(currency.id)] ~= nil then
+			local tooltip =  strformat(L["optionsToggleShowCurrencyTooltip"], name)
+			local variable = tostring(currency.id)
+			local defaultVisibilityValue = database_defaults.global.options.shownCurrencies[variable]
+			local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, type(defaultVisibilityValue), defaultVisibilityValue)
+			local initializer = Settings.CreateCheckBox(self.optionsCategory, setting, tooltip)
+			Settings.SetOnValueChangedCallback(variable, OnCurrencyOptionChanged)
 
-		-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
-		-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
-		setting:SetValue(self.db.global.options.shownCurrencies[variable], true) -- true means force
-		initializer:SetParentInitializer(allCurrencyOptionInitializer, function() return allCurrencyOptionVisibilitySetting:GetValue() end)
+			-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
+			-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
+			setting:SetValue(self.db.global.options.shownCurrencies[variable], true) -- true means force
+			initializer:SetParentInitializer(allCurrencyOptionInitializer, function() return allCurrencyOptionVisibilitySetting:GetValue() end)
+		else
+			local err = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, L["errorCurrencyConflictDatabaseDefaults"], currency.id)
+			RackensTracker:Printf(err)
+		end
+	end
+
+	Settings.RegisterAddOnCategory(self.optionsCategory)
+
+	-- Create one option subcategory with characters to display per realm
+	for _, realmName in ipairs(realmsAvailable) do
+		self.realmSubFramesAndCategoryIds[realmName] = {}
+		self.realmSubFramesAndCategoryIds[realmName].frame, self.realmSubFramesAndCategoryIds[realmName].categoryID = AceConfigDialog:AddToBlizOptions(addOnName, realmName, self.optionsCategory:GetID(), realmName)
+	end
+end
+
+--- Registers this AddOns configurable settings and specifies the layout and graphical elements for the settings panel.
+function RackensTracker:RegisterAddOnSettings_Retail()
+	-- Register the Options menu
+	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory(addOnName)
+	self.optionsCategory.ID = addOnName
+	self.realmSubFramesAndCategoryIds = {}
+
+	local realmsAvailable = GetKeysArray(self.db.global.realms)
+	table.sort(realmsAvailable, function(a,b) return a < b end)
+
+	local function OnAddOnSettingChanged(setting, value)
+		Log("setting %s changed to %s", setting:GetVariable(), tostring(value))
+	end
+
+	-- Realm data options
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsTrackedRealmsHeader"]))
+	local realmsDropDownOptionVariable = strformat("%s_%s", addOnName, "shownRealm")
+	local realmsDropDownOptionName = L["optionsDropDownDescriptionRealms"]
+	local realmsDropDownOptionTooltip = L["optionsDropDownTooltipRealms"]
+	local defaultRealmsDropDownOptionValue = self.currentRealm
+
+	local function GetRealmDropdownValue()
+		return self.db.global.options.shownRealm
+	end
+
+	local function SetRealmDropdownValue(value)
+		if (self.db.global.realms[value]) then
+			self.db.global.options.shownRealm = value
+			self.currentDisplayedRealm = value
+		end
+	end
+
+	local function GetRealmOptions()
+		local container = Settings.CreateControlTextContainer();
+		for _, realmName in ipairs(realmsAvailable) do
+			container:Add(realmName, realmName)
+		end
+		return container:GetData();
+	end
+
+	local shownRealmSetting = Settings.RegisterProxySetting(self.optionsCategory, realmsDropDownOptionVariable, Settings.VarType.string, realmsDropDownOptionName, defaultRealmsDropDownOptionValue, GetRealmDropdownValue, SetRealmDropdownValue)
+	shownRealmSetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	Settings.CreateDropdown(self.optionsCategory, shownRealmSetting, GetRealmOptions, realmsDropDownOptionTooltip)
+	if (self.db.global.options.shownRealm == nil) then
+		shownRealmSetting:SetValue(self.currentRealm, true)
+	else
+		shownRealmSetting:SetValue(self.db.global.options["shownRealm"], true)
+	end
+
+	-- Slider options (minimum character level required to display tracking data)
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsMinimumCharacterLevelHeader"]))
+	local showCharactersAtOrBelowLevelOptionName = L["optionsSliderDescriptionShowMinimumCharacterLevel"]
+	local showCharactersAtOrBelowLevelOptionTooltip = L["optionsSliderShowMinimumCharacterLevelTooltip"]
+	local showCharactersAtOrBelowLevelOptionVariable = strformat("%s_%s", addOnName, "showCharactersAtOrBelowLevel")
+	local showCharactersAtOrBelowLevelOptionVariableKey = "showCharactersAtOrBelowLevel"
+	local showCharactersAtOrBelowLevelOptionVariableTbl = self.db.global.options
+	local defaultShowCharactersAtOrBelowLevelVisibilityValue = database_defaults.global.options.showCharactersAtOrBelowLevel
+	local showCharactersAtOrBelowLevelOptionMinValue = 1
+	local showCharactersAtOrBelowLevelOptionMaxValue = GetMaxPlayerLevel()
+	local showCharactersAtOrBelowLevelOptionSliderStep = 1
+
+	local showCharactersAtOrBelowLevelOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, showCharactersAtOrBelowLevelOptionVariable, showCharactersAtOrBelowLevelOptionVariableKey, showCharactersAtOrBelowLevelOptionVariableTbl, type(defaultShowCharactersAtOrBelowLevelVisibilityValue), showCharactersAtOrBelowLevelOptionName, defaultShowCharactersAtOrBelowLevelVisibilityValue)
+	showCharactersAtOrBelowLevelOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local function FormatLevel(value)
+		local levelFormat = "Level %d"
+		return levelFormat:format(value)
+	end
+
+	local showCharactersAtOrBelowLevelOptions = Settings.CreateSliderOptions(showCharactersAtOrBelowLevelOptionMinValue, showCharactersAtOrBelowLevelOptionMaxValue, showCharactersAtOrBelowLevelOptionSliderStep)
+	showCharactersAtOrBelowLevelOptions:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, FormatLevel)
+
+	Settings.CreateSlider(self.optionsCategory, showCharactersAtOrBelowLevelOptionVisibilitySetting, showCharactersAtOrBelowLevelOptions, showCharactersAtOrBelowLevelOptionTooltip)
+	showCharactersAtOrBelowLevelOptionVisibilitySetting:SetValue(self.db.global.options[showCharactersAtOrBelowLevelOptionVariableKey], true) -- true means force
+
+	-- Character Data options
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCharacterDataHeader"]))
+	local allCharacterDataOptionName = L["optionsToggleDescriptionShowCharacterData"]
+	local allCharacterDataOptionTooltip = L["optionsToggleShowCharacterDataTooltip"]
+	local allCharacterDataOptionVariable = strformat("%s_%s", addOnName, "showCharacterData")
+	local allCharacterDataOptionVariableKey = "showCharacterData"
+	local allCharacterDataOptionVariableTbl = self.db.global.options
+	local defaultAllCharacterDataVisibilityValue = database_defaults.global.options.showCharacterData
+	local allCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCharacterDataOptionVariable, allCharacterDataOptionVariableKey, allCharacterDataOptionVariableTbl, type(defaultAllCharacterDataVisibilityValue), allCharacterDataOptionName, defaultAllCharacterDataVisibilityValue)
+	allCharacterDataOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local allCharacterDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, allCharacterDataOptionVisibilitySetting, allCharacterDataOptionTooltip)
+	allCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options[allCharacterDataOptionVariableKey], true) -- true means force
+
+	local lvlCharacterDataOptionName = L["optionsToggleDescriptionLvlCharacterData"]
+	local lvlCharacterDataOptionTooltip = L["optionsToggleLvlCharacterDataTooltip"]
+	local lvlCharacterDataOptionVariable = strformat("%s_%s", addOnName, "lvl")
+	local lvlCharacterDataOptionVariableKey = "lvl"
+	local lvlCharacterDataOptionVariableTbl = self.db.global.options.shownCharacterData
+	local defaultLvlCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[lvlCharacterDataOptionVariableKey]
+	local lvlCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, lvlCharacterDataOptionVariable, lvlCharacterDataOptionVariableKey, lvlCharacterDataOptionVariableTbl, type(defaultLvlCharacterDataVisibilityValue), lvlCharacterDataOptionName, defaultLvlCharacterDataVisibilityValue)
+	lvlCharacterDataOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local lvlCharacterDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, lvlCharacterDataOptionVisibilitySetting, lvlCharacterDataOptionTooltip)
+	lvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[lvlCharacterDataOptionVariableKey], true) -- true means force
+	lvlCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
+
+	local iLvlCharacterDataOptionName = L["optionsToggleDescriptioniLvlCharacterData"]
+	local iLvlCharacterDataOptionTooltip = L["optionsToggleiLvlCharacterDataTooltip"]
+	local iLvlCharacterDataOptionVariable = strformat("%s_%s", addOnName, "iLvl")
+	local iLvlCharacterDataOptionVariableKey = "iLvl"
+	local iLvlCharacterDataOptionVariableTbl = self.db.global.options.shownCharacterData
+	local defaultiLvlCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[iLvlCharacterDataOptionVariableKey]
+	local iLvlCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, iLvlCharacterDataOptionVariable, iLvlCharacterDataOptionVariableKey, iLvlCharacterDataOptionVariableTbl, type(defaultiLvlCharacterDataVisibilityValue), iLvlCharacterDataOptionName, defaultiLvlCharacterDataVisibilityValue)
+	iLvlCharacterDataOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local iLvlCharacterDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, iLvlCharacterDataOptionVisibilitySetting, iLvlCharacterDataOptionTooltip)
+	iLvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[iLvlCharacterDataOptionVariableKey], true) -- true means force
+	iLvlCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
+
+	-- Currency options
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
+	local allCurrencyOptionName = L["optionsToggleDescriptionShowCurrencies"]
+	local allCurrencyOptionTooltip = L["optionsToggleShowCurrenciesTooltip"]
+	local allCurrencyOptionVariable = strformat("%s_%s", addOnName, "showCurrencies")
+	local allCurrencyOptionVariableKey = "showCurrencies"
+	local allCurrencyOptionVariableTbl = self.db.global.options
+	local defaultAllCurrencyVisibilityValue = database_defaults.global.options.showCurrencies
+	local allCurrencyOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCurrencyOptionVariable, allCurrencyOptionVariableKey, allCurrencyOptionVariableTbl, type(defaultAllCurrencyVisibilityValue), allCurrencyOptionName, defaultAllCurrencyVisibilityValue)
+	allCurrencyOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local allCurrencyOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, allCurrencyOptionVisibilitySetting, allCurrencyOptionTooltip)
+	allCurrencyOptionVisibilitySetting:SetValue(self.db.global.options[allCurrencyOptionVariableKey], true) -- true means force
+
+	for _, currency in ipairs(RT.Currencies) do
+		local name = currency:GetName()
+		if name and database_defaults.global.options.shownCurrencies[tostring(currency.id)] ~= nil then
+			local tooltip =  strformat(L["optionsToggleShowCurrencyTooltip"], name)
+			local variable = strformat("%s_currency_%s", addOnName, tostring(currency.id))
+			local variableKey = tostring(currency.id)
+			local variableTbl = self.db.global.options.shownCurrencies
+			local defaultVisibilityValue = database_defaults.global.options.shownCurrencies[variableKey]
+			local setting = Settings.RegisterAddOnSetting(self.optionsCategory, variable, variableKey, variableTbl, type(defaultVisibilityValue), name, defaultVisibilityValue)
+			setting:SetValueChangedCallback(OnAddOnSettingChanged)
+			local initializer = Settings.CreateCheckbox(self.optionsCategory, setting, tooltip)
+			setting:SetValue(self.db.global.options.shownCurrencies[variableKey], true) -- true means force
+			initializer:SetParentInitializer(allCurrencyOptionInitializer, function() return allCurrencyOptionVisibilitySetting:GetValue() end)
+		else
+			local err = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, L["errorCurrencyConflictDatabaseDefaults"], currency.id)
+			RackensTracker:Printf(err)
+		end
 	end
 
 	Settings.RegisterAddOnCategory(self.optionsCategory)
@@ -464,6 +666,12 @@ function RackensTracker:OnDisable()
 	self:UnregisterChatCommand(addOnName)
 end
 
+--- Checks eligibility of a character for the tracker
+---@return boolean isEligible
+function RackensTracker:IsCharacterEligibleForTracking(level)
+	return level >= self.db.global.options.showCharactersAtOrBelowLevel
+end
+
 --- Updates the database with the new level for the current character
 function RackensTracker:UpdateCharacterLevel(newLevel)
 	self.currentCharacter.level = newLevel
@@ -474,7 +682,7 @@ end
 ---@param newLevel number
 function RackensTracker:OnEventPlayerLevelUp(event, newLevel)
 	self:UpdateCharacterLevel(newLevel)
-	if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(newLevel)) then
+	if (self:IsCharacterEligibleForTracking(newLevel)) then
 		AceConfigRegistry:NotifyChange(addOnName)
 	end
 end
@@ -666,17 +874,37 @@ function RackensTracker:DrawCharacterInfo(container, characterName)
 	characterHeading:SetText(characterName)
 	container:AddChild(characterHeading)
 
-	local characterIlvlLabel = AceGUI:Create("Label")
-	characterIlvlLabel:SetFullWidth(true)
-	if (character.equippedIlvl ~= 0 or character.overallIlvl ~= 0) then
-		characterIlvlLabel:SetImage([[Interface\PaperDollInfoFrame\UI-EquipmentManager-Toggle]])
-		characterIlvlLabel:SetImageSize(22, 22)
-		characterIlvlLabel:SetText(strformat("%s: %d/%d", L["itemLevel"], character.equippedIlvl, character.overallIlvl))
-	else
-		characterIlvlLabel:SetText(strformat("%s: %s", L["itemLevel"], L["unknown"]))
+	if self.db.global.options.shownCharacterData.lvl then
+		local characterLvlLabel = AceGUI:Create("Label")
+		characterLvlLabel:SetFullWidth(true)
+
+		local factionIcon
+		if character.faction == "Alliance" then
+			factionIcon = [[Interface\Common\icon-alliance]]
+		else 
+			factionIcon = [[Interface\Common\icon-horde]]
+		end
+
+		characterLvlLabel:SetImage(factionIcon)
+		characterLvlLabel:SetImageSize(22, 33)
+		characterLvlLabel:SetText(strformat("%s: %d", L["level"], character.level))
+
+		container:AddChild(characterLvlLabel)
 	end
 
-	container:AddChild(characterIlvlLabel)
+	if self.db.global.options.shownCharacterData.iLvl then
+		local characterIlvlLabel = AceGUI:Create("Label")
+		characterIlvlLabel:SetFullWidth(true)
+		characterIlvlLabel:SetImage([[Interface\PaperDollInfoFrame\UI-EquipmentManager-Toggle]])
+		characterIlvlLabel:SetImageSize(22, 22)
+		if (character.equippedIlvl ~= 0 or character.overallIlvl ~= 0) then
+			characterIlvlLabel:SetText(strformat("%s: %d/%d", L["itemLevel"], character.equippedIlvl, character.overallIlvl))
+		else
+			characterIlvlLabel:SetText(strformat("%s: %s", L["itemLevel"], L["unknown"]))
+		end
+
+		container:AddChild(characterIlvlLabel)
+	end
 end
 
 
@@ -1046,6 +1274,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 		local colorizedName = ""
 		local icon = ""
 		local nameAndIcon = ""
+		local description = ""
 		local useTotalEarnedForMaxQty = false
 		local quantity = 0
 		local maxQuantity = 0
@@ -1058,7 +1287,8 @@ function RackensTracker:DrawCurrencies(container, characterName)
 			currencyDisplayLabels[currency.id]:SetRelativeWidth(relWidthPerCurrency) -- Make each currency take up equal space and give each an extra 10%
 
 			colorizedName = currency:GetColorizedName()
-			icon = currency:GetIcon(12) --iconSize set to 12
+			icon = currency:GetIcon(14)
+			description = currency:GetDescription()
 			nameAndIcon = strformat("%s\n%s", colorizedName, icon)
 			useTotalEarnedForMaxQty = currency:GetUseTotalEarnedForMaxQty()
 
@@ -1091,8 +1321,8 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				GameTooltip:SetOwner(currencyDisplayLabels[currency.id].frame, "ANCHOR_CURSOR")
 
 				GameTooltip:AddLine(colorizedName)
-				if (characterHeldCurrency.description ~= "") then
-					GameTooltip:AddLine(characterHeldCurrency.description, nil, nil, nil, true)
+				if (description ~= "") then
+					GameTooltip:AddLine(description, nil, nil, nil, true)
 				end
 
 				GameTooltip:AddLine(" ")
@@ -1210,18 +1440,15 @@ function RackensTracker:OpenTrackerFrame()
 	local tabIcon = ""
 	local tabName = ""
 
-	-- TODO: Enable configuration options to include certain characters regardless of their level.
-	--		 Currently only create tabs for each level 85 character and if none is found, we display a helpful message.
-
 	local initialCharacterTab = self.currentCharacter.name
 	local isInitialCharacterMaxLevel = false
 
-	-- Create one tab per level 85 character
+	-- Create one tab per level eligible character
 	for characterName, character in pairs(self.db.global.realms[self.currentDisplayedRealm].characters) do
 		local optionsKey = strformat("%s.%s", character.realm, characterName)
 		if (self.db.global.options.shownCharacters[optionsKey]) then
-			if (RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
-				if (character.name == initialCharacterTab and RT.CharacterUtil:IsCharacterAtEffectiveMaxLevel(character.level)) then
+			if (self:IsCharacterEligibleForTracking(character.level)) then
+				if (character.name == initialCharacterTab and self:IsCharacterEligibleForTracking(character.level)) then
 					isInitialCharacterMaxLevel = true
 				end
 				tabIcon = RT.CharacterUtil:GetCharacterIcon(character.class, tabIconSize)
@@ -1231,7 +1458,7 @@ function RackensTracker:OpenTrackerFrame()
 		end
 	end
 
-	-- Do we have ANY level 85 characters at all?
+	-- Do we have ANY level eligible characters at all?
 	local isAnyCharacterMaxLevel = #tabsData > 0
 	if (isAnyCharacterMaxLevel) then
 		-- Add the TabGroup to the main frame

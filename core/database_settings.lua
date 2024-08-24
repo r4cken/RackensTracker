@@ -75,32 +75,62 @@ RT.DatabaseSettings = DatabaseSettings
 ---@field quests table<questID, DbQuest>
 
 ---@class DatabaseDefaults : AceDB.Schema
+
+local shownCurrencies = {}
+do
+	if RT.AddonUtil.IsCataClassic() then
+		shownCurrencies = {
+			["395"] = true,  -- Justice Points
+			["396"] = true,  -- Valor Points
+			["614"] = false, -- Mote of Darkness
+			["416"] = false, -- Mark Of The World Tree
+			["1901"] = true, -- Honor Points
+			["1900"] = true, -- Arena Points
+			["390"] = true,  -- Conquest Points
+			["391"] = true,  -- Tol Barad Commendation
+			["402"] = true,  -- Chefs Award
+			["81"] = false,	 -- Epicurean's Award
+			["361"] = true,  -- Illustrious Jewelcrafter's Token
+			["61"] = false,	 -- Dalaran Jewelcrafter's Token
+			["515"] = true,  -- Darkmoon Prize Ticket
+			["241"] = false, -- Champion's Seal
+		}
+	end
+
+	if RT.AddonUtil.IsRetail() then
+		shownCurrencies = {
+			["3008"] = true,  -- Valorstones
+			["2914"] = true,  -- Weathered Harbinger Crest
+			["2915"] = true,  -- Carved Harbinger Crest
+			["2916"] = true,  -- Runed Harbinger Crest
+			["2917"] = true,  -- Gilded Harbinger Crest
+			["2815"] = true,  -- Resonance Crystals
+			["2803"] = true,  -- Undercoin
+			["3056"] = true,  -- Kej
+			["3093"] = true,  -- Nerub-ar Finery
+			["3028"] = true,  -- Restored Coffer Key
+			["3089"] = true,  -- Residual Memories
+			["3055"] = true,  -- Mereldar Derby Mark
+			["1792"] = true,  -- Honor
+			["1602"] = true,  -- Conquest
+			["2123"] = true,  -- Bloody Tokens 
+		}
+	end
+end
+
 local database_defaults = {
 	global = {
 		options = {
 			showCurrencies = true,
-			shownCurrencies = {
-				["395"] = true,  -- Justice Points
-				["396"] = true,  -- Valor Points
-				["614"] = false, -- Mote of Darkness
-				["416"] = false, -- Mark Of The World Tree
-				["1901"] = true, -- Honor Points
-				["1900"] = true, -- Arena Points
-				["390"] = true,  -- Conquest Points
-				["391"] = true,  -- Tol Barad Commendation
-				["402"] = true,  -- Chefs Award
-				["81"] = false,	 -- Epicurean's Award
-				["361"] = true,  -- Illustrious Jewelcrafter's Token
-				["61"] = false,	 -- Dalaran Jewelcrafter's Token
-				["515"] = true,  -- Darkmoon Prize Ticket
-				["241"] = false, -- Champion's Seal
-			},
+			shownCurrencies = shownCurrencies,
+			showCharactersAtOrBelowLevel = 1,
 			shownCharacters = {
 				['*'] = true
 			},
 			showCharacterData = true,
 			shownCharacterData = {
 				["iLvl"] = true,
+				["lvl"] = true,
 			},
 			showQuests = false,
 			shownQuests = {

@@ -37,10 +37,10 @@ local CreateTextureMarkup, GetCurrencyInfo =
 
 local DEFAULT_ICON_SIZE = 16
 local ITEM_QUALITY_COLORS = ITEM_QUALITY_COLORS
---local Constants = Constants
 
----@class Currency
+---@class Currency : CurrencyInfo
 ---@field order number
+---@field id currencyID
 local Currency = {}
 RT.Currency = Currency
 
@@ -63,6 +63,14 @@ end
 function Currency:GetName()
     self.name = self.name or GetCurrencyInfo(self.id)["name"]
     return self.name
+end
+
+--- Returns a currencies description, if available
+---@return string
+function Currency:GetDescription()
+    local description = GetCurrencyInfo(self.id)["description"] or ""
+    self.description = self.description or description
+    return self.description
 end
 
 --- Returns the localized name of the currency colored by its rarity
@@ -91,8 +99,7 @@ function Currency:GetIcon(iconSize)
         iconTexture = CreateTextureMarkup(fileID, 64, 64, iconSize, iconSize, 0, 1, 0, 1)
     --end
 
-    self.icon = self.icon or iconTexture
-    return self.icon
+    return iconTexture
 end
 
 function Currency:__eq(other)

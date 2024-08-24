@@ -1,8 +1,9 @@
-## Interface: 40400
-## Title: |TInterface/Addons/RackensTracker/Art/RackensTracker-Small:16:16|t|cff8142a8RackensTracker|r
+## Interface: 110002
+## Title: |cff8142a8RackensTracker|r
 ## Notes: Tracks your instance lockouts and currencies per realm, across all your characters
 ## Author: r4cken
 ## Version: @project-version@
+## IconTexture: Interface/Addons/RackensTracker/Art/RackensTracker-Small
 ## SavedVariables: RackensTrackerDB
 ## OptionalDeps: LibStub, CallbackHandler-1.0, Ace3
 ## X-Curse-Project-ID: 1088819
