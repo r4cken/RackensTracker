@@ -81,26 +81,22 @@ if RT.AddonUtil.IsCataClassic() then
         ChampionsSeal,
     }
 
-    ---@class ExcludedCurrencyIds
-    RT.ExcludedCurrencyIds = {
-        [104] = true,  -- Honor Points DEPRECATED
-        [121] = true,  -- Alterac Valley Mark of Honor
-        [122] = true,  -- Arathi Basin Mark of Honor
-        [123] = true,  -- Eye of the Storm Mark of Honor
-        [124] = true,  -- Strand of the Ancients Mark of Honor
-        [125] = true,  -- Warsong Gulch Mark of Honor
-        [126] = true,  -- Wintergrasp Mark of Honor
-        [321] = true,  -- Isle of Conquest Mark of Honor
-        [392] = true,  -- Honor Deprecated 3
-        [181] = true,  -- Honor Points DEPRECATED2,
-        [221] = true,  -- Emblem of Conquest
-        [341] = true,  -- Emblem of Frost
-        [101] = true,  -- Emblem of Heroism
-        [301] = true,  -- Emblem of Triumph
-        [102] = true,  -- Emblem of Valor
-        [2589] = true, -- Sidereal Essence
-        [161] = true,  -- Stone Keeper's Shard
-        [2711] = true, -- Defiler's Scourgestone
+    ---@class IncludedCurrencyIds
+    RT.IncludedCurrencyIds = {
+        [395]  = true,  -- Justice Points
+        [396]  = true,  -- Valor Points
+        [614]  = true,  -- Mote of Darkness
+        [416]  = true,  -- Mark Of The World Tree
+        [1901] = true,  -- Honor Points
+        [1900] = true,  -- Arena Points
+        [390]  = true,  -- Conquest Points
+        [391]  = true,  -- Tol Barad Commendation
+        [402]  = true,  -- Chefs Award
+        [81]   = true,	-- Epicurean's Award
+        [361]  = true,  -- Illustrious Jewelcrafter's Token
+        [61]   = true,	-- Dalaran Jewelcrafter's Token
+        [515]  = true,  -- Darkmoon Prize Ticket
+        [241]  = true,  -- Champion's Seal
     }
 end
 
@@ -158,8 +154,27 @@ if RT.AddonUtil.IsRetail() then
         BloodyTokens,
      }
 
-    ---@class ExcludedCurrencyIds
-    RT.ExcludedCurrencyIds = { }
+    ---@class IncludedCurrencyIds
+    RT.IncludedCurrencyIds = {
+        [3008] = true,  -- Valorstones
+        [2914] = true,  -- Weathered Harbinger Crest
+        [2915] = true,  -- Carved Harbinger Crest
+        [2916] = true,  -- Runed Harbinger Crest
+        [2917] = true,  -- Gilded Harbinger Crest
+        [2815] = true,  -- Resonance Crystals
+        [3089] = true,  -- Residual Memories
+        [2803] = true,  -- Undercoin
+        [3056] = true,  -- Kej
+        [3093] = true,  -- Nerub-ar Finery
+        [3028] = true,  -- Restored Coffer Key
+        [3055] = true,  -- Mereldar Derby Mark
+        [2032] = true,  -- Trader's Tender
+        [1166] = true,  -- Timewarped Badge
+        [824]  = true,  -- Garrison Resources
+        [1792] = true,  -- Honor
+        [1602] = true,  -- Conquest
+        [2123] = true,  -- Bloody Tokens
+     }
 end
 
 for k, v in ipairs(RT.Currencies) do
