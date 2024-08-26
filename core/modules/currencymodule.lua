@@ -44,6 +44,11 @@ local function GetCharacterCurrencies()
 					discovered = currency.discovered,
 					totalEarned = currency.totalEarned,
 					useTotalEarnedForMaxQty = currency.useTotalEarnedForMaxQty,
+					-- TODO: Test on Cataclysm classic
+					isAccountWide = currency.isAccountWide,
+					isAccountTransferable = currency.isAccountTransferable,
+					isTradeable = currency.isTradeable,
+					transferPercentage = currency.transferPercentage,
 				}
 		   end
 		end

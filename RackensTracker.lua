@@ -28,6 +28,9 @@ local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
 local CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, BOSS_DEAD, AVAILABLE =
 	  CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, BOSS_DEAD, AVAILABLE
 
+local ACCOUNT_LEVEL_CURRENCY, ACCOUNT_TRANSFERRABLE_CURRENCY, CURRENCY_TRANSFER_LOSS = 
+	  ACCOUNT_LEVEL_CURRENCY, ACCOUNT_TRANSFERRABLE_CURRENCY, CURRENCY_TRANSFER_LOSS
+
 local UnitName, UnitLevel, CreateAtlasMarkup =
 	  UnitName, UnitLevel, CreateAtlasMarkup
 
@@ -1243,6 +1246,27 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	end
 end
 
+--- Returns the appropriate warband related texture information, used to add a texture to the currency tooltip
+---@return FileDataID | nil file
+---@return any | nil tooltipTextureInfo
+function RackensTracker:GetWarbandRelatedTextureInfo(atlasName)
+	local atlas = C_Texture.GetAtlasInfo(atlasName)
+	if atlas then
+		return atlas.file,
+		{
+			width = 15, --23,
+			height = 20,--31,
+			anchor = Enum.TooltipTextureAnchor.RightCenter,
+			region = Enum.TooltipTextureRelativeRegion.LeftLine,
+			verticalOffset = 0,
+			margin = { left = 4, right = 0, top = 0, bottom = 0 },
+			texCoords = { left = atlas.leftTexCoord, right = atlas.rightTexCoord, top = atlas.topTexCoord, bottom = atlas.bottomTexCoord },
+			vertexColor = { r = 1, g = 1, b = 1, a = 1 },
+		}
+	end
+	return nil, nil
+end
+
 --- Draws the graphical elements to display the currencies, given a known character name
 ---@param container AceGUIWidget
 ---@param characterName string name of the character to render quests for
@@ -1284,6 +1308,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 		local quantity = 0
 		local maxQuantity = 0
 		local totalEarned = 0
+		local currencyObj = currency:Get()
 
 		if (self.db.global.options.shownCurrencies[tostring(currency.id)]) then
 			local characterHeldCurrency = characterCurrencies[currency.id]
@@ -1324,13 +1349,27 @@ function RackensTracker:DrawCurrencies(container, characterName)
 			currencyDisplayLabels[currency.id]:SetCallback("OnEnter", function()
 				GameTooltip:ClearLines()
 				GameTooltip:SetOwner(currencyDisplayLabels[currency.id].frame, "ANCHOR_CURSOR")
-
 				GameTooltip:AddLine(colorizedName)
+
+				if RT.AddonUtil.IsRetail() then
+					local isAccountWide, isAccountTransferable, transferPercentage = currencyObj.isAccountWide, currencyObj.isAccountTransferable, currencyObj.transferPercentage
+
+					local accountWideOrTransferable = (isAccountWide and ACCOUNT_LEVEL_CURRENCY) or (isAccountTransferable and ACCOUNT_TRANSFERRABLE_CURRENCY) or nil
+					if accountWideOrTransferable ~= nil then
+						GameTooltip:AddLine(accountWideOrTransferable, BLUE_FONT_COLOR:GetRGB())
+						local fileDataId, tooltipTextureInfo = self:GetWarbandRelatedTextureInfo(isAccountWide and "warbands-icon" or "warbands-transferable-icon")
+						if tooltipTextureInfo then
+						---@diagnostic disable-next-line: redundant-parameter
+							GameTooltip:AddTexture(fileDataId, tooltipTextureInfo)
+						end
+					end
+				end
+
 				if (description ~= "") then
 					GameTooltip:AddLine(description, nil, nil, nil, true)
 				end
 
-				GameTooltip:AddLine(" ")
+				GameTooltip_AddBlankLineToTooltip(GameTooltip)
 
 				--- Display the Total of this currency either if its a seasonal one or a regular one without cap
 				if (maxQuantity == 0 or useTotalEarnedForMaxQty) then
@@ -1342,6 +1381,16 @@ function RackensTracker:DrawCurrencies(container, characterName)
 					local isRegularCapped = quantity == maxQuantity
 					local isSeasonCapped = useTotalEarnedForMaxQty and (totalEarned == maxQuantity)
 					GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red or RT.ColorUtil.Color.Highlight, useTotalEarnedForMaxQty and totalEarned or quantity, maxQuantity))
+				end
+
+				if RT.AddonUtil.IsRetail() then
+					local isAccountTransferable, transferPercentage = currencyObj.isAccountTransferable, currencyObj.transferPercentage
+					if isAccountTransferable then
+						local percentageLost = transferPercentage and (100 - transferPercentage) or 0;
+						if percentageLost > 0 then
+							GameTooltip:AddLine(CURRENCY_TRANSFER_LOSS:format(math.ceil(percentageLost)));
+						end
+					end
 				end
 
 				GameTooltip:Show()

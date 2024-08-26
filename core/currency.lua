@@ -58,6 +58,12 @@ function Currency:GetUseTotalEarnedForMaxQty()
     return self.useTotalEarnedForMaxQty
 end
 
+--- Returns the CurrencyInfo object
+---@return CurrencyInfo
+function Currency:Get()
+    return GetCurrencyInfo(self.id)
+end
+
 --- Returns the localized name of the currency provided.
 ---@return string
 function Currency:GetName()
