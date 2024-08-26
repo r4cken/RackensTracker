@@ -504,7 +504,7 @@ function RackensTracker:RegisterAddOnSettings_Retail()
 	table.sort(realmsAvailable, function(a,b) return a < b end)
 
 	local function OnAddOnSettingChanged(setting, value)
-		Log("setting %s changed to %s", setting:GetVariable(), tostring(value))
+		--Log("setting %s changed to %s", setting:GetVariable(), tostring(value))
 	end
 
 	-- Realm data options
@@ -1446,6 +1446,8 @@ function RackensTracker:OpenTrackerFrame()
 	local tabName = ""
 
 	local initialCharacterTab = self.currentCharacter.name
+	local initialCharacterTabGuid = self.currentCharacter.guid
+
 	local isInitialCharacterEligible = false
 
 	-- Create one tab per level eligible character
@@ -1453,7 +1455,7 @@ function RackensTracker:OpenTrackerFrame()
 		local optionsKey = strformat("%s.%s", character.realm, characterName)
 		if (self.db.global.options.shownCharacters[optionsKey]) then
 			if (self:IsCharacterEligibleForTracking(character.level)) then
-				if (character.name == initialCharacterTab and self:IsCharacterEligibleForTracking(character.level)) then
+				if (character.guid == initialCharacterTabGuid and self:IsCharacterEligibleForTracking(character.level)) then
 					isInitialCharacterEligible = true
 				end
 				tabIcon = RT.CharacterUtil:GetCharacterIcon(character.class, tabIconSize)
