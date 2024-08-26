@@ -5,6 +5,8 @@ The tracking window displays several relevant sections such as realm data, chara
 
 ![image](https://github.com/user-attachments/assets/ef039f06-5d59-4f92-a938-89c4aa0032c0)
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/F1F712EAKV)
+
 ## Features
 * Displays when raid and dungeon locks expire
 * Displays character data such as iLvl
