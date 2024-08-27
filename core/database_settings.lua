@@ -30,14 +30,18 @@ RT.DatabaseSettings = DatabaseSettings
 ---@field description string
 ---@field quantity number
 ---@field maxQuantity number
----@field quality number
----@field iconFileID number	
+---@field quality Enum.ItemQuality
+---@field iconFileID fileID
 ---@field discovered boolean
 -- Returns 0 if useTotalEarnedForMaxQty is false,
 -- prevents earning if equal to maxQuantity
 ---@field totalEarned number
 -- Whether the currency has a moving maximum (e.g seasonal)
 ---@field useTotalEarnedForMaxQty boolean
+---@field isAccountWide boolean?
+---@field isAccountTransferable boolean?
+---@field isTradeable boolean?
+---@field transferPercentage number?
 
 ---@class (exact) DbSavedInstanceEncounterInformation
 ---@field bossName string
