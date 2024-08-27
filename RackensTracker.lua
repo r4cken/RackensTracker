@@ -22,17 +22,21 @@ local GetSecondsUntilWeeklyReset = C_DateAndTime.GetSecondsUntilWeeklyReset
 local GetSecondsUntilDailyReset  = C_DateAndTime.GetSecondsUntilDailyReset
 
 local CreateSimpleTextureMarkup = CreateSimpleTextureMarkup
+local CreateAtlasMarkup = CreateAtlasMarkup
+
 local GetAverageItemLevel = GetAverageItemLevel
 
+local AbbreviateLargeNumbers = AbbreviateLargeNumbers
+
 local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
-local CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, BOSS_DEAD, AVAILABLE =
-	  CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, BOSS_DEAD, AVAILABLE
+local CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, CURRENCY_SEASON_TOTAL, CURRENCY_SEASON_TOTAL_MAXIMUM, BOSS_DEAD, AVAILABLE =
+	  CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, CURRENCY_SEASON_TOTAL, CURRENCY_SEASON_TOTAL_MAXIMUM, BOSS_DEAD, AVAILABLE
 
 local ACCOUNT_LEVEL_CURRENCY, ACCOUNT_TRANSFERRABLE_CURRENCY, CURRENCY_TRANSFER_LOSS = 
 	  ACCOUNT_LEVEL_CURRENCY, ACCOUNT_TRANSFERRABLE_CURRENCY, CURRENCY_TRANSFER_LOSS
 
-local UnitName, UnitLevel, CreateAtlasMarkup =
-	  UnitName, UnitLevel, CreateAtlasMarkup
+local UnitName, UnitLevel, UnitGUID =
+	  UnitName, UnitLevel, UnitGUID
 
 local Settings = Settings
 
@@ -656,6 +660,12 @@ end
 
 --- Called when the addon is enabled
 function RackensTracker:OnEnable()
+
+	-- Initialize the currency info cache, fetching all currencies CurrencyInfo by C_CurrencyInfo.GetCurrencyInfo internally
+	for _, currency in ipairs(RT.Currencies) do
+		currency:InitializeCurrencyInfoCache()
+	end
+
 	-- Level up event
 	self:RegisterEvent("PLAYER_LEVEL_UP", "OnEventPlayerLevelUp")
 
@@ -1278,6 +1288,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	local labelHeight = 20
 	local relWidthPerCurrency = 0.25 -- Use a quarter of the container space per item, making new rows as fit.
 
+	---@type table<currencyID, DbCurrency>
 	local characterCurrencies = self.db.global.realms[self.currentDisplayedRealm].characters[characterName].currencies
 
 	container:AddChild(CreateDummyFrame())
@@ -1300,15 +1311,15 @@ function RackensTracker:DrawCurrencies(container, characterName)
 	local currencyDisplayLabels = {}
 
 	for _, currency in ipairs(RT.Currencies) do
-		local colorizedName = ""
-		local icon = ""
-		local nameAndIcon = ""
-		local description = ""
-		local useTotalEarnedForMaxQty = false
+		local currencyInfo = currency:GetCachedCurrencyInfo()
+		local colorizedName = currency:GetColorizedName()
+		local icon = currency:GetIconTexture(14)
+		local nameAndIcon = strformat("%s\n%s", colorizedName, icon)
+		local description = currency:GetDescription()
+		local useTotalEarnedForMaxQty = currency:GetUseTotalEarnedForMaxQty()
+		local maxQuantity = currency:GetMaxQuantity()
 		local quantity = 0
-		local maxQuantity = 0
 		local totalEarned = 0
-		local currencyObj = currency:Get()
 
 		if (self.db.global.options.shownCurrencies[tostring(currency.id)]) then
 			local characterHeldCurrency = characterCurrencies[currency.id]
@@ -1316,31 +1327,30 @@ function RackensTracker:DrawCurrencies(container, characterName)
 			currencyDisplayLabels[currency.id]:SetHeight(labelHeight)
 			currencyDisplayLabels[currency.id]:SetRelativeWidth(relWidthPerCurrency) -- Make each currency take up equal space and give each an extra 10%
 
-			colorizedName = currency:GetColorizedName()
-			icon = currency:GetIcon(14)
-			description = currency:GetDescription()
-			nameAndIcon = strformat("%s\n%s", colorizedName, icon)
-			useTotalEarnedForMaxQty = currency:GetUseTotalEarnedForMaxQty()
-
 			-- If this character has this currency, that means we have quantity information.
 			if (characterHeldCurrency) then
 				quantity = characterHeldCurrency.quantity
-				maxQuantity = characterHeldCurrency.maxQuantity
 				totalEarned = characterHeldCurrency.totalEarned
+			else
+				Log("%s is not character held on %s, fetching data from the CurrencyInfo object instead.", currencyInfo.name, characterName)
 			end
 
+			local quantityDisplay = RT.AddonUtil.IsRetail() and AbbreviateLargeNumbers(quantity) or quantity
+			local maxQuantityDisplay = RT.AddonUtil.IsRetail() and AbbreviateLargeNumbers(maxQuantity) or maxQuantity
+			local totalEarnedDisplay = RT.AddonUtil.IsRetail() and AbbreviateLargeNumbers(totalEarned) or totalEarned
+
 			if (quantity == 0) then
-				local zeroQuantity = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Gray, quantity)
+				local zeroQuantity = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Gray, quantityDisplay)
 				currencyDisplayLabels[currency.id]:SetText(strformat("%s %s", nameAndIcon, zeroQuantity))
 			else
-				currencyDisplayLabels[currency.id]:SetText(strformat("%s %s", nameAndIcon, quantity))
+				currencyDisplayLabels[currency.id]:SetText(strformat("%s %s", nameAndIcon, quantityDisplay))
 				-- Currencies that dont have a seasonal cap but do have a maximum cap.
 				if (maxQuantity ~= 0) then
 					if not useTotalEarnedForMaxQty then
 						local isCapped = quantity == maxQuantity
-						local quantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%i", quantity)
-						local maxQuantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%i", maxQuantity)
-						currencyDisplayLabels[currency.id]:SetText(strformat("%s %s/%s", nameAndIcon, isCapped and quantityRedColorized or quantity, isCapped and maxQuantityRedColorized or maxQuantity))
+						local quantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%i", quantityDisplay)
+						local maxQuantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%i", maxQuantityDisplay)
+						currencyDisplayLabels[currency.id]:SetText(strformat("%s %s/%s", nameAndIcon, isCapped and quantityRedColorized or quantityDisplay, isCapped and maxQuantityRedColorized or maxQuantityDisplay))
 					end
 				end
 			end
@@ -1352,11 +1362,11 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				GameTooltip:AddLine(colorizedName)
 
 				if RT.AddonUtil.IsRetail() then
-					local isAccountWide, isAccountTransferable, transferPercentage = currencyObj.isAccountWide, currencyObj.isAccountTransferable, currencyObj.transferPercentage
+					local isAccountWide, isAccountTransferable = currencyInfo.isAccountWide, currencyInfo.isAccountTransferable
 
-					local accountWideOrTransferable = (isAccountWide and ACCOUNT_LEVEL_CURRENCY) or (isAccountTransferable and ACCOUNT_TRANSFERRABLE_CURRENCY) or nil
-					if accountWideOrTransferable ~= nil then
-						GameTooltip:AddLine(accountWideOrTransferable, BLUE_FONT_COLOR:GetRGB())
+					local accountWideOrTransferableText = (isAccountWide and ACCOUNT_LEVEL_CURRENCY) or (isAccountTransferable and ACCOUNT_TRANSFERRABLE_CURRENCY) or nil
+					if accountWideOrTransferableText ~= nil then
+						GameTooltip:AddLine(accountWideOrTransferableText, BLUE_FONT_COLOR:GetRGB())
 						local fileDataId, tooltipTextureInfo = self:GetWarbandRelatedTextureInfo(isAccountWide and "warbands-icon" or "warbands-transferable-icon")
 						if tooltipTextureInfo then
 						---@diagnostic disable-next-line: redundant-parameter
@@ -1373,18 +1383,27 @@ function RackensTracker:DrawCurrencies(container, characterName)
 
 				--- Display the Total of this currency either if its a seasonal one or a regular one without cap
 				if (maxQuantity == 0 or useTotalEarnedForMaxQty) then
-					GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight, quantity))
+					if RT.AddonUtil.IsRetail() then
+						GameTooltip:AddLine(strformat(useTotalEarnedForMaxQty and CURRENCY_SEASON_TOTAL or CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight, quantityDisplay))
+					else
+						GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight, quantityDisplay))
+					end
 				end
 
 				-- Display the Total Maximum of this currency that has some sort of maximum cap or seasonal cap
 				if (maxQuantity ~= 0) then
 					local isRegularCapped = quantity == maxQuantity
 					local isSeasonCapped = useTotalEarnedForMaxQty and (totalEarned == maxQuantity)
-					GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red or RT.ColorUtil.Color.Highlight, useTotalEarnedForMaxQty and totalEarned or quantity, maxQuantity))
+					if RT.AddonUtil.IsRetail() then
+						GameTooltip:AddLine(strformat(useTotalEarnedForMaxQty and CURRENCY_SEASON_TOTAL_MAXIMUM or CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red or RT.ColorUtil.Color.Highlight, useTotalEarnedForMaxQty and totalEarnedDisplay or quantityDisplay, maxQuantityDisplay))
+					else
+						GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red or RT.ColorUtil.Color.Highlight, useTotalEarnedForMaxQty and totalEarnedDisplay or quantityDisplay, maxQuantityDisplay))
+					end
 				end
 
+				-- On retail currencies can have a percent loss on transfer
 				if RT.AddonUtil.IsRetail() then
-					local isAccountTransferable, transferPercentage = currencyObj.isAccountTransferable, currencyObj.transferPercentage
+					local isAccountTransferable, transferPercentage = currencyInfo.isAccountTransferable, currencyInfo.transferPercentage
 					if isAccountTransferable then
 						local percentageLost = transferPercentage and (100 - transferPercentage) or 0;
 						if percentageLost > 0 then
@@ -1529,7 +1548,7 @@ function RackensTracker:OpenTrackerFrame()
 			-- Set initial tab to the current character
 			self.tracker_tabs:SelectTab(initialCharacterTab)
 		else
-			-- If the current character is not level 80, set initial tab to the first available level 80 character
+			-- If the current character is not eligible, set initial tab to the first available eligible character
 			self.tracker_tabs:SelectTab(tabsData[1].value)
 		end
 

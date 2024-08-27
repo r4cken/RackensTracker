@@ -38,12 +38,16 @@ local CreateTextureMarkup, GetCurrencyInfo =
 local DEFAULT_ICON_SIZE = 16
 local ITEM_QUALITY_COLORS = ITEM_QUALITY_COLORS
 
----@class Currency : CurrencyInfo
----@field order number
+---@class Currency
 ---@field id currencyID
+---@field order number
+---@field colorizedName string
+---@field currencyInfoCache CurrencyInfo
+
 local Currency = {}
 RT.Currency = Currency
 
+--- Initializes a Currency object.
 function Currency:New(id)
     local currency = { id = id }
     setmetatable(currency, self)
@@ -51,51 +55,65 @@ function Currency:New(id)
     return currency
 end
 
-function Currency:GetUseTotalEarnedForMaxQty()
-    local currency = GetCurrencyInfo(self.id)
-    local useTotalEarnedForMaxQty = currency["useTotalEarnedForMaxQty"]
-    self.useTotalEarnedForMaxQty = self.useTotalEarnedForMaxQty or useTotalEarnedForMaxQty
-    return self.useTotalEarnedForMaxQty
+--- Initializes the Currency objects currency info cache.
+function Currency:InitializeCurrencyInfoCache()
+    ---@type CurrencyInfo
+    self.currencyInfoCache = GetCurrencyInfo(self.id)
+    --DEFAULT_CHAT_FRAME:AddMessage("Initializing full currency info cache for: " .. self.currencyInfoCache.name)
 end
 
---- Returns the CurrencyInfo object
----@return CurrencyInfo
-function Currency:Get()
-    return GetCurrencyInfo(self.id)
+--- Returns a cached CurrencyInfo
+---@return CurrencyInfo currency
+function Currency:GetCachedCurrencyInfo()
+    if not self.currencyInfoCache then self:InitializeCurrencyInfoCache() end
+    return self.currencyInfoCache
 end
 
 --- Returns the localized name of the currency provided.
 ---@return string
 function Currency:GetName()
-    self.name = self.name or GetCurrencyInfo(self.id)["name"]
-    return self.name
-end
-
---- Returns a currencies description, if available
----@return string
-function Currency:GetDescription()
-    local description = GetCurrencyInfo(self.id)["description"] or ""
-    self.description = self.description or description
-    return self.description
+    if not self.currencyInfoCache then self:InitializeCurrencyInfoCache() end
+    return self.currencyInfoCache.name
 end
 
 --- Returns the localized name of the currency colored by its rarity
 ---@return string
 function Currency:GetColorizedName()
-    local currency = GetCurrencyInfo(self.id)
-    local name, quality = currency["name"], currency["quality"]
+    if not self.currencyInfoCache then self:InitializeCurrencyInfoCache() end
+    local name, quality = self.currencyInfoCache["name"], self.currencyInfoCache["quality"]
     local colorizedName = strformat("%s%s|r", ITEM_QUALITY_COLORS[quality].hex, name)
     self.colorizedName = self.colorizedName or colorizedName
     return self.colorizedName
 end
 
+--- Returns a currencies description, if available
+---@return string
+function Currency:GetDescription()
+    if not self.currencyInfoCache then self:InitializeCurrencyInfoCache() end
+    return self.currencyInfoCache.description or ""
+end
+
+--- Returns whether the currency has a moving maximum (e.g. seasonal)
+function Currency:GetMaxQuantity()
+    if not self.currencyInfoCache then self:InitializeCurrencyInfoCache() end
+    return self.currencyInfoCache.maxQuantity
+end
+
+--- Returns whether the currency has a moving maximum (e.g. seasonal)
+function Currency:GetUseTotalEarnedForMaxQty()
+    if not self.currencyInfoCache then self:InitializeCurrencyInfoCache() end
+    return self.currencyInfoCache.useTotalEarnedForMaxQty
+end
+
 --- Returns the icon for the currency as textual markup
 ---@param iconSize number icon size in UI pixels
 ---@return string
-function Currency:GetIcon(iconSize)
+function Currency:GetIconTexture(iconSize)
+    if not self.currencyInfoCache then self:InitializeCurrencyInfoCache() end
+
     iconSize = iconSize or DEFAULT_ICON_SIZE
 
-    local fileID = GetCurrencyInfo(self.id)["iconFileID"]
+    local fileID = self.currencyInfoCache.iconFileID
     local iconTexture = ""
 
     -- The honor icon needs adjustment for its texture coordinates
@@ -106,6 +124,20 @@ function Currency:GetIcon(iconSize)
     --end
 
     return iconTexture
+end
+
+--- Returns whether the currency is account wide
+---@return boolean isAccountWide
+function Currency:IsAccountWide()
+    if not self.currencyInfoCache then self:InitializeCurrencyInfoCache() end
+    return self.currencyInfoCache.isAccountWide
+end
+
+--- Returns whether the currency is account transferable
+---@return boolean isAccountWide
+function Currency:IsAccountTransferable()
+    if not self.currencyInfoCache then self:InitializeCurrencyInfoCache() end
+    return self.currencyInfoCache.isAccountTransferable
 end
 
 function Currency:__eq(other)
