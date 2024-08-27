@@ -72,7 +72,12 @@ function CurrencyModule:OnEnable()
 end
 
 --- Called when currency information is updated from the server, runs self:UpdateCharacterCurrencies()
-function CurrencyModule:OnEventCurrencyDisplayUpdate()
+---@param currencyType number?
+---@param quantity number?
+---@param quantityChange number?
+---@param quantityGainSource Enum.CurrencySource?
+---@param destroyReason Enum.CurrencyDestroyReason?
+function CurrencyModule:OnEventCurrencyDisplayUpdate(currencyType, quantity, quantityChange, quantityGainSource, destroyReason)
 	Log("OnEventCurrencyDisplayUpdate")
 	self:UpdateCharacterCurrencies()
 end
