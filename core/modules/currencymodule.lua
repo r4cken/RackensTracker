@@ -77,14 +77,19 @@ end
 ---@param quantityChange number?
 ---@param quantityGainSource Enum.CurrencySource?
 ---@param destroyReason Enum.CurrencyDestroyReason?
-function CurrencyModule:OnEventCurrencyDisplayUpdate(currencyType, quantity, quantityChange, quantityGainSource, destroyReason)
-	Log("OnEventCurrencyDisplayUpdate")
-	self:UpdateCharacterCurrencies()
+function CurrencyModule:OnEventCurrencyDisplayUpdate(event, currencyType, quantity, quantityChange, quantityGainSource, destroyReason)
+	-- TODO: Investigate if we can skip events with all nil parameters or if we must run UpdateCharacterCurrencies for every triggered event
+	if currencyType ~= nil then
+		Log("OnEventCurrencyDisplayUpdate")
+		Log("Event Data: %s, %s, %s, %s, %s", currencyType or "nil", quantity or "nil", quantityChange or "nil", quantityGainSource or "nil", destroyReason or "nil")
+		self:UpdateCharacterCurrencies()
+	end
 end
 
 --- Called when the player gains currency other than money, such as emblems
 function CurrencyModule:OnEventChatMsgCurrency(event, text, playerName)
 	Log("OnEventChatMsgCurrency")
+	Log("Event Data: %s, %s", text, playerName)
 	-- TODO: Maybe we dont need CHAT_MSG_CURRENCY event as it seems that CURRENCY_DISPLAY_UPDATE triggers on both boss kills and quest turn ins.
 	-- Also playerName seems to be nil or "" :/
 	if (playerName == UnitName("player")) then
