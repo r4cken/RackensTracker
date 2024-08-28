@@ -57,18 +57,48 @@ local function GetCharacterCurrencies()
 	return currencies
 end
 
+--- Retrieves the current player's money 
+---@return number money total amount of money in copper
+local function GetCharacterMoney()
+	local money = GetMoney()
+	return money
+end
+
+
 --- Updates the database with the latest currency information for the current character
 function CurrencyModule:UpdateCharacterCurrencies()
 	local currencies = GetCharacterCurrencies()
 	addon.currentCharacter.currencies = currencies
 end
 
+--- Updates the database with the latest money information for the current character
+function CurrencyModule:UpdateCharacterMoney()
+	local money = GetCharacterMoney()
+	addon.currentCharacter.money = money
+end
+
+--- Updates the database with the latest money information for the warband bank
+function CurrencyModule:UpdateWarbandBankMoney()
+	local warbandBankMoney = C_Bank.FetchDepositedMoney(Enum.BankType.Account)
+	addon.db.global.warband.bank.money = warbandBankMoney
+end
+
 function CurrencyModule:OnEnable()
     -- Currency related events
 	self:RegisterEvent("CURRENCY_DISPLAY_UPDATE", "OnEventCurrencyDisplayUpdate")
 	self:RegisterEvent("CHAT_MSG_CURRENCY", "OnEventChatMsgCurrency")
+
+	-- Money related events
+	self:RegisterEvent("PLAYER_MONEY", "OnEventPlayerMoney")
+
     -- Update currency information for the currenct logged in character
 	self:UpdateCharacterCurrencies()
+	self:UpdateCharacterMoney()
+
+	if RT.AddonUtil.IsRetail() then
+		self:RegisterEvent("ACCOUNT_MONEY", "OnEventAccountMoney")
+		self:UpdateWarbandBankMoney()
+	end
 end
 
 --- Called when currency information is updated from the server, runs self:UpdateCharacterCurrencies()
@@ -101,4 +131,16 @@ function CurrencyModule:OnEventChatMsgCurrency(event, text, playerName)
 		Log("Recieved: " .. text)
 		self:UpdateCharacterCurrencies()
 	end
+end
+
+--- Called whenever the player gains or loses money.
+function CurrencyModule:OnEventPlayerMoney()
+	Log("OnEventPlayerMoney")
+	self:UpdateCharacterMoney()
+end
+
+--- Called whenever the warband gains or loses money?
+function CurrencyModule:OnEventAccountMoney()
+	Log("OnEventAccountMoney")
+	self:UpdateWarbandBankMoney()
 end

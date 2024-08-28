@@ -134,10 +134,15 @@ local database_defaults = {
 			shownCharacters = {
 				['*'] = true
 			},
+			showWarbandData = true,
+			shownWarbandData = {
+				["bankMoney"] = true,
+			},
 			showCharacterData = true,
 			shownCharacterData = {
 				["iLvl"] = true,
 				["lvl"] = true,
+				["money"] = true,
 			},
 			showQuests = false,
 			shownQuests = {
@@ -164,13 +169,19 @@ local database_defaults = {
 						guid = nil,
 						overallIlvl = 0,
 						equippedIlvl = 0,
+						money = nil,
 						savedInstances = {},
 						currencies = {},
 						quests = {},
 					}
 				}
 			}
-		}
+		},
+		warband = {
+			bank = {
+				money = nil
+			}
+		},
 	},
 	char = {
 		minimap = {
