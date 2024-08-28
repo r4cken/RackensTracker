@@ -32,6 +32,10 @@ local DAILY_QUEST_TAG_TEMPLATE = DAILY_QUEST_TAG_TEMPLATE
 local CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, CURRENCY_SEASON_TOTAL, CURRENCY_SEASON_TOTAL_MAXIMUM, BOSS_DEAD, AVAILABLE =
 	  CURRENCY_TOTAL, CURRENCY_TOTAL_CAP, CURRENCY_SEASON_TOTAL, CURRENCY_SEASON_TOTAL_MAXIMUM, BOSS_DEAD, AVAILABLE
 
+local ACCOUNT_BANK_PANEL_TITLE = ACCOUNT_BANK_PANEL_TITLE
+
+local GetMoneyString = GetMoneyString
+
 local ACCOUNT_LEVEL_CURRENCY, ACCOUNT_TRANSFERRABLE_CURRENCY, CURRENCY_TRANSFER_LOSS = 
 	  ACCOUNT_LEVEL_CURRENCY, ACCOUNT_TRANSFERRABLE_CURRENCY, CURRENCY_TRANSFER_LOSS
 
@@ -437,6 +441,7 @@ function RackensTracker:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, On
 	Settings.SetOnValueChangedCallback(allCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
 	allCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options[allCharacterDataOptionVariableKey], true) -- true means force
 
+	-- Character lvl
 	local lvlCharacterDataOptionName = L["optionsToggleDescriptionLvlCharacterData"]
 	local lvlCharacterDataOptionTooltip = L["optionsToggleLvlCharacterDataTooltip"]
 	local lvlCharacterDataOptionVariable = "lvl"
@@ -448,6 +453,7 @@ function RackensTracker:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, On
 	lvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[lvlCharacterDataOptionVariableKey], true) -- true means force
 	lvlCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
 
+	-- Character ilvl
 	local iLvlCharacterDataOptionName = L["optionsToggleDescriptioniLvlCharacterData"]
 	local iLvlCharacterDataOptionTooltip = L["optionsToggleiLvlCharacterDataTooltip"]
 	local iLvlCharacterDataOptionVariable = "iLvl"
@@ -458,6 +464,18 @@ function RackensTracker:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, On
 	Settings.SetOnValueChangedCallback(iLvlCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
 	iLvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[iLvlCharacterDataOptionVariableKey], true) -- true means force
 	iLvlCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
+
+	-- Character money
+	local moneyCharacterDataOptionName = L["optionsToggleDescriptionMoneyCharacterData"]
+	local moneyCharacterDataOptionTooltip = L["optionsToggleMoneyCharacterDataTooltip"]
+	local moneyCharacterDataOptionVariable = "money"
+	local moneyCharacterDataOptionVariableKey = "money"
+	local defaultMoneyCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[moneyCharacterDataOptionVariable]
+	local moneyCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, moneyCharacterDataOptionName, moneyCharacterDataOptionVariable, type(defaultMoneyCharacterDataVisibilityValue), defaultMoneyCharacterDataVisibilityValue)
+	local moneyCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, moneyCharacterDataOptionVisibilitySetting, moneyCharacterDataOptionTooltip)
+	Settings.SetOnValueChangedCallback(moneyCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
+	moneyCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[moneyCharacterDataOptionVariableKey], true) -- true means force
+	moneyCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
 
 	-- Currency options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
@@ -590,9 +608,10 @@ function RackensTracker:RegisterAddOnSettings_Retail()
 	local allCharacterDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, allCharacterDataOptionVisibilitySetting, allCharacterDataOptionTooltip)
 	allCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options[allCharacterDataOptionVariableKey], true) -- true means force
 
+	-- Character lvl
 	local lvlCharacterDataOptionName = L["optionsToggleDescriptionLvlCharacterData"]
 	local lvlCharacterDataOptionTooltip = L["optionsToggleLvlCharacterDataTooltip"]
-	local lvlCharacterDataOptionVariable = strformat("%s_%s", addOnName, "lvl")
+	local lvlCharacterDataOptionVariable = strformat("%s_%s", addOnName, "showCharacterlvl")
 	local lvlCharacterDataOptionVariableKey = "lvl"
 	local lvlCharacterDataOptionVariableTbl = self.db.global.options.shownCharacterData
 	local defaultLvlCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[lvlCharacterDataOptionVariableKey]
@@ -603,9 +622,10 @@ function RackensTracker:RegisterAddOnSettings_Retail()
 	lvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[lvlCharacterDataOptionVariableKey], true) -- true means force
 	lvlCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
 
+	-- Character iLvl
 	local iLvlCharacterDataOptionName = L["optionsToggleDescriptioniLvlCharacterData"]
 	local iLvlCharacterDataOptionTooltip = L["optionsToggleiLvlCharacterDataTooltip"]
-	local iLvlCharacterDataOptionVariable = strformat("%s_%s", addOnName, "iLvl")
+	local iLvlCharacterDataOptionVariable = strformat("%s_%s", addOnName, "showCharacteriLvl")
 	local iLvlCharacterDataOptionVariableKey = "iLvl"
 	local iLvlCharacterDataOptionVariableTbl = self.db.global.options.shownCharacterData
 	local defaultiLvlCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[iLvlCharacterDataOptionVariableKey]
@@ -615,6 +635,64 @@ function RackensTracker:RegisterAddOnSettings_Retail()
 	local iLvlCharacterDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, iLvlCharacterDataOptionVisibilitySetting, iLvlCharacterDataOptionTooltip)
 	iLvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[iLvlCharacterDataOptionVariableKey], true) -- true means force
 	iLvlCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
+
+	-- Character money
+	local moneyCharacterDataOptionName = L["optionsToggleDescriptionMoneyCharacterData"]
+	local moneyCharacterDataOptionTooltip = L["optionsToggleMoneyCharacterDataTooltip"]
+	local moneyCharacterDataOptionVariable = strformat("%s_%s", addOnName, "showCharacterMoney")
+	local moneyCharacterDataOptionVariableKey = "money"
+	local moneyCharacterDataOptionVariableTbl = self.db.global.options.shownCharacterData
+	local defaultMoneyCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[moneyCharacterDataOptionVariableKey]
+	local moneyCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, moneyCharacterDataOptionVariable, moneyCharacterDataOptionVariableKey, moneyCharacterDataOptionVariableTbl, type(defaultMoneyCharacterDataVisibilityValue), moneyCharacterDataOptionName, defaultMoneyCharacterDataVisibilityValue)
+	moneyCharacterDataOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local moneyCharacterDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, moneyCharacterDataOptionVisibilitySetting, moneyCharacterDataOptionTooltip)
+	moneyCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[moneyCharacterDataOptionVariableKey], true) -- true means force
+	moneyCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
+
+	-- Warband options
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsWarbandDataHeader"]))
+	local warbandDataOptionName = L["optionsToggleDescriptionShowWarbandData"]
+	local warbandDataOptionTooltip = L["optionsToggleShowWarbandDataTooltip"]
+	local warbandDataOptionVariable = strformat("%s_%s", addOnName, "showWarbandData")
+	local warbandDataOptionVariableKey = "showWarbandData"
+	local warbandDataOptionVariableTbl = self.db.global.options
+	local defaultWarbandDataVisibilityValue = database_defaults.global.options.showWarbandData
+	local warbandDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, warbandDataOptionVariable, warbandDataOptionVariableKey, warbandDataOptionVariableTbl, type(defaultWarbandDataVisibilityValue), warbandDataOptionName, defaultWarbandDataVisibilityValue)
+	warbandDataOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local warbandDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, warbandDataOptionVisibilitySetting, warbandDataOptionTooltip)
+	warbandDataOptionVisibilitySetting:SetValue(self.db.global.options[warbandDataOptionVariableKey], true) -- true means force
+
+	-- Warband bank gold
+	local bankGoldWarbandDataOptionName = L["optionsToggleDescriptionWarbandBankGoldData"]
+	local bankGoldWarbandDataOptionTooltip = L["optionsToggleWarbandBankGoldDataTooltip"]
+	local bankGoldWarbandDataOptionVariable = strformat("%s_%s", addOnName, "showWarbandBankMoney")
+	local bankGoldWarbandDataOptionVariableKey = "bankMoney"
+	local bankGoldWarbandDataOptionVariableTbl = self.db.global.options.shownWarbandData
+	local defaultBankGoldWarbandDataVisibilityValue = database_defaults.global.options.shownWarbandData[bankGoldWarbandDataOptionVariableKey]
+	local bankGoldWarbandDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, bankGoldWarbandDataOptionVariable, bankGoldWarbandDataOptionVariableKey, bankGoldWarbandDataOptionVariableTbl, type(defaultBankGoldWarbandDataVisibilityValue), bankGoldWarbandDataOptionName, defaultBankGoldWarbandDataVisibilityValue)
+	bankGoldWarbandDataOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local bankGoldWarbandDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, bankGoldWarbandDataOptionVisibilitySetting, bankGoldWarbandDataOptionTooltip)
+	bankGoldWarbandDataOptionVisibilitySetting:SetValue(self.db.global.options.shownWarbandData[bankGoldWarbandDataOptionVariableKey], true) -- true means force
+	bankGoldWarbandDataOptionInitializer:SetParentInitializer(warbandDataOptionInitializer, function() return warbandDataOptionVisibilitySetting:GetValue() end)
+
+	-- Warband total gold
+	-- TODO: Research if people can have multiple accounts in one bnet account
+	-- RackensTracker has no cross account tracking features so displaying total warband gold will not be reliable.
+	-- local totalGoldWarbandDataOptionName = L["optionsToggleDescriptionWarbandTotalGoldData"]
+	-- local totalGoldWarbandDataOptionTooltip = L["optionsToggleWarbandTotalGoldDataTooltip"]
+	-- local totalGoldWarbandDataOptionVariable = strformat("%s_%s", addOnName, "showWarbandTotalMoney")
+	-- local totalGoldWarbandDataOptionVariableKey = "totalMoney"
+	-- local totalGoldWarbandDataOptionVariableTbl = self.db.global.options.shownWarbandData
+	-- local defaultTotalGoldWarbandDataVisibilityValue = database_defaults.global.options.shownWarbandData[totalGoldWarbandDataOptionVariableKey]
+	-- local totalGoldWarbandDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, totalGoldWarbandDataOptionVariable, totalGoldWarbandDataOptionVariableKey, totalGoldWarbandDataOptionVariableTbl, type(defaultTotalGoldWarbandDataVisibilityValue), totalGoldWarbandDataOptionName, defaultTotalGoldWarbandDataVisibilityValue)
+	-- totalGoldWarbandDataOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	-- local totalGoldWarbandDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, totalGoldWarbandDataOptionVisibilitySetting, totalGoldWarbandDataOptionTooltip)
+	-- totalGoldWarbandDataOptionVisibilitySetting:SetValue(self.db.global.options.shownWarbandData[totalGoldWarbandDataOptionVariableKey], true) -- true means force
+	-- totalGoldWarbandDataOptionInitializer:SetParentInitializer(warbandDataOptionInitializer, function() return warbandDataOptionVisibilitySetting:GetValue() end)
 
 	-- Currency options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
@@ -634,7 +712,7 @@ function RackensTracker:RegisterAddOnSettings_Retail()
 		local name = currency:GetName()
 		if name and database_defaults.global.options.shownCurrencies[tostring(currency.id)] ~= nil then
 			local tooltip =  strformat(L["optionsToggleShowCurrencyTooltip"], name)
-			local variable = strformat("%s_currency_%s", addOnName, tostring(currency.id))
+			local variable = strformat("%s_showCurrency_%s", addOnName, tostring(currency.id))
 			local variableKey = tostring(currency.id)
 			local variableTbl = self.db.global.options.shownCurrencies
 			local defaultVisibilityValue = database_defaults.global.options.shownCurrencies[variableKey]
@@ -900,13 +978,13 @@ function RackensTracker:DrawCharacterInfo(container, characterName)
 
 		local factionIcon
 		if character.faction == "Alliance" then
-			factionIcon = [[Interface\Common\icon-alliance]]
-		else 
-			factionIcon = [[Interface\Common\icon-horde]]
+			factionIcon = [[Interface\WORLDSTATEFRAME\AllianceIcon]]
+		else
+			factionIcon = [[Interface\WORLDSTATEFRAME\HordeIcon]]
 		end
 
 		characterLvlLabel:SetImage(factionIcon)
-		characterLvlLabel:SetImageSize(22, 33)
+		characterLvlLabel:SetImageSize(22, 22)
 		characterLvlLabel:SetText(strformat("%s: %d", L["level"], character.level))
 
 		container:AddChild(characterLvlLabel)
@@ -925,8 +1003,51 @@ function RackensTracker:DrawCharacterInfo(container, characterName)
 
 		container:AddChild(characterIlvlLabel)
 	end
+
+	if self.db.global.options.shownCharacterData.money then
+		local moneyLabel = AceGUI:Create("Label")
+		moneyLabel:SetFullWidth(true)
+		moneyLabel:SetImage([[Interface\MONEYFRAME\UI-GoldIcon]])
+		moneyLabel:SetImageSize(22, 22)
+		if (character.money ~= nil) then
+			local coinAmountTextureString = GetMoneyString(character.money, true)
+			moneyLabel:SetText(strformat("%s: %s", L["money"], coinAmountTextureString))
+		else
+			moneyLabel:SetText(strformat("%s: %s", L["money"], L["unknown"]))
+		end
+
+		container:AddChild(moneyLabel)
+	end
 end
 
+--- Draws the graphical elements to display character information (ilvl currently)
+---@param container AceGUIWidget
+function RackensTracker:DrawWarbandInfo(container)
+	if (not ContainsIf(self.db.global.options.shownWarbandData, function(warbandDataEnabled) return warbandDataEnabled end) or not self.db.global.options.showWarbandData) then
+		return
+	end
+
+	-- local warbandHeading = AceGUI:Create("Heading")
+	-- warbandHeading:SetFullWidth(true)
+	-- warbandHeading:SetText(ACCOUNT_QUEST_LABEL)
+	-- container:AddChild(warbandHeading)
+
+	if self.db.global.options.shownWarbandData.bankMoney then
+		local moneyLabel = AceGUI:Create("Label")
+		moneyLabel:SetFullWidth(true)
+		moneyLabel:SetImage([[Interface\MONEYFRAME\UI-GoldIcon]])
+		moneyLabel:SetImageSize(22, 22)
+		if (self.db.global.warband.bank.money ~= nil) then
+			local coinAmountTextureString = GetMoneyString(self.db.global.warband.bank.money, true)
+			moneyLabel:SetText(strformat("%s: %s", ACCOUNT_BANK_PANEL_TITLE,  coinAmountTextureString))
+		else
+			local coinAmountTextureString = GetMoneyString(0, true)
+			moneyLabel:SetText(strformat("%s: %s", ACCOUNT_BANK_PANEL_TITLE, L["unknownAmount"]))
+		end
+
+		container:AddChild(moneyLabel)
+	end
+end
 
 --- Draws the graphical elements to display which realm is currently being viewed
 ---@param container AceGUIWidget
@@ -1257,7 +1378,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 end
 
 --- Returns the appropriate warband related texture information, used to add a texture to the currency tooltip
----@return FileDataID | nil file
+---@return fileID | nil file
 ---@return any | nil tooltipTextureInfo
 function RackensTracker:GetWarbandRelatedTextureInfo(atlasName)
 	local atlas = C_Texture.GetAtlasInfo(atlasName)
@@ -1335,6 +1456,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				Log("%s is not character held on %s, fetching data from the CurrencyInfo object instead.", currencyInfo.name, characterName)
 			end
 
+			-- Cataclysm classic lists currency amounts without abbreviations or thousands separators but retail does
 			local quantityDisplay = RT.AddonUtil.IsRetail() and AbbreviateLargeNumbers(quantity) or quantity
 			local maxQuantityDisplay = RT.AddonUtil.IsRetail() and AbbreviateLargeNumbers(maxQuantity) or maxQuantity
 			local totalEarnedDisplay = RT.AddonUtil.IsRetail() and AbbreviateLargeNumbers(totalEarned) or totalEarned
@@ -1348,12 +1470,17 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				if (maxQuantity ~= 0) then
 					if not useTotalEarnedForMaxQty then
 						local isCapped = quantity == maxQuantity
-						local quantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%i", quantityDisplay)
-						local maxQuantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%i", maxQuantityDisplay)
+						local quantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%s", quantityDisplay)
+						local maxQuantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%s", maxQuantityDisplay)
 						currencyDisplayLabels[currency.id]:SetText(strformat("%s %s/%s", nameAndIcon, isCapped and quantityRedColorized or quantityDisplay, isCapped and maxQuantityRedColorized or maxQuantityDisplay))
 					end
 				end
 			end
+
+			-- Both cataclysm classic and retail uses abbreviations or thousands separators when hovering a currency
+			local quantityHoverDisplay = RT.AddonUtil.IsRetail() and quantityDisplay or AbbreviateLargeNumbers(quantity)
+			local maxQuantityHoverDisplay = RT.AddonUtil.IsRetail() and maxQuantityDisplay or AbbreviateLargeNumbers(maxQuantity)
+			local totalEarnedHoverDisplay = RT.AddonUtil.IsRetail() and totalEarnedDisplay or AbbreviateLargeNumbers(totalEarned)
 
 			-- Custom Currency GameTooltip allowing us to inject information about currencies held by any character tracked.
 			currencyDisplayLabels[currency.id]:SetCallback("OnEnter", function()
@@ -1361,6 +1488,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				GameTooltip:SetOwner(currencyDisplayLabels[currency.id].frame, "ANCHOR_CURSOR")
 				GameTooltip:AddLine(colorizedName)
 
+				-- On retail add a tooltip line if the currency is account wide or account transferable and a texture icon
 				if RT.AddonUtil.IsRetail() then
 					local isAccountWide, isAccountTransferable = currencyInfo.isAccountWide, currencyInfo.isAccountTransferable
 
@@ -1384,9 +1512,9 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				--- Display the Total of this currency either if its a seasonal one or a regular one without cap
 				if (maxQuantity == 0 or useTotalEarnedForMaxQty) then
 					if RT.AddonUtil.IsRetail() then
-						GameTooltip:AddLine(strformat(useTotalEarnedForMaxQty and CURRENCY_SEASON_TOTAL or CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight, quantityDisplay))
+						GameTooltip:AddLine(strformat(useTotalEarnedForMaxQty and CURRENCY_SEASON_TOTAL or CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight, quantityHoverDisplay))
 					else
-						GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight, quantityDisplay))
+						GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight, quantityHoverDisplay))
 					end
 				end
 
@@ -1395,9 +1523,9 @@ function RackensTracker:DrawCurrencies(container, characterName)
 					local isRegularCapped = quantity == maxQuantity
 					local isSeasonCapped = useTotalEarnedForMaxQty and (totalEarned == maxQuantity)
 					if RT.AddonUtil.IsRetail() then
-						GameTooltip:AddLine(strformat(useTotalEarnedForMaxQty and CURRENCY_SEASON_TOTAL_MAXIMUM or CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red or RT.ColorUtil.Color.Highlight, useTotalEarnedForMaxQty and totalEarnedDisplay or quantityDisplay, maxQuantityDisplay))
+						GameTooltip:AddLine(strformat(useTotalEarnedForMaxQty and CURRENCY_SEASON_TOTAL_MAXIMUM or CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red or RT.ColorUtil.Color.Highlight, useTotalEarnedForMaxQty and totalEarnedHoverDisplay or quantityHoverDisplay, maxQuantityHoverDisplay))
 					else
-						GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red or RT.ColorUtil.Color.Highlight, useTotalEarnedForMaxQty and totalEarnedDisplay or quantityDisplay, maxQuantityDisplay))
+						GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red or RT.ColorUtil.Color.Highlight, useTotalEarnedForMaxQty and totalEarnedHoverDisplay or quantityHoverDisplay, maxQuantityHoverDisplay))
 					end
 				end
 
@@ -1438,6 +1566,9 @@ local function SelectCharacterTab(container, event, characterName)
 	-- Just pause all layout calculations until after we placed all the widgets on screen.
 	RackensTracker:DrawCurrentRealmInfo(container)
 	RackensTracker:DrawCharacterInfo(container, characterName)
+	if RT.AddonUtil.IsRetail() then
+		RackensTracker:DrawWarbandInfo(container)
+	end
 	--RackensTracker:DrawQuests(container, characterName)
 	RackensTracker:DrawSavedInstances(container, characterName)
 	RackensTracker:DrawCurrencies(container, characterName)
