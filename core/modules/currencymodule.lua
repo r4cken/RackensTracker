@@ -91,12 +91,14 @@ function CurrencyModule:OnEnable()
 	-- Money related events
 	self:RegisterEvent("PLAYER_MONEY", "OnEventPlayerMoney")
 
-	if RT.AddonUtil.IsRetail() then
-		self:RegisterEvent("ACCOUNT_MONEY", "OnEventAccountMoney")
-	end
     -- Update currency information for the currenct logged in character
 	self:UpdateCharacterCurrencies()
 	self:UpdateCharacterMoney()
+
+	if RT.AddonUtil.IsRetail() then
+		self:RegisterEvent("ACCOUNT_MONEY", "OnEventAccountMoney")
+		self:UpdateWarbandBankMoney()
+	end
 end
 
 --- Called when currency information is updated from the server, runs self:UpdateCharacterCurrencies()
