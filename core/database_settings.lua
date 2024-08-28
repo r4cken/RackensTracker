@@ -180,7 +180,7 @@ local database_defaults = {
 		warband = {
 			bank = {
 				money = nil
-			}½
+			}
 		},
 	},
 	char = {
