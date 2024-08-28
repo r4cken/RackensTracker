@@ -1041,8 +1041,7 @@ function RackensTracker:DrawWarbandInfo(container)
 			local coinAmountTextureString = GetMoneyString(self.db.global.warband.bank.money, true)
 			moneyLabel:SetText(strformat("%s: %s", ACCOUNT_BANK_PANEL_TITLE,  coinAmountTextureString))
 		else
-			local coinAmountTextureString = GetMoneyString(0, true)
-			moneyLabel:SetText(strformat("%s: %s", ACCOUNT_BANK_PANEL_TITLE, L["unknownAmount"]))
+			moneyLabel:SetText(strformat("%s: %s", ACCOUNT_BANK_PANEL_TITLE, L["unknown"]))
 		end
 
 		container:AddChild(moneyLabel)
