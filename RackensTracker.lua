@@ -175,26 +175,26 @@ function RackensTracker:CreateRealmOptions()
 		}
 		order = order + 1
 
-		-- Dropdown select for which character to select for deletion
 		options.args[realmName].args.characterSelectDelete = {
 			type = "select",
 			name = L["optionsSelectDeleteCharacter"],
 			desc = L["optionsSelectDeleteCharacterTooltip"],
-			values = {},
-			sorting = {},
+			values = function()
+				local selectDropdownValues = {}
+				for characterName in pairs(self.db.global.realms[realmName].characters) do
+					selectDropdownValues[characterName] = characterName
+				end
+				return selectDropdownValues
+			end,
 			order = order,
 			width = "normal",
 			get = function(info)
 				return self.db.global.realms[realmName].selectedCharacterForDeletion
 			end,
-			set = function(info, value) self.db.global.realms[realmName].selectedCharacterForDeletion = value end,
+			set = function(info, characterName)
+				self.db.global.realms[realmName].selectedCharacterForDeletion = characterName
+			end,
 		}
-
-		for characterName, character in pairs(self.db.global.realms[realmName].characters) do
-			local key = strformat("%s.%s", realmName, characterName)
-			options.args[realmName].args.characterSelectDelete.values[key] = characterName
-			options.args[realmName].args.characterSelectDelete.sorting[#options.args[realmName].args.characterSelectDelete.sorting + 1] = key
-		end
 
 		-- Button to delete the selected character from the select dropdown
 		order = order + 1
@@ -203,31 +203,23 @@ function RackensTracker:CreateRealmOptions()
 			name = L["optionsButtonDeleteCharacter"],
 			desc = L["optionsButtonDeleteCharacterTooltip"],
 			func = function(info, value)
-				-- TODO: Figure out why this is so buggy, the dropdown isnt populated after deletion and state seems to be all kinds of screwed up :/
-				-- a /reload fixes the dropdowns and makes it work correctly but its a hack solution and confuses the users.
-				local realm, name = strsplit(".", self.db.global.realms[realmName].selectedCharacterForDeletion)
+				-- Remove character from the database options
 				self.db.global.options.shownCharacters[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
-				-- Checkbox removal
-				options.args[realmName].args[name] = nil
-				-- Remove the sorted dropdown index
-				local sortedIndex = tIndexOf(options.args[realmName].args.characterSelectDelete.sorting, self.db.global.realms[realmName].selectedCharacterForDeletion)
-				if sortedIndex then
-					options.args[realmName].args.characterSelectDelete.sorting[sortedIndex] = nil
-				end
-				-- Remove the dropdown value
-				options.args[realmName].args.characterSelectDelete.values[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
-				-- Unset the db value for selectedCharacterForDeletion
+
+				-- Remove the options menu checkbox 
+				options.args[realmName].args[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
+
+				-- Remove all database data for the character removed
+				self.db.global.realms[realmName].characters[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
+
+				-- Set the database value selectedCharacterForDeletion on this realm to nil to clear the dropdown
 				self.db.global.realms[realmName].selectedCharacterForDeletion = nil
-				-- Unset all database data for the character removed
-				self.db.global.realms[realm].characters[name] = nil
-				if #options.args[realmName].args.characterSelectDelete.values > 0 then
-					self.db.global.realms[realmName].selectedCharacterForDeletion = options.args[realmName].args.characterSelectDelete.values[1]
-				end
+
 				AceConfigRegistry:NotifyChange(addOnName)
 			end,
 			order = order,
 			confirm = function()
-				local _, name = strsplit(".", self.db.global.realms[realmName].selectedCharacterForDeletion)
+				local name = self.db.global.realms[realmName].selectedCharacterForDeletion
 				return string.format(L["optionsButtonDeleteCharacterConfirm"], name);
 			end,
 			disabled = function()
