@@ -2,7 +2,7 @@
 luac.out
 
 # Addon libs
-libs/
+libs/*
 
 # luarocks build files
 *.src.rock
