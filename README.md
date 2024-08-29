@@ -1,7 +1,7 @@
 # RackensTracker
-RackensTracker keeps track of all your characters currencies, raid and dungeon lockouts across all realms you play on.
+RackensTracker keeps track of all your characters currencies, raid and dungeon lockouts including the weekly and daily reset across all realms you play on. 
 
-The tracking window displays several relevant sections such as realm data, character data, lockout and currencies and each section is customizable allowing you to view what is most relevant for you.
+The tracking window displays several relevant sections such as warband data, realm data, character data, lockout and currencies and each section is customizable allowing you to view what is most relevant for you.
 
 ![image](https://github.com/user-attachments/assets/ef039f06-5d59-4f92-a938-89c4aa0032c0)
 
@@ -9,7 +9,8 @@ The tracking window displays several relevant sections such as realm data, chara
 
 ## Features
 * Displays when raid and dungeon locks expire
-* Displays character data such as iLvl
+* Displays character data such as level, item level and gold
+* Retail: Displays warband wide accessible gold stored in the warband bank
 * Individual raid and dungeon lockouts listed can be hovered, displaying a tooltip showing which bosses have been defeated
 * Individual currencies listed can be hovered, displaying a tooltip showing currency information, including how much of it you own, and any maximum caps or seasonal caps.
 
@@ -20,7 +21,8 @@ Keybind support added under Options->Game->Keybindings allowing you to set a key
 ### Options menu
 * Select the realm you wish the tracking window to display data for
 * Select the minimum character level required for characters to be visible in the tracking window (helpful if you dont care about showing bank alts or lower level characters)
-* Select what character specific data is visible in the tracking window (currently supports displaying character level and item level)
+* Select what character specific data is visible in the tracking window
+* Retail: Select what warband specific data is visible in the tracking window
 * Select which currencies are visible in the tracking window
 * Realm specific settings allowing you to hide/show specific characters from the tracking window
 * Realm specific settings allowing you to delete characters from the tracking database
