@@ -203,9 +203,11 @@ function RackensTracker:CreateRealmOptions()
 			name = L["optionsButtonDeleteCharacter"],
 			desc = L["optionsButtonDeleteCharacterTooltip"],
 			func = function(info, value)
-				-- Remove character from the database options
-				self.db.global.options.shownCharacters[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
+				-- Key into self.db.global.options.shownCharacters
+				local optionsKey = strformat("%s.%s", realmName, self.db.global.realms[realmName].selectedCharacterForDeletion)
 
+				-- Remove character from the database options
+				self.db.global.options.shownCharacters[optionsKey] = nil
 				-- Remove the options menu checkbox 
 				options.args[realmName].args[self.db.global.realms[realmName].selectedCharacterForDeletion] = nil
 
