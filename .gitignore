@@ -1,6 +1,9 @@
 # Compiled Lua sources
 luac.out
 
+# Todo file
+TODO
+
 # Addon libs
 libs/*
 
