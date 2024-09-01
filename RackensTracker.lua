@@ -52,7 +52,7 @@ local AceConfigDialog = LibStub("AceConfigDialog-3.0")
 local AceConfigRegistry = LibStub("AceConfigRegistry-3.0")
 
 -- Set bindings translations (used in game options keybinds section)
-_G.BINDING_HEADER_RACKENSTRACKER = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Addon, addOnName)
+_G.BINDING_HEADER_RACKENSTRACKER = RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Addon, addOnName)
 _G.BINDING_NAME_RACKENSTRACKER_TOGGLE = L["toggleTrackerPanel"]
 _G.BINDING_NAME_RACKENSTRACKER_OPTIONS_OPEN = L["openOptionsPanel"]
 
@@ -326,10 +326,10 @@ function RackensTracker:OnInitialize()
 		label = addOnName,
 		---@type function|GameTooltip
 		OnTooltipShow = function(tooltip)
-			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Highlight, "%s - %s %s", addOnName, L["version"], addOnVersion))
-			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Gray, "%s", "/rackenstracker for available commands"))
-			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Gray, "%s: ", L["minimapLeftClickAction"]) .. RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Normal, "%s", L["minimapLeftClickDescription"]))
-			tooltip:AddLine(RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Gray, "%s: ", L["minimapRightClickAction"]) .. RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Normal, "%s", L["minimapRightClickDescription"]))
+			tooltip:AddLine(RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Highlight, "%s - %s %s", addOnName, L["version"], addOnVersion))
+			tooltip:AddLine(RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Gray, "%s", "/rackenstracker for available commands"))
+			tooltip:AddLine(RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Gray, "%s: ", L["minimapLeftClickAction"]) .. RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Normal, "%s", L["minimapLeftClickDescription"]))
+			tooltip:AddLine(RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Gray, "%s: ", L["minimapRightClickAction"]) .. RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Normal, "%s", L["minimapRightClickDescription"]))
 		end,
 	})
 
@@ -498,7 +498,7 @@ function RackensTracker:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, On
 			setting:SetValue(self.db.global.options.shownCurrencies[variable], true) -- true means force
 			initializer:SetParentInitializer(allCurrencyOptionInitializer, function() return allCurrencyOptionVisibilitySetting:GetValue() end)
 		else
-			local err = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, L["errorCurrencyConflictDatabaseDefaults"], currency.id)
+			local err = RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Error, L["errorCurrencyConflictDatabaseDefaults"], currency.id)
 			RackensTracker:Printf(err)
 		end
 	end
@@ -716,7 +716,7 @@ function RackensTracker:RegisterAddOnSettings_Retail()
 			setting:SetValue(self.db.global.options.shownCurrencies[variableKey], true) -- true means force
 			initializer:SetParentInitializer(allCurrencyOptionInitializer, function() return allCurrencyOptionVisibilitySetting:GetValue() end)
 		else
-			local err = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, L["errorCurrencyConflictDatabaseDefaults"], currency.id)
+			local err = RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Error, L["errorCurrencyConflictDatabaseDefaults"], currency.id)
 			RackensTracker:Printf(err)
 		end
 	end
@@ -872,7 +872,7 @@ local function createAvailableQuestLogItemEntry(name, questTag, isWeekly)
 		displayedQuestTag = strformat(DAILY_QUEST_TAG_TEMPLATE, questTag)
 	end
 
-	local colorizedText = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Yellow, "%s (%s) - %s", isWeekly and L["weeklyQuest"] or name, displayedQuestTag, status)
+	local colorizedText = RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Yellow, "%s (%s) - %s", isWeekly and L["weeklyQuest"] or name, displayedQuestTag, status)
 	local labelText = strformat("%s %s", icon, colorizedText)
 
 	questLabel:SetText(labelText)
@@ -944,7 +944,7 @@ local function createTrackedQuestLogItemEntry(quest)
 		status = status .. " " .. L["questStatusExpired"]
 	end
 
-	local colorizedText = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Yellow, "%s (%s) - %s", quest.isWeekly and L["weeklyQuest"] or quest.name, questTag, status)
+	local colorizedText = RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Yellow, "%s (%s) - %s", quest.isWeekly and L["weeklyQuest"] or quest.name, questTag, status)
 	local labelText = strformat("%s %s", icon, colorizedText)
 
 	questLabel:SetText(labelText)
@@ -1284,7 +1284,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 	local labelHeight = 20
 
 	for raidInstanceIndex, raidInstance in ipairs(raidInstances.sorted) do
-		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Normal, "%s", raidInstance.id)
+		instanceColorizedName = RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Normal, "%s", raidInstance.id)
 		raidInstanceNameLabels[raidInstanceIndex] = AceGUI:Create("InteractiveLabel")
 		raidInstanceNameLabels[raidInstanceIndex]:SetText(instanceColorizedName)
 		raidInstanceNameLabels[raidInstanceIndex]:SetFullWidth(true)
@@ -1328,7 +1328,7 @@ function RackensTracker:DrawSavedInstances(container, characterName)
 
 	-- Fill in the character for this tab's dungeon lockouts
 	for dungeonInstanceIndex, dungeonInstance in ipairs(dungeonInstances.sorted) do
-		instanceColorizedName = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Normal, "%s", dungeonInstance.id)
+		instanceColorizedName = RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Normal, "%s", dungeonInstance.id)
 		dungeonInstanceNameLabels[dungeonInstanceIndex] = AceGUI:Create("InteractiveLabel")
 		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetText(instanceColorizedName)
 		dungeonInstanceNameLabels[dungeonInstanceIndex]:SetFullWidth(true)
@@ -1455,7 +1455,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 			local totalEarnedDisplay = RT.AddonUtil.IsRetail() and AbbreviateLargeNumbers(totalEarned) or totalEarned
 
 			if (quantity == 0) then
-				local zeroQuantity = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Gray, quantityDisplay)
+				local zeroQuantity = RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Gray, quantityDisplay)
 				currencyDisplayLabels[currency.id]:SetText(strformat("%s %s", nameAndIcon, zeroQuantity))
 			else
 				currencyDisplayLabels[currency.id]:SetText(strformat("%s %s", nameAndIcon, quantityDisplay))
@@ -1463,8 +1463,8 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				if (maxQuantity ~= 0) then
 					if not useTotalEarnedForMaxQty then
 						local isCapped = quantity == maxQuantity
-						local quantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%s", quantityDisplay)
-						local maxQuantityRedColorized = RT.ColorUtil:FormatColor(RT.ColorUtil.Color.Red, "%s", maxQuantityDisplay)
+						local quantityRedColorized = RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Red, "%s", quantityDisplay)
+						local maxQuantityRedColorized = RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Red, "%s", maxQuantityDisplay)
 						currencyDisplayLabels[currency.id]:SetText(strformat("%s %s/%s", nameAndIcon, isCapped and quantityRedColorized or quantityDisplay, isCapped and maxQuantityRedColorized or maxQuantityDisplay))
 					end
 				end
@@ -1487,7 +1487,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 
 					local accountWideOrTransferableText = (isAccountWide and ACCOUNT_LEVEL_CURRENCY) or (isAccountTransferable and ACCOUNT_TRANSFERRABLE_CURRENCY) or nil
 					if accountWideOrTransferableText ~= nil then
-						GameTooltip:AddLine(accountWideOrTransferableText, BLUE_FONT_COLOR:GetRGB())
+						GameTooltip:AddLine(accountWideOrTransferableText, RT.ColorUtil.Color.Blue:GetRGB())
 						local fileDataId, tooltipTextureInfo = self:GetWarbandRelatedTextureInfo(isAccountWide and "warbands-icon" or "warbands-transferable-icon")
 						if tooltipTextureInfo then
 						---@diagnostic disable-next-line: redundant-parameter
@@ -1505,9 +1505,9 @@ function RackensTracker:DrawCurrencies(container, characterName)
 				--- Display the Total of this currency either if its a seasonal one or a regular one without cap
 				if (maxQuantity == 0 or useTotalEarnedForMaxQty) then
 					if RT.AddonUtil.IsRetail() then
-						GameTooltip:AddLine(strformat(useTotalEarnedForMaxQty and CURRENCY_SEASON_TOTAL or CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight, quantityHoverDisplay))
+						GameTooltip:AddLine(strformat(useTotalEarnedForMaxQty and CURRENCY_SEASON_TOTAL or CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight:GenerateHexColorMarkup(), quantityHoverDisplay))
 					else
-						GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight, quantityHoverDisplay))
+						GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight:GenerateHexColorMarkup(), quantityHoverDisplay))
 					end
 				end
 
@@ -1516,9 +1516,9 @@ function RackensTracker:DrawCurrencies(container, characterName)
 					local isRegularCapped = quantity == maxQuantity
 					local isSeasonCapped = useTotalEarnedForMaxQty and (totalEarned == maxQuantity)
 					if RT.AddonUtil.IsRetail() then
-						GameTooltip:AddLine(strformat(useTotalEarnedForMaxQty and CURRENCY_SEASON_TOTAL_MAXIMUM or CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red or RT.ColorUtil.Color.Highlight, useTotalEarnedForMaxQty and totalEarnedHoverDisplay or quantityHoverDisplay, maxQuantityHoverDisplay))
+						GameTooltip:AddLine(strformat(useTotalEarnedForMaxQty and CURRENCY_SEASON_TOTAL_MAXIMUM or CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red:GenerateHexColorMarkup() or RT.ColorUtil.Color.Highlight:GenerateHexColorMarkup(), useTotalEarnedForMaxQty and totalEarnedHoverDisplay or quantityHoverDisplay, maxQuantityHoverDisplay))
 					else
-						GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red or RT.ColorUtil.Color.Highlight, useTotalEarnedForMaxQty and totalEarnedHoverDisplay or quantityHoverDisplay, maxQuantityHoverDisplay))
+						GameTooltip:AddLine(strformat(CURRENCY_TOTAL_CAP, (isRegularCapped or isSeasonCapped) and RT.ColorUtil.Color.Red:GenerateHexColorMarkup() or RT.ColorUtil.Color.Highlight:GenerateHexColorMarkup(), useTotalEarnedForMaxQty and totalEarnedHoverDisplay or quantityHoverDisplay, maxQuantityHoverDisplay))
 					end
 				end
 
@@ -1651,7 +1651,7 @@ function RackensTracker:OpenTrackerFrame()
 					isInitialCharacterEligible = true
 				end
 				tabIcon = RT.CharacterUtil:GetCharacterIcon(character.class, tabIconSize)
-				tabName = RT.ColorUtil:FormatColorClass(character.class, character.name)
+				tabName = RT.ColorUtil:WrapTextInClassColor(character.class, character.name)
 				table.insert(tabsData, {text = strformat("%s %s", tabIcon, tabName), value=characterName})
 			end
 		end

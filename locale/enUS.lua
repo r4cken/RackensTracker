@@ -33,7 +33,7 @@ if L then
     L["version"] = "Version"
     L["toggleTrackerPanel"] = "Toggle tracker panel"
     L["openOptionsPanel"] = "Open options panel"
-    L["errorCurrencyConflictDatabaseDefaults"] = "A currency with id (%s) was added to RackensTracker, but no default database settings were found for it. This should never happen, please create an issue on the tracker."
+    L["errorCurrencyConflictDatabaseDefaults"] = "A currency with id (%s) was added to RackensTracker, but no default database settings were found for it. This should never happen, please report this by creating an issue on the bugtracker."
     L["optionsTrackedRealmsHeader"] = "Tracked Realms"
     L["optionsCharactersHeader"] = "Tracked Characters"
     L["optionsNoCharactersHeader"] = "No Eligible Characters Found"
