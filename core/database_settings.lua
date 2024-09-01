@@ -117,6 +117,7 @@ do
 			["3055"] = true,  -- Mereldar Derby Mark
 			["2032"] = true,  -- Trader's Tender
 			["1166"] = true,  -- Timewarped Badge
+			["515"]  = true,  -- Darkmoon Prize Ticket
 			["824"]  = false, -- Garrison Resources
 			["1792"] = true,  -- Honor
 			["1602"] = true,  -- Conquest

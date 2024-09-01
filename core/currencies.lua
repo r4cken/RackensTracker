@@ -127,6 +127,9 @@ if RT.AddonUtil.IsRetail() then
     -- Fishing derby currency
     local MereldarDerbyMark = Currency:New(3055)
 
+    -- Darkmoon Prize Ticket
+    local DarkmoonPrizeTicket = Currency:New(515)
+
     -- Garrison Resources
     local GarrisonResources = Currency:New(824)
 
@@ -148,6 +151,7 @@ if RT.AddonUtil.IsRetail() then
         MereldarDerbyMark,
         TradersTender,
         TimewarpedBadge,
+        DarkmoonPrizeTicket,
         GarrisonResources,
         Honor,
         Conquest,
@@ -170,6 +174,7 @@ if RT.AddonUtil.IsRetail() then
         [3055] = true,  -- Mereldar Derby Mark
         [2032] = true,  -- Trader's Tender
         [1166] = true,  -- Timewarped Badge
+        [515]  = true,  -- Darkmoon Prize Ticket
         [824]  = true,  -- Garrison Resources
         [1792] = true,  -- Honor
         [1602] = true,  -- Conquest
