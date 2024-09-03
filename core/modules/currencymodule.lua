@@ -3,14 +3,16 @@ local addOnName = ...
 ---@class RT
 local RT = select(2, ...)
 
+local tFilter = tFilter
 local UnitName = UnitName
 local strtrim = strtrim
 local GetCurrencyInfo = C_CurrencyInfo.GetCurrencyInfo
+local GetNameAndServerNameFromGUID = GetNameAndServerNameFromGUID
 
 local addon = LibStub("AceAddon-3.0"):GetAddon(addOnName) --[[@as RackensTracker]]
 
----@class CurrencyModule: AceModule, AceConsole-3.0, AceEvent-3.0, AddonModulePrototype
-local CurrencyModule = addon:NewModule("Currencies", "AceEvent-3.0")
+---@class CurrencyModule: AceModule, AceConsole-3.0, AceEvent-3.0, AceHook-3.0, AddonModulePrototype
+local CurrencyModule = addon:NewModule("Currencies", "AceEvent-3.0", "AceHook-3.0")
 
 --- Logs message to the chat frame
 ---@param message string
@@ -69,6 +71,47 @@ end
 function CurrencyModule:UpdateCharacterCurrencies()
 	local currencies = GetCharacterCurrencies()
 	addon.currentCharacter.currencies = currencies
+
+	-- Account wide currencies can be updated and stored across all tracked characters at once without needing to login to them.
+	if RT.AddonUtil.IsRetail() then
+		local accountWideCurrencies = tFilter(currencies, function(currency) return currency.isAccountWide end, false)
+		for realmName, realm in pairs(addon.db.global.realms) do
+			for characterName, character in pairs(realm.characters) do
+				-- Skip the current character as they already have an up to date amount of the account wide currency
+				if character.guid ~= addon.currentCharacter.guid then
+					for accountWideCurrencyID, accountWideCurrency in pairs(accountWideCurrencies) do
+						addon.db.global.realms[realmName].characters[characterName].currencies[accountWideCurrencyID] = accountWideCurrency
+					end
+				end
+			end
+		end
+	end
+
+end
+
+--- Updates the database whenever a currency transfer has taken place on our tracked characters.
+---@param currencyID number
+---@param quantityChange number
+---@param sourceCharacterGUID WOWGUID
+---@param sourceCharacterName string
+function CurrencyModule:UpdateSourceCharacterCurrencyAfterTransfer(currencyID, quantityChange, sourceCharacterGUID, sourceCharacterName)
+	-- Try and locate the source of the transfer in our database.
+	local characterFound = nil
+	for _, realm in pairs(addon.db.global.realms) do
+		for _, character in pairs(realm.characters) do
+			if character.guid == sourceCharacterGUID and character.name == sourceCharacterName then
+				characterFound = character
+			end
+		end
+	end
+
+	-- If source character is found then deduct the transfered quantity from this tracked currency as detailed in the transaction
+	if characterFound then
+		if characterFound.currencies and characterFound.currencies[currencyID] then
+			addon.db.global.realms[characterFound.realm].characters[characterFound.name].currencies[currencyID].quantity = addon.db.global.realms[characterFound.realm].characters[characterFound.name].currencies[currencyID].quantity - quantityChange
+			Log("Updated character %s on realm %s, currencyID: %d new quantity set to: %d", characterFound.name, characterFound.realm, currencyID, addon.db.global.realms[characterFound.realm].characters[characterFound.name].currencies[currencyID].quantity)
+		end
+	end
 end
 
 --- Updates the database with the latest money information for the current character
@@ -81,6 +124,24 @@ end
 function CurrencyModule:UpdateWarbandBankMoney()
 	local warbandBankMoney = C_Bank.FetchDepositedMoney(Enum.BankType.Account)
 	addon.db.global.warband.bank.money = warbandBankMoney
+end
+
+---@class TransferData
+---@field sourceCharacterGUID WOWGUID
+---@field sourceCharacterName string
+---@field currencyID number
+---@field quantity number
+
+---@return TransferData | nil transferData
+--- Returns the last transfer data stored, if any was found
+function CurrencyModule:GetLatestTransferData()
+	return self.postHookTransferData;
+end
+
+---@param transferData TransferData | nil
+--- Sets the stored last transfer data object, either from the post hook or when cleared to nil after processing is finished.
+function CurrencyModule:SetLatestTransferData(transferData)
+	self.postHookTransferData = transferData
 end
 
 function CurrencyModule:OnEnable()
@@ -96,30 +157,69 @@ function CurrencyModule:OnEnable()
 	self:UpdateCharacterMoney()
 
 	if RT.AddonUtil.IsRetail() then
+		-- Hook C_CurrencyInfo.RequestCurrencyFromAccountCharacter so we can retrieve its parameters to track transfers
+		self:SecureHook(C_CurrencyInfo, "RequestCurrencyFromAccountCharacter", "AfterRequestCurrencyFromAccountCharacter")
+
 		self:RegisterEvent("ACCOUNT_MONEY", "OnEventAccountMoney")
 		self:UpdateWarbandBankMoney()
 	end
 end
 
+function CurrencyModule:OnDisable()
+	if RT.AddonUtil.IsRetail() then
+		self:Unhook(C_CurrencyInfo, "RequestCurrencyFromAccountCharacter")
+	end
+end
+
 --- Called when currency information is updated from the server, runs self:UpdateCharacterCurrencies()
----@param currencyType number?
+---@param currencyID number?
 ---@param quantity number?
 ---@param quantityChange number?
 ---@param quantityGainSource Enum.CurrencySource?
 ---@param destroyReason Enum.CurrencyDestroyReason?
-function CurrencyModule:OnEventCurrencyDisplayUpdate(event, currencyType, quantity, quantityChange, quantityGainSource, destroyReason)
-	-- TODO: Investigate if we can skip events with all nil parameters or if we must run UpdateCharacterCurrencies for every triggered event
-	if currencyType ~= nil then
+function CurrencyModule:OnEventCurrencyDisplayUpdate(event, currencyID, quantity, quantityChange, quantityGainSource, destroyReason)
+	if currencyID ~= nil then
 		Log("OnEventCurrencyDisplayUpdate")
-		Log("Event Data: %s, %s, %s, %s, %s", currencyType or "nil", quantity or "nil", quantityChange or "nil", quantityGainSource or "nil", destroyReason or "nil")
+		Log("Event Data: %s, %s, %s, %s, %s", currencyID or "nil", quantity or "nil", quantityChange or "nil", quantityGainSource or "nil", destroyReason or "nil")
+
+		if RT.AddonUtil.IsRetail() then
+			-- OnEventCurrencyDisplayUpdate was triggered after a manual currency transfer took place
+			if quantityGainSource == Enum.CurrencySource.AccountTransfer and destroyReason == 15 then
+				local latestTransferData = self:GetLatestTransferData()
+				if latestTransferData ~= nil then
+					-- Found a currency transfer to our currently logged in character
+					if currencyID == latestTransferData.currencyID and quantityChange == latestTransferData.quantity then
+						Log("Currency Display Update has matching data for a currency transfer just made!")
+						self:UpdateSourceCharacterCurrencyAfterTransfer(currencyID, latestTransferData.quantity, latestTransferData.sourceCharacterGUID, latestTransferData.sourceCharacterName)
+					end
+
+					self:SetLatestTransferData(nil)
+				end
+			end
+		end
+
 		self:UpdateCharacterCurrencies()
 	end
 end
 
+--- Post Hook called when a currency transfer is submitted
+---@param sourceCharacterGUID WOWGUID
+---@param currencyID number
+---@param quantity number
+function CurrencyModule:AfterRequestCurrencyFromAccountCharacter(sourceCharacterGUID, currencyID, quantity)
+	self:SetLatestTransferData({
+		sourceCharacterGUID = sourceCharacterGUID,
+		sourceCharacterName = GetNameAndServerNameFromGUID(sourceCharacterGUID),
+		currencyID = currencyID,
+		quantity = quantity,
+	})
+	Log("RequestCurrencyFromAccountCharacter called with sourceCharacterGUID: %s, currencyID: %d, quantity: %d", sourceCharacterGUID, currencyID, quantity)
+end
+
 --- Called when the player gains currency other than money, such as emblems
 function CurrencyModule:OnEventChatMsgCurrency(event, text, playerName)
-	Log("OnEventChatMsgCurrency")
-	Log("Event Data: %s, %s", text, playerName)
+	--Log("OnEventChatMsgCurrency")
+	--Log("Event Data: %s, %s", text, playerName)
 	-- TODO: Maybe we dont need CHAT_MSG_CURRENCY event as it seems that CURRENCY_DISPLAY_UPDATE triggers on both boss kills and quest turn ins.
 	-- Also playerName seems to be nil or "" :/
 	if (playerName == UnitName("player")) then
