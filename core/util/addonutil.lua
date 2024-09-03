@@ -22,6 +22,15 @@ do
     end
 end
 
+local function CountTable(tbl)
+	local count = 0;
+	for k, v in pairs(tbl) do
+		count = count + 1;
+	end
+	return count;
+end
+
+AddonUtil.CountTable = CountTable
 AddonUtil.IsRetail = IsRetail
 AddonUtil.IsCataClassic = IsCataClassic
 
