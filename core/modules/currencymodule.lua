@@ -3,6 +3,7 @@ local addOnName = ...
 ---@class RT
 local RT = select(2, ...)
 
+local tFilter = tFilter
 local UnitName = UnitName
 local strtrim = strtrim
 local GetCurrencyInfo = C_CurrencyInfo.GetCurrencyInfo
