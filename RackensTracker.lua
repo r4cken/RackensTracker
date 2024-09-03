@@ -131,7 +131,8 @@ end
 
 --- Creates the realm specific options used in the realm specific options menues
 function RackensTracker:CreateRealmOptions()
-	local realmsAvailable = GetKeysArray(self.db.global.realms)
+	local realmsWithCharacters = tFilter(self.db.global.realms, function(realm) return RT.AddonUtil.CountTable(realm.characters) > 0 end, false)
+	local realmsAvailable = GetKeysArray(realmsWithCharacters)
 	table.sort(realmsAvailable, function(a,b) return a < b end)
 
 	local options = {
@@ -242,8 +243,10 @@ function RackensTracker:OnInitialize()
 	self:DeleteCharacterDataIfNecessary()
 
 	self.currentRealm = GetRealmName()
+
 	-- setup realm to show data for in the tracker window
-	self.currentDisplayedRealm = self.db.global.options.shownRealm and self.db.global.options.shownRealm or GetRealmName()
+	self.currentDisplayedRealm = self.db.global.options.shownRealm
+
 	-- GUI related handles
 	self.tracker_frame = nil
 	self.optionsCategory = nil
@@ -371,7 +374,8 @@ function RackensTracker:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, On
 	self.optionsCategory.ID = addOnName
 	self.realmSubFramesAndCategoryIds = {}
 
-	local realmsAvailable = GetKeysArray(self.db.global.realms)
+	local realmsWithCharacters = tFilter(self.db.global.realms, function(realm) return RT.AddonUtil.CountTable(realm.characters) > 0 end, false)
+	local realmsAvailable = GetKeysArray(realmsWithCharacters)
 	table.sort(realmsAvailable, function(a,b) return a < b end)
 
 	-- Realm data options
@@ -394,6 +398,9 @@ function RackensTracker:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, On
 
 	Settings.CreateDropDown(self.optionsCategory, shownRealmSetting, GetRealmOptions, realmsDropDownOptionTooltip)
 	if (self.db.global.options.shownRealm == nil) then
+		shownRealmSetting:SetValue(self.currentRealm, true)
+	elseif (not realmsWithCharacters[self.db.global.options.shownRealm]) then
+		-- Prevent setting the dropdown to a realm that has no tracked characters on it anymore
 		shownRealmSetting:SetValue(self.currentRealm, true)
 	else
 		shownRealmSetting:SetValue(self.db.global.options[realmsDropDownOptionVariable], true)
@@ -519,7 +526,8 @@ function RackensTracker:RegisterAddOnSettings_Retail()
 	self.optionsCategory.ID = addOnName
 	self.realmSubFramesAndCategoryIds = {}
 
-	local realmsAvailable = GetKeysArray(self.db.global.realms)
+	local realmsWithCharacters = tFilter(self.db.global.realms, function(realm) return RT.AddonUtil.CountTable(realm.characters) > 0 end, false)
+	local realmsAvailable = GetKeysArray(realmsWithCharacters)
 	table.sort(realmsAvailable, function(a,b) return a < b end)
 
 	local function OnAddOnSettingChanged(setting, value)
@@ -558,8 +566,11 @@ function RackensTracker:RegisterAddOnSettings_Retail()
 	Settings.CreateDropdown(self.optionsCategory, shownRealmSetting, GetRealmOptions, realmsDropDownOptionTooltip)
 	if (self.db.global.options.shownRealm == nil) then
 		shownRealmSetting:SetValue(self.currentRealm, true)
+	elseif (not realmsWithCharacters[self.db.global.options.shownRealm]) then
+		-- Prevent setting the dropdown to a realm that has no tracked characters on it anymore
+		shownRealmSetting:SetValue(self.currentRealm, true)
 	else
-		shownRealmSetting:SetValue(self.db.global.options["shownRealm"], true)
+		shownRealmSetting:SetValue(self.db.global.options.shownRealm, true)
 	end
 
 	-- Slider options (minimum character level required to display tracking data)
