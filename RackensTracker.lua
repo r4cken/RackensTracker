@@ -1515,11 +1515,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 
 				--- Display the Total of this currency either if its a seasonal one or a regular one without cap
 				if (maxQuantity == 0 or useTotalEarnedForMaxQty) then
-					if RT.AddonUtil.IsRetail() then
-						GameTooltip:AddLine(strformat(useTotalEarnedForMaxQty and CURRENCY_SEASON_TOTAL or CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight:GenerateHexColorMarkup(), quantityHoverDisplay))
-					else
-						GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight:GenerateHexColorMarkup(), quantityHoverDisplay))
-					end
+					GameTooltip:AddLine(strformat(CURRENCY_TOTAL, RT.ColorUtil.Color.Highlight:GenerateHexColorMarkup(), quantityHoverDisplay))
 				end
 
 				-- Display the Total Maximum of this currency that has some sort of maximum cap or seasonal cap
