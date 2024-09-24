@@ -131,6 +131,7 @@ local database_defaults = {
 		options = {
 			showCurrencies = true,
 			shownCurrencies = shownCurrencies,
+			enhanceCurrencyTooltips = true,
 			showCharactersAtOrBelowLevel = 1,
 			shownCharacters = {
 				['*'] = true

@@ -599,6 +599,21 @@ function RackensTracker:RegisterAddOnSettings_Retail()
 	Settings.CreateSlider(self.optionsCategory, showCharactersAtOrBelowLevelOptionVisibilitySetting, showCharactersAtOrBelowLevelOptions, showCharactersAtOrBelowLevelOptionTooltip)
 	showCharactersAtOrBelowLevelOptionVisibilitySetting:SetValue(self.db.global.options[showCharactersAtOrBelowLevelOptionVariableKey], true) -- true means force
 
+	-- Tooltip Enhancement
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsTooltipEnhancementHeader"]))
+
+	local enhanceCurrencyTooltipsOptionName = L["optionsToggleDescriptionEnhanceCurrencyTooltips"]
+	local enhanceCurrencyTooltipsOptionTooltip = L["optionsToggleEnhanceCurrencyTooltipsTooltip"]
+	local enhanceCurrencyTooltipsOptionVariable = strformat("%s_%s", addOnName, "enhanceCurrencyTooltips")
+	local enhanceCurrencyTooltipsOptionVariableKey = "enhanceCurrencyTooltips"
+	local enhanceCurrencyTooltipsOptionVariableTbl = self.db.global.options
+	local defaultEnhanceCurrencyTooltipsVisibilityValue = database_defaults.global.options.enhanceCurrencyTooltips
+	local enhanceCurrencyTooltipsOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, enhanceCurrencyTooltipsOptionVariable, enhanceCurrencyTooltipsOptionVariableKey, enhanceCurrencyTooltipsOptionVariableTbl, type(defaultEnhanceCurrencyTooltipsVisibilityValue), enhanceCurrencyTooltipsOptionName, defaultEnhanceCurrencyTooltipsVisibilityValue)
+	enhanceCurrencyTooltipsOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	Settings.CreateCheckbox(self.optionsCategory, enhanceCurrencyTooltipsOptionVisibilitySetting, enhanceCurrencyTooltipsOptionTooltip)
+	enhanceCurrencyTooltipsOptionVisibilitySetting:SetValue(self.db.global.options[enhanceCurrencyTooltipsOptionVariableKey], true) -- true means force
+
 	-- Character Data options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCharacterDataHeader"]))
 	local allCharacterDataOptionName = L["optionsToggleDescriptionShowCharacterData"]
@@ -1410,6 +1425,7 @@ function RackensTracker:DrawCurrencies(container, characterName)
 		return
 	end
 
+	local CurrencyModule = RackensTracker:GetModule("Currencies") --[[@as CurrencyModule]]
 	local labelHeight = 20
 	local relWidthPerCurrency = 0.25 -- Use a quarter of the container space per item, making new rows as fit.
 
@@ -1529,8 +1545,17 @@ function RackensTracker:DrawCurrencies(container, characterName)
 					end
 				end
 
-				-- On retail currencies can have a percent loss on transfer
 				if RT.AddonUtil.IsRetail() then
+					-- Render GameTooltip enhancement with warband total of this currency
+					if self.db.global.options.enhanceCurrencyTooltips then
+						local isAccountTransferable, warbandTotalQuantity = CurrencyModule:GetTrackedTransferableCurrencyQuantity(currency.id)
+
+						if isAccountTransferable then
+							GameTooltip:AddLine(string.format(L["warbandCurrencyTotal"], RT.ColorUtil.Color.Highlight:GenerateHexColorMarkup(), AbbreviateLargeNumbers(warbandTotalQuantity)))
+						end
+					end
+
+					-- On retail currencies can have a percent loss on transfer
 					local isAccountTransferable, transferPercentage = currencyInfo.isAccountTransferable, currencyInfo.transferPercentage
 					if isAccountTransferable then
 						local percentageLost = transferPercentage and (100 - transferPercentage) or 0;

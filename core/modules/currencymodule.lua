@@ -13,6 +13,7 @@ local addon = LibStub("AceAddon-3.0"):GetAddon(addOnName) --[[@as RackensTracker
 
 ---@class CurrencyModule: AceModule, AceConsole-3.0, AceEvent-3.0, AceHook-3.0, AddonModulePrototype
 local CurrencyModule = addon:NewModule("Currencies", "AceEvent-3.0", "AceHook-3.0")
+local L = LibStub("AceLocale-3.0"):GetLocale(addOnName, true)
 
 --- Logs message to the chat frame
 ---@param message string
@@ -144,6 +145,16 @@ function CurrencyModule:SetLatestTransferData(transferData)
 	self.postHookTransferData = transferData
 end
 
+local function OnTooltipSetCurrency(tooltip, data)
+	if tooltip == GameTooltip or tooltip == ItemRefTooltip then
+		CurrencyModule:EnhanceCurrencyTooltips(tooltip, data)
+	end
+end
+
+function CurrencyModule:OnInitialize()
+	TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Currency, OnTooltipSetCurrency)
+end
+
 function CurrencyModule:OnEnable()
     -- Currency related events
 	self:RegisterEvent("CURRENCY_DISPLAY_UPDATE", "OnEventCurrencyDisplayUpdate")
@@ -214,6 +225,43 @@ function CurrencyModule:AfterRequestCurrencyFromAccountCharacter(sourceCharacter
 		quantity = quantity,
 	})
 	Log("RequestCurrencyFromAccountCharacter called with sourceCharacterGUID: %s, currencyID: %d, quantity: %d", sourceCharacterGUID, currencyID, quantity)
+end
+
+function CurrencyModule:GetTrackedTransferableCurrencyQuantity(currencyID)
+	local isAccountTransferable = C_CurrencyInfo.IsAccountTransferableCurrency(currencyID)
+	local warbandTotalQuantity = 0
+	for _, realm in pairs(addon.db.global.realms) do
+		for _, character in pairs(realm.characters) do
+			if character.currencies and character.currencies[currencyID] then
+				warbandTotalQuantity = warbandTotalQuantity + character.currencies[currencyID].quantity
+			end
+		end
+	end
+
+	if isAccountTransferable then
+		return isAccountTransferable, warbandTotalQuantity
+	else
+		return isAccountTransferable, nil
+	end
+end
+
+---@class TooltipData
+---@field id number?
+--- A registered callback for TooltipDataProcessor.AddTooltipPostCall
+---@param tooltip any Any tooltip used in the client
+---@param data TooltipData tooltip related data
+function CurrencyModule:EnhanceCurrencyTooltips(tooltip, data)
+	if addon.db.global.options.enhanceCurrencyTooltips then
+		if not data or not data.type then return end
+		if Enum.TooltipDataType.Currency == data.type and data.id then
+			local isAccountTransferable, warbandTotalQuantity = self:GetTrackedTransferableCurrencyQuantity(data.id)
+
+			if isAccountTransferable then
+				tooltip:AddLine(string.format(L["warbandCurrencyTotal"], RT.ColorUtil.Color.Highlight:GenerateHexColorMarkup(), AbbreviateLargeNumbers(warbandTotalQuantity)))
+				tooltip:Show()
+			end
+		end
+	end
 end
 
 --- Called when the player gains currency other than money, such as emblems
