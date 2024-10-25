@@ -116,6 +116,7 @@ do
 			["3028"] = true,  -- Restored Coffer Key
 			["3055"] = true,  -- Mereldar Derby Mark
 			["2032"] = true,  -- Trader's Tender
+			["3100"] = true,  -- Bronze Celebration Token (30th Anniversary)
 			["1166"] = true,  -- Timewarped Badge
 			["515"]  = true,  -- Darkmoon Prize Ticket
 			["824"]  = false, -- Garrison Resources

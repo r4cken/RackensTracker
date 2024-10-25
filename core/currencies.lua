@@ -135,6 +135,9 @@ if RT.AddonUtil.IsRetail() then
 
     local TradersTender = Currency:New(2032)
 
+    -- WoW 30th Anniversary currency
+    local BronzeCelebrationToken = Currency:New(3100)
+
     ---@class Currencies
     RT.Currencies = {
         Valorstones,
@@ -150,6 +153,7 @@ if RT.AddonUtil.IsRetail() then
         RestoredCofferKey,
         MereldarDerbyMark,
         TradersTender,
+        BronzeCelebrationToken,
         TimewarpedBadge,
         DarkmoonPrizeTicket,
         GarrisonResources,
@@ -173,6 +177,7 @@ if RT.AddonUtil.IsRetail() then
         [3028] = true,  -- Restored Coffer Key
         [3055] = true,  -- Mereldar Derby Mark
         [2032] = true,  -- Trader's Tender
+        [3100] = true,  -- Bronze Celebration Token (WoW 30th Anniversary)
         [1166] = true,  -- Timewarped Badge
         [515]  = true,  -- Darkmoon Prize Ticket
         [824]  = true,  -- Garrison Resources
