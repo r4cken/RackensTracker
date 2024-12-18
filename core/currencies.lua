@@ -138,6 +138,9 @@ if RT.AddonUtil.IsRetail() then
     -- WoW 30th Anniversary currency
     local BronzeCelebrationToken = Currency:New(3100)
 
+    -- 10.0.7 Currencies
+    local FlameBlessedIron = Currency:New(3090)
+
     ---@class Currencies
     RT.Currencies = {
         Valorstones,
@@ -145,6 +148,7 @@ if RT.AddonUtil.IsRetail() then
         CarvedHarbingerCrest,
         RunedHarbingerCrest,
         GildedHarbingerCrest,
+        FlameBlessedIron,
         ResonanceCrystals,
         ResidualMemories,
         Undercoin,
@@ -169,6 +173,7 @@ if RT.AddonUtil.IsRetail() then
         [2915] = true,  -- Carved Harbinger Crest
         [2916] = true,  -- Runed Harbinger Crest
         [2917] = true,  -- Gilded Harbinger Crest
+        [3090] = true,  -- Flame-Blessed Iron
         [2815] = true,  -- Resonance Crystals
         [3089] = true,  -- Residual Memories
         [2803] = true,  -- Undercoin
