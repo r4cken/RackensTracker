@@ -104,13 +104,15 @@ do
 	if RT.AddonUtil.IsRetail() then
 		shownCurrencies = {
 			["3008"] = true,  -- Valorstones
-			["2914"] = true,  -- Weathered Harbinger Crest
-			["2915"] = true,  -- Carved Harbinger Crest
-			["2916"] = true,  -- Runed Harbinger Crest
-			["2917"] = true,  -- Gilded Harbinger Crest
+			["3107"] = true,  -- Weathered Undermine Crest
+			["3108"] = true,  -- Carved Undermine Crest
+			["3109"] = true,  -- Runed Undermine Crest
+			["3110"] = true,  -- Gilded Undermine Crest
+			["3218"] = true,  -- Empty Kaja'Cola Can
+			["3220"] = true,  -- Vintage Kaja'Cola Can
+			["3226"] = true,  -- Market Research
 			["3090"] = true,  -- Flame-Blessed Iron
 			["2815"] = true,  -- Resonance Crystals
-			["3089"] = true,  -- Residual Memories
 			["2803"] = true,  -- Undercoin
 			["3056"] = true,  -- Kej
 			["3093"] = true,  -- Nerub-ar Finery

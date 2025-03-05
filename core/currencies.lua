@@ -102,14 +102,27 @@ end
 
 if RT.AddonUtil.IsRetail() then
     local Valorstones = Currency:New(3008)
-    local WeatheredHarbingerCrest = Currency:New(2914)
-    local CarvedHarbingerCrest = Currency:New(2915)
-    local RunedHarbingerCrest = Currency:New(2916)
-    local GildedHarbingerCrest = Currency:New(2917)
+    -- TWW Season 1 Currencies
+    -- local WeatheredHarbingerCrest = Currency:New(2914)
+    -- local CarvedHarbingerCrest = Currency:New(2915)
+    -- local RunedHarbingerCrest = Currency:New(2916)
+    -- local GildedHarbingerCrest = Currency:New(2917)
+
+    -- TWW Season 2 Currencies
+    local WeatheredUndermineCrest = Currency:New(3107)
+    local CarvedUndermineCrest = Currency:New(3108)
+    local RunedUndermineCrest = Currency:New(3109)
+    local GildedUndermineCrest = Currency:New(3110)
+
+    -- Undermine related Currencies
+    local EmptyKajaColaCan = Currency:New(3218)
+    local VintageKajaColaCan = Currency:New(3220)
+    local MarketResearch = Currency:New(3226)
+
     local ResonanceCrystals = Currency:New(2815)
 
     -- TWW Pre patch currency?
-    local ResidualMemories = Currency:New(3089)
+    -- local ResidualMemories = Currency:New(3089)
 
     local Undercoin = Currency:New(2803)
     local Kej = Currency:New(3056)
@@ -144,13 +157,15 @@ if RT.AddonUtil.IsRetail() then
     ---@class Currencies
     RT.Currencies = {
         Valorstones,
-        WeatheredHarbingerCrest,
-        CarvedHarbingerCrest,
-        RunedHarbingerCrest,
-        GildedHarbingerCrest,
+        WeatheredUndermineCrest,
+        CarvedUndermineCrest,
+        RunedUndermineCrest,
+        GildedUndermineCrest,
+        EmptyKajaColaCan,
+        VintageKajaColaCan,
+        MarketResearch,
         FlameBlessedIron,
         ResonanceCrystals,
-        ResidualMemories,
         Undercoin,
         Kej,
         NerubArFinery,
@@ -169,13 +184,15 @@ if RT.AddonUtil.IsRetail() then
     ---@class IncludedCurrencyIds
     RT.IncludedCurrencyIds = {
         [3008] = true,  -- Valorstones
-        [2914] = true,  -- Weathered Harbinger Crest
-        [2915] = true,  -- Carved Harbinger Crest
-        [2916] = true,  -- Runed Harbinger Crest
-        [2917] = true,  -- Gilded Harbinger Crest
+        [3107] = true,  -- Weathered Undermine Crest
+        [3108] = true,  -- Carved Undermine Crest
+        [3109] = true,  -- Runed Undermine Crest
+        [3110] = true,  -- Gilded Undermine Crest
+        [3218] = true,  -- Empty Kaja'Cola Can
+        [3220] = true,  -- Vintage Kaja'Cola Can
+        [3226] = true,  -- Market Research
         [3090] = true,  -- Flame-Blessed Iron
         [2815] = true,  -- Resonance Crystals
-        [3089] = true,  -- Residual Memories
         [2803] = true,  -- Undercoin
         [3056] = true,  -- Kej
         [3093] = true,  -- Nerub-ar Finery
