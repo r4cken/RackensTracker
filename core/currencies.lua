@@ -114,6 +114,9 @@ if RT.AddonUtil.IsRetail() then
     local RunedUndermineCrest = Currency:New(3109)
     local GildedUndermineCrest = Currency:New(3110)
 
+    -- Season two Catalyst currency
+    local EssenceOfKajaMite = Currency:New(3116)
+
     -- Undermine related Currencies
     local EmptyKajaColaCan = Currency:New(3218)
     local VintageKajaColaCan = Currency:New(3220)
@@ -161,6 +164,7 @@ if RT.AddonUtil.IsRetail() then
         CarvedUndermineCrest,
         RunedUndermineCrest,
         GildedUndermineCrest,
+        EssenceOfKajaMite,
         EmptyKajaColaCan,
         VintageKajaColaCan,
         MarketResearch,
@@ -188,6 +192,7 @@ if RT.AddonUtil.IsRetail() then
         [3108] = true,  -- Carved Undermine Crest
         [3109] = true,  -- Runed Undermine Crest
         [3110] = true,  -- Gilded Undermine Crest
+        [3116] = true,  -- Essence Of Kaja'Mite
         [3218] = true,  -- Empty Kaja'Cola Can
         [3220] = true,  -- Vintage Kaja'Cola Can
         [3226] = true,  -- Market Research

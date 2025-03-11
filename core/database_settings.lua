@@ -108,6 +108,7 @@ do
 			["3108"] = true,  -- Carved Undermine Crest
 			["3109"] = true,  -- Runed Undermine Crest
 			["3110"] = true,  -- Gilded Undermine Crest
+			["3116"] = true,  -- Essence Of Kaja'Mite
 			["3218"] = true,  -- Empty Kaja'Cola Can
 			["3220"] = true,  -- Vintage Kaja'Cola Can
 			["3226"] = true,  -- Market Research
