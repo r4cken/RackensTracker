@@ -266,40 +266,6 @@ function RackensTracker:OnInitialize()
 	-- Update weekly and daily reset timers
 	self:UpdateWeeklyDailyResetTime()
 
-	local function OnRealmOptionChanged(_, _, value)
-		if (self.db.global.realms[value]) then
-			self.db.global.options.shownRealm = value
-			self.currentDisplayedRealm = value
-		end
-	end
-
-	local function OnMinimumCharacterLevelChanged(_, _, value)
-		self.db.global.options.showCharactersAtOrBelowLevel = value
-	end
-
-	local function OnCharacterDataOptionSettingChanged(_, setting, value)
-		local variable = setting:GetVariable()
-		if (variable == "showCharacterData") then
-			self.db.global.options.showCharacterData = value
-		else
-			self.db.global.options.shownCharacterData[variable] = value
-		end
-	end
-
-	local function OnCurrencyOptionSettingChanged(_, setting, value)
-		local variable = setting:GetVariable()
-		if (variable == "showCurrencies") then
-			self.db.global.options.showCurrencies = value
-		else
-			self.db.global.options.shownCurrencies[variable] = value
-		end
-	end
-
-	self.OnMinimumCharacterLevelChanged = OnMinimumCharacterLevelChanged
-	self.OnCharacterDataOptionSettingChanged = OnCharacterDataOptionSettingChanged
-	self.OnCurrencyOptionSettingChanged = OnCurrencyOptionSettingChanged
-	self.OnRealmOptionChanged = OnRealmOptionChanged
-
 	local options = self:CreateRealmOptions()
 	LibStub("AceConfig-3.0"):RegisterOptionsTable(addOnName, options)
 	-- Sets up the layout and options see under the AddOn options
@@ -308,7 +274,7 @@ function RackensTracker:OnInitialize()
 	if RT.AddonUtil.IsRetail() then
 		self:RegisterAddOnSettings_Retail()
 	else
-		self:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, OnCharacterDataOptionSettingChanged, OnCurrencyOptionSettingChanged, OnRealmOptionChanged)
+		self:RegisterAddOnSettings()
 	end
 
 	-- Setup the data broken and the minimap icon
@@ -365,10 +331,7 @@ end
 
 
 --- Registers this AddOns configurable settings and specifies the layout and graphical elements for the settings panel.
----@param OnCharacterDataOptionSettingChanged function
----@param OnCurrencyOptionChanged function
----@param OnRealmOptionChanged function
-function RackensTracker:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, OnCharacterDataOptionSettingChanged, OnCurrencyOptionChanged, OnRealmOptionChanged)
+function RackensTracker:RegisterAddOnSettings()
 	-- Register the Options menu
 	self.optionsCategory, self.optionsLayout = Settings.RegisterVerticalLayoutCategory(addOnName)
 	self.optionsCategory.ID = addOnName
@@ -378,12 +341,27 @@ function RackensTracker:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, On
 	local realmsAvailable = GetKeysArray(realmsWithCharacters)
 	table.sort(realmsAvailable, function(a,b) return a < b end)
 
+	local function OnAddOnSettingChanged(setting, value)
+		--Log("setting %s changed to %s", setting:GetVariable(), tostring(value))
+	end
+
 	-- Realm data options
-	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsTrackedRealmsHeader"]))
-	local realmsDropDownOptionVariable = "shownRealm"
+	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsTrackedRealmsHeader"], nil))
+	local realmsDropDownOptionVariable = strformat("%s_%s", addOnName, "shownRealm")
 	local realmsDropDownOptionName = L["optionsDropDownDescriptionRealms"]
 	local realmsDropDownOptionTooltip = L["optionsDropDownTooltipRealms"]
 	local defaultRealmsDropDownOptionValue = self.currentRealm
+
+	local function GetRealmDropdownValue()
+		return self.db.global.options.shownRealm
+	end
+
+	local function SetRealmDropdownValue(value)
+		if (self.db.global.realms[value]) then
+			self.db.global.options.shownRealm = value
+			self.currentDisplayedRealm = value
+		end
+	end
 
 	local function GetRealmOptions()
 		local container = Settings.CreateControlTextContainer();
@@ -393,88 +371,98 @@ function RackensTracker:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, On
 		return container:GetData();
 	end
 
-	local shownRealmSetting = Settings.RegisterAddOnSetting(self.optionsCategory, realmsDropDownOptionName, realmsDropDownOptionVariable, Settings.VarType.string, defaultRealmsDropDownOptionValue)
-	Settings.SetOnValueChangedCallback(realmsDropDownOptionVariable, OnRealmOptionChanged)
+	local shownRealmSetting = Settings.RegisterProxySetting(self.optionsCategory, realmsDropDownOptionVariable, Settings.VarType.string, realmsDropDownOptionName, defaultRealmsDropDownOptionValue, GetRealmDropdownValue, SetRealmDropdownValue)
+	shownRealmSetting:SetValueChangedCallback(OnAddOnSettingChanged)
 
-	Settings.CreateDropDown(self.optionsCategory, shownRealmSetting, GetRealmOptions, realmsDropDownOptionTooltip)
+	Settings.CreateDropdown(self.optionsCategory, shownRealmSetting, GetRealmOptions, realmsDropDownOptionTooltip)
 	if (self.db.global.options.shownRealm == nil) then
 		shownRealmSetting:SetValue(self.currentRealm, true)
 	elseif (not realmsWithCharacters[self.db.global.options.shownRealm]) then
 		-- Prevent setting the dropdown to a realm that has no tracked characters on it anymore
 		shownRealmSetting:SetValue(self.currentRealm, true)
 	else
-		shownRealmSetting:SetValue(self.db.global.options[realmsDropDownOptionVariable], true)
-	end
-
-	local function FormatLevel(value)
-		local levelFormat = "Level %d"
-		return levelFormat:format(value)
+		shownRealmSetting:SetValue(self.db.global.options.shownRealm, true)
 	end
 
 	-- Slider options (minimum character level required to display tracking data)
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsMinimumCharacterLevelHeader"]))
 	local showCharactersAtOrBelowLevelOptionName = L["optionsSliderDescriptionShowMinimumCharacterLevel"]
 	local showCharactersAtOrBelowLevelOptionTooltip = L["optionsSliderShowMinimumCharacterLevelTooltip"]
-	local showCharactersAtOrBelowLevelOptionVariable = "showCharactersAtOrBelowLevel"
+	local showCharactersAtOrBelowLevelOptionVariable = strformat("%s_%s", addOnName, "showCharactersAtOrBelowLevel")
 	local showCharactersAtOrBelowLevelOptionVariableKey = "showCharactersAtOrBelowLevel"
+	local showCharactersAtOrBelowLevelOptionVariableTbl = self.db.global.options
 	local defaultShowCharactersAtOrBelowLevelVisibilityValue = database_defaults.global.options.showCharactersAtOrBelowLevel
 	local showCharactersAtOrBelowLevelOptionMinValue = 1
 	local showCharactersAtOrBelowLevelOptionMaxValue = GetMaxPlayerLevel()
 	local showCharactersAtOrBelowLevelOptionSliderStep = 1
 
-	local showCharactersAtOrBelowLevelOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, showCharactersAtOrBelowLevelOptionName, showCharactersAtOrBelowLevelOptionVariable, type(defaultShowCharactersAtOrBelowLevelVisibilityValue), defaultShowCharactersAtOrBelowLevelVisibilityValue)
+	local showCharactersAtOrBelowLevelOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, showCharactersAtOrBelowLevelOptionVariable, showCharactersAtOrBelowLevelOptionVariableKey, showCharactersAtOrBelowLevelOptionVariableTbl, type(defaultShowCharactersAtOrBelowLevelVisibilityValue), showCharactersAtOrBelowLevelOptionName, defaultShowCharactersAtOrBelowLevelVisibilityValue)
+	showCharactersAtOrBelowLevelOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local function FormatLevel(value)
+		local levelFormat = "Level %d"
+		return levelFormat:format(value)
+	end
+
 	local showCharactersAtOrBelowLevelOptions = Settings.CreateSliderOptions(showCharactersAtOrBelowLevelOptionMinValue, showCharactersAtOrBelowLevelOptionMaxValue, showCharactersAtOrBelowLevelOptionSliderStep)
 	showCharactersAtOrBelowLevelOptions:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, FormatLevel)
 
 	Settings.CreateSlider(self.optionsCategory, showCharactersAtOrBelowLevelOptionVisibilitySetting, showCharactersAtOrBelowLevelOptions, showCharactersAtOrBelowLevelOptionTooltip)
-	Settings.SetOnValueChangedCallback(showCharactersAtOrBelowLevelOptionVariable, OnMinimumCharacterLevelChanged)
 	showCharactersAtOrBelowLevelOptionVisibilitySetting:SetValue(self.db.global.options[showCharactersAtOrBelowLevelOptionVariableKey], true) -- true means force
 
 	-- Character Data options
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCharacterDataHeader"]))
 	local allCharacterDataOptionName = L["optionsToggleDescriptionShowCharacterData"]
 	local allCharacterDataOptionTooltip = L["optionsToggleShowCharacterDataTooltip"]
-	local allCharacterDataOptionVariable = "showCharacterData"
+	local allCharacterDataOptionVariable = strformat("%s_%s", addOnName, "showCharacterData")
 	local allCharacterDataOptionVariableKey = "showCharacterData"
+	local allCharacterDataOptionVariableTbl = self.db.global.options
 	local defaultAllCharacterDataVisibilityValue = database_defaults.global.options.showCharacterData
-	local allCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCharacterDataOptionName, allCharacterDataOptionVariable, type(defaultAllCharacterDataVisibilityValue), defaultAllCharacterDataVisibilityValue)
-	local allCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, allCharacterDataOptionVisibilitySetting, allCharacterDataOptionTooltip)
-	Settings.SetOnValueChangedCallback(allCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
+	local allCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCharacterDataOptionVariable, allCharacterDataOptionVariableKey, allCharacterDataOptionVariableTbl, type(defaultAllCharacterDataVisibilityValue), allCharacterDataOptionName, defaultAllCharacterDataVisibilityValue)
+	allCharacterDataOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local allCharacterDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, allCharacterDataOptionVisibilitySetting, allCharacterDataOptionTooltip)
 	allCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options[allCharacterDataOptionVariableKey], true) -- true means force
 
 	-- Character lvl
 	local lvlCharacterDataOptionName = L["optionsToggleDescriptionLvlCharacterData"]
 	local lvlCharacterDataOptionTooltip = L["optionsToggleLvlCharacterDataTooltip"]
-	local lvlCharacterDataOptionVariable = "lvl"
+	local lvlCharacterDataOptionVariable = strformat("%s_%s", addOnName, "showCharacterlvl")
 	local lvlCharacterDataOptionVariableKey = "lvl"
-	local defaultLvlCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[lvlCharacterDataOptionVariable]
-	local lvlCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, lvlCharacterDataOptionName, lvlCharacterDataOptionVariable, type(defaultLvlCharacterDataVisibilityValue), defaultLvlCharacterDataVisibilityValue)
-	local lvlCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, lvlCharacterDataOptionVisibilitySetting, lvlCharacterDataOptionTooltip)
-	Settings.SetOnValueChangedCallback(lvlCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
+	local lvlCharacterDataOptionVariableTbl = self.db.global.options.shownCharacterData
+	local defaultLvlCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[lvlCharacterDataOptionVariableKey]
+	local lvlCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, lvlCharacterDataOptionVariable, lvlCharacterDataOptionVariableKey, lvlCharacterDataOptionVariableTbl, type(defaultLvlCharacterDataVisibilityValue), lvlCharacterDataOptionName, defaultLvlCharacterDataVisibilityValue)
+	lvlCharacterDataOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local lvlCharacterDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, lvlCharacterDataOptionVisibilitySetting, lvlCharacterDataOptionTooltip)
 	lvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[lvlCharacterDataOptionVariableKey], true) -- true means force
 	lvlCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
 
-	-- Character ilvl
+	-- Character iLvl
 	local iLvlCharacterDataOptionName = L["optionsToggleDescriptioniLvlCharacterData"]
 	local iLvlCharacterDataOptionTooltip = L["optionsToggleiLvlCharacterDataTooltip"]
-	local iLvlCharacterDataOptionVariable = "iLvl"
+	local iLvlCharacterDataOptionVariable = strformat("%s_%s", addOnName, "showCharacteriLvl")
 	local iLvlCharacterDataOptionVariableKey = "iLvl"
-	local defaultiLvlCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[iLvlCharacterDataOptionVariable]
-	local iLvlCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, iLvlCharacterDataOptionName, iLvlCharacterDataOptionVariable, type(defaultiLvlCharacterDataVisibilityValue), defaultiLvlCharacterDataVisibilityValue)
-	local iLvlCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, iLvlCharacterDataOptionVisibilitySetting, iLvlCharacterDataOptionTooltip)
-	Settings.SetOnValueChangedCallback(iLvlCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
+	local iLvlCharacterDataOptionVariableTbl = self.db.global.options.shownCharacterData
+	local defaultiLvlCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[iLvlCharacterDataOptionVariableKey]
+	local iLvlCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, iLvlCharacterDataOptionVariable, iLvlCharacterDataOptionVariableKey, iLvlCharacterDataOptionVariableTbl, type(defaultiLvlCharacterDataVisibilityValue), iLvlCharacterDataOptionName, defaultiLvlCharacterDataVisibilityValue)
+	iLvlCharacterDataOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local iLvlCharacterDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, iLvlCharacterDataOptionVisibilitySetting, iLvlCharacterDataOptionTooltip)
 	iLvlCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[iLvlCharacterDataOptionVariableKey], true) -- true means force
 	iLvlCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
 
 	-- Character money
 	local moneyCharacterDataOptionName = L["optionsToggleDescriptionMoneyCharacterData"]
 	local moneyCharacterDataOptionTooltip = L["optionsToggleMoneyCharacterDataTooltip"]
-	local moneyCharacterDataOptionVariable = "money"
+	local moneyCharacterDataOptionVariable = strformat("%s_%s", addOnName, "showCharacterMoney")
 	local moneyCharacterDataOptionVariableKey = "money"
-	local defaultMoneyCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[moneyCharacterDataOptionVariable]
-	local moneyCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, moneyCharacterDataOptionName, moneyCharacterDataOptionVariable, type(defaultMoneyCharacterDataVisibilityValue), defaultMoneyCharacterDataVisibilityValue)
-	local moneyCharacterDataOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, moneyCharacterDataOptionVisibilitySetting, moneyCharacterDataOptionTooltip)
-	Settings.SetOnValueChangedCallback(moneyCharacterDataOptionVariable, OnCharacterDataOptionSettingChanged)
+	local moneyCharacterDataOptionVariableTbl = self.db.global.options.shownCharacterData
+	local defaultMoneyCharacterDataVisibilityValue = database_defaults.global.options.shownCharacterData[moneyCharacterDataOptionVariableKey]
+	local moneyCharacterDataOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, moneyCharacterDataOptionVariable, moneyCharacterDataOptionVariableKey, moneyCharacterDataOptionVariableTbl, type(defaultMoneyCharacterDataVisibilityValue), moneyCharacterDataOptionName, defaultMoneyCharacterDataVisibilityValue)
+	moneyCharacterDataOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local moneyCharacterDataOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, moneyCharacterDataOptionVisibilitySetting, moneyCharacterDataOptionTooltip)
 	moneyCharacterDataOptionVisibilitySetting:SetValue(self.db.global.options.shownCharacterData[moneyCharacterDataOptionVariableKey], true) -- true means force
 	moneyCharacterDataOptionInitializer:SetParentInitializer(allCharacterDataOptionInitializer, function() return allCharacterDataOptionVisibilitySetting:GetValue() end)
 
@@ -482,27 +470,28 @@ function RackensTracker:RegisterAddOnSettings(OnMinimumCharacterLevelChanged, On
 	self.optionsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L["optionsCurrenciesHeader"]))
 	local allCurrencyOptionName = L["optionsToggleDescriptionShowCurrencies"]
 	local allCurrencyOptionTooltip = L["optionsToggleShowCurrenciesTooltip"]
-	local allCurrencyOptionVariable = "showCurrencies"
+	local allCurrencyOptionVariable = strformat("%s_%s", addOnName, "showCurrencies")
 	local allCurrencyOptionVariableKey = "showCurrencies"
+	local allCurrencyOptionVariableTbl = self.db.global.options
 	local defaultAllCurrencyVisibilityValue = database_defaults.global.options.showCurrencies
-	local allCurrencyOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCurrencyOptionName, allCurrencyOptionVariable, type(defaultAllCurrencyVisibilityValue), defaultAllCurrencyVisibilityValue)
-	local allCurrencyOptionInitializer = Settings.CreateCheckBox(self.optionsCategory, allCurrencyOptionVisibilitySetting, allCurrencyOptionTooltip)
-	Settings.SetOnValueChangedCallback(allCurrencyOptionVariable, OnCurrencyOptionChanged)
+	local allCurrencyOptionVisibilitySetting = Settings.RegisterAddOnSetting(self.optionsCategory, allCurrencyOptionVariable, allCurrencyOptionVariableKey, allCurrencyOptionVariableTbl, type(defaultAllCurrencyVisibilityValue), allCurrencyOptionName, defaultAllCurrencyVisibilityValue)
+	allCurrencyOptionVisibilitySetting:SetValueChangedCallback(OnAddOnSettingChanged)
+
+	local allCurrencyOptionInitializer = Settings.CreateCheckbox(self.optionsCategory, allCurrencyOptionVisibilitySetting, allCurrencyOptionTooltip)
 	allCurrencyOptionVisibilitySetting:SetValue(self.db.global.options[allCurrencyOptionVariableKey], true) -- true means force
 
 	for _, currency in ipairs(RT.Currencies) do
 		local name = currency:GetName()
 		if name and database_defaults.global.options.shownCurrencies[tostring(currency.id)] ~= nil then
 			local tooltip =  strformat(L["optionsToggleShowCurrencyTooltip"], name)
-			local variable = tostring(currency.id)
-			local defaultVisibilityValue = database_defaults.global.options.shownCurrencies[variable]
-			local setting = Settings.RegisterAddOnSetting(self.optionsCategory, name, variable, type(defaultVisibilityValue), defaultVisibilityValue)
-			local initializer = Settings.CreateCheckBox(self.optionsCategory, setting, tooltip)
-			Settings.SetOnValueChangedCallback(variable, OnCurrencyOptionChanged)
-
-			-- The initial value for the checkbox is defaultValue, but we want it to reflect what's in our savedVars, we want to keep the defaultValue what it should be
-			-- because when we click the "Default" button and choose "These Settings" we want it to revert to the database default setting.
-			setting:SetValue(self.db.global.options.shownCurrencies[variable], true) -- true means force
+			local variable = strformat("%s_showCurrency_%s", addOnName, tostring(currency.id))
+			local variableKey = tostring(currency.id)
+			local variableTbl = self.db.global.options.shownCurrencies
+			local defaultVisibilityValue = database_defaults.global.options.shownCurrencies[variableKey]
+			local setting = Settings.RegisterAddOnSetting(self.optionsCategory, variable, variableKey, variableTbl, type(defaultVisibilityValue), name, defaultVisibilityValue)
+			setting:SetValueChangedCallback(OnAddOnSettingChanged)
+			local initializer = Settings.CreateCheckbox(self.optionsCategory, setting, tooltip)
+			setting:SetValue(self.db.global.options.shownCurrencies[variableKey], true) -- true means force
 			initializer:SetParentInitializer(allCurrencyOptionInitializer, function() return allCurrencyOptionVisibilitySetting:GetValue() end)
 		else
 			local err = RT.ColorUtil:WrapTextInColor(RT.ColorUtil.Color.Error, L["errorCurrencyConflictDatabaseDefaults"], currency.id)
